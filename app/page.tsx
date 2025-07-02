@@ -419,6 +419,7 @@ export default function Home() {
   const highlightTimeout = useRef<NodeJS.Timeout | null>(null);
   const [focusedField, setFocusedField] = useState<'businessUrl' | 'competitorUrl' | 'email' | null>('businessUrl');
   const [businessUrl, setBusinessUrl] = useState('');
+  const [competitorUrl, setCompetitorUrl] = useState('');
 
   useEffect(() => {
     setShowHighlight(true);
@@ -559,7 +560,7 @@ export default function Home() {
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
                             {businessUrl && businessUrl.match(/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/) ? (
-                              <img src={getFaviconUrl(document.getElementById('competitorUrl')?.value || '')} alt="favicon" className="w-4 h-4 rounded" />
+                              <img src={getFaviconUrl(competitorUrl)} alt="favicon" className="w-4 h-4 rounded" />
                             ) : (
                               <Globe className="w-4 h-4 text-[#B0B0C0]" />
                             )}
@@ -572,6 +573,8 @@ export default function Home() {
                             placeholder="competitor.com"
                             className="input-field pl-32"
                             autoComplete="off"
+                            value={competitorUrl}
+                            onChange={e => setCompetitorUrl(e.target.value)}
                             onFocus={() => setFocusedField('competitorUrl')}
                             onBlur={() => setFocusedField(null)}
                           />
