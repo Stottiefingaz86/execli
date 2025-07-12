@@ -45,9 +45,9 @@ export default function Agency() {
       {/* Enhanced Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0f1117] via-[#1a1b23] to-[#0f1117]" />
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-radial from-[#3b82f6]/20 via-[#8b5cf6]/15 to-transparent blur-3xl opacity-60" />
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-radial from-purple-400/20 via-[#8b5cf6]/15 to-transparent blur-3xl opacity-60" />
         <div className="absolute left-0 bottom-0 w-[500px] h-[400px] bg-gradient-to-tr from-[#8b5cf6]/15 to-transparent blur-2xl opacity-50" />
-        <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-[#3b82f6]/10 to-transparent blur-2xl opacity-40" />
+        <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-purple-400/10 to-transparent blur-2xl opacity-40" />
       </div>
 
       <Navigation />
@@ -57,7 +57,7 @@ export default function Agency() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-8">
             <h1 className="text-4xl md:text-6xl font-bold text-white">
-              For <span className="text-[#3b82f6]">Agencies</span>
+              For <span className="text-purple-400">Agencies</span>
             </h1>
             <p className="text-xl text-[#B0B0C0] max-w-3xl mx-auto">
               Partner with Execli to deliver exceptional results for your clients. Our platform is designed to scale with your agency's growth.
@@ -89,7 +89,7 @@ export default function Agency() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {benefits.map((benefit, index) => (
               <div key={index} className="card p-8 text-center space-y-4">
-                <div className="text-4xl font-bold text-accent">{benefit.metric}</div>
+                <div className="text-4xl font-bold text-purple-400">{benefit.metric}</div>
                 <h3 className="text-xl font-semibold text-text">{benefit.title}</h3>
                 <p className="text-gray-300">{benefit.description}</p>
               </div>
@@ -119,7 +119,7 @@ export default function Agency() {
                 <ul className="space-y-2">
                   {service.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center space-x-2">
-                      <span className="w-2 h-2 bg-accent rounded-full"></span>
+                      <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                       <span className="text-gray-300">{feature}</span>
                     </li>
                   ))}
@@ -147,20 +147,20 @@ export default function Agency() {
             <div className="card p-8 space-y-6">
               <div className="text-center">
                 <h3 className="text-2xl font-semibold text-text">Starter</h3>
-                <div className="text-4xl font-bold text-accent mt-4">$0</div>
+                <div className="text-4xl font-bold text-purple-400 mt-4">$0</div>
                 <p className="text-gray-300">Perfect for small agencies</p>
               </div>
               <ul className="space-y-3">
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Basic white-label</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Email support</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Standard integrations</span>
                 </li>
               </ul>
@@ -168,30 +168,30 @@ export default function Agency() {
             </div>
 
             {/* Professional */}
-            <div className="card p-8 space-y-6 border-2 border-accent relative">
+            <div className="card p-8 space-y-6 border-2 border-purple-400 relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-accent text-white px-4 py-1 rounded-full text-sm">Most Popular</span>
+                <span className="bg-purple-400 text-white px-4 py-1 rounded-full text-sm">Most Popular</span>
               </div>
               <div className="text-center">
                 <h3 className="text-2xl font-semibold text-text">Professional</h3>
-                <div className="text-4xl font-bold text-accent mt-4">$299</div>
+                <div className="text-4xl font-bold text-purple-400 mt-4">$299</div>
                 <p className="text-gray-300">For growing agencies</p>
               </div>
               <ul className="space-y-3">
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Advanced white-label</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Priority support</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Custom integrations</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Revenue sharing</span>
                 </li>
               </ul>
@@ -202,24 +202,24 @@ export default function Agency() {
             <div className="card p-8 space-y-6">
               <div className="text-center">
                 <h3 className="text-2xl font-semibold text-text">Enterprise</h3>
-                <div className="text-4xl font-bold text-accent mt-4">Custom</div>
+                <div className="text-4xl font-bold text-purple-400 mt-4">Custom</div>
                 <p className="text-gray-300">For large agencies</p>
               </div>
               <ul className="space-y-3">
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Full customization</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Dedicated account manager</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">Custom development</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="w-2 h-2 bg-accent rounded-full"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                   <span className="text-gray-300">SLA guarantees</span>
                 </li>
               </ul>

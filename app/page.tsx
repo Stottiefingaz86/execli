@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Navigation from '../components/Navigation'
 import { CheckCircle, Mail, BarChart2, Users, Lock, Zap, FileText, TrendingUp, PieChart, Shield, Star, MessageCircle, UserCheck, ArrowRight, Wand2, Globe } from 'lucide-react';
+import PlatformSelection from '../components/PlatformSelection'
+import ErrorPage from '../components/ErrorPage'
 
 const TRUST_LOGOS = [
   '/logos/stripe.svg',
@@ -16,11 +19,7 @@ const NAV_LINKS = [
   { href: '#how-it-works', label: 'How it Works' },
   { href: '#pricing', label: 'Pricing' },
   { href: '/report', label: 'Demo Report' },
-  { href: '#', label: 'Resources', dropdown: [
-    { href: '/blog', label: 'Blog' },
-    { href: '#', label: 'Templates' },
-    { href: '#', label: 'Strategy' },
-  ]},
+  { href: '/blog', label: 'Blog' },
 ];
 
 // Blog posts data
@@ -55,6 +54,55 @@ const BLOG_POSTS = [
     category: "VoC",
     slug: "make-voc-reports-useful"
   }
+];
+
+const REVIEW_SOURCES = [
+  { value: '', label: 'Select a review source', icon: <Globe className="w-5 h-5 text-[#B0B0C0]" /> },
+  { value: 'trustpilot', label: 'Trustpilot', icon: <Star className="w-5 h-5 text-[#3b82f6]" /> },
+  { value: 'google', label: 'Google Reviews', icon: <Globe className="w-5 h-5 text-[#34a853]" /> },
+  { value: 'yelp', label: 'Yelp', icon: (
+    <svg className="w-5 h-5 text-[#d32323]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+  ) },
+  { value: 'tripadvisor', label: 'TripAdvisor', icon: (
+    <svg className="w-5 h-5 text-[#34e0a1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ) },
+  { value: 'booking', label: 'Booking.com', icon: (
+    <svg className="w-5 h-5 text-[#003580]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ) },
+  { value: 'expedia', label: 'Expedia', icon: (
+    <svg className="w-5 h-5 text-[#f5c518]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+  ) },
+  { value: 'g2', label: 'G2', icon: (
+    <svg className="w-5 h-5 text-[#ff6f00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ) },
+  { value: 'capterra', label: 'Capterra', icon: (
+    <svg className="w-5 h-5 text-[#2e6cff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+  ) },
+  { value: 'twitter', label: 'X (Twitter)', icon: (
+    <svg className="w-5 h-5 text-[#1da1f2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ) },
+  { value: 'amazon', label: 'Amazon', icon: (
+    <svg className="w-5 h-5 text-[#ff9900]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+  ) },
+  { value: 'reddit', label: 'Reddit', icon: <MessageCircle className="w-5 h-5 text-[#ff4500]" /> },
+  { value: 'facebook', label: 'Facebook', icon: <FileText className="w-5 h-5 text-[#1877f3]" /> },
+  { value: 'other', label: 'Other', icon: <Globe className="w-5 h-5 text-[#B0B0C0]" /> },
 ];
 
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -100,8 +148,8 @@ function HowItWorks() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         {steps.map((step, i) => (
           <div key={i} className="flex flex-col items-center text-center group">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2370FF]/20 to-[#9F6BFA]/20 shadow-lg mb-4 backdrop-blur-sm border border-white/20">
-              <step.icon size={28} className="text-[#2370FF]" />
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-400/20 to-[#9F6BFA]/20 shadow-lg mb-4 backdrop-blur-sm border border-white/20">
+              <step.icon size={28} className="text-purple-400" />
             </div>
             <div className="font-semibold text-lg mb-2 text-white">{step.label}</div>
             <div className="text-[#B0B0C0] text-sm">{step.desc}</div>
@@ -121,23 +169,23 @@ function SampleReportPreview() {
       </div>
       <div className="flex flex-wrap justify-center gap-8 overflow-visible pb-4">
         {[
-          { label: 'Executive Summary', graphic: 'bar' },
-          { label: 'Trending Topics', graphic: 'line' },
-          { label: 'Sentiment Over Time', graphic: 'pie' },
-          { label: 'Competitor Comparison', graphic: 'bars' },
-          { label: 'Market Gaps', graphic: 'gaps' },
-          { label: 'Suggested Actions', graphic: 'actions' },
-          { label: 'AI Presentation', graphic: 'ai' },
-          { label: 'Key Insights', graphic: 'insights' },
-          { label: 'Live Monitoring', graphic: 'monitor' },
-          { label: 'Live Alerts in Dips', graphic: 'alert' },
-          { label: 'Trust Score', graphic: 'trust' },
-          { label: 'Quantitative Signals', graphic: 'quant' },
+          { label: 'Executive Summary', graphic: 'bar', desc: 'A high-level summary of key customer sentiment and review trends.' },
+          { label: 'Trending Topics', graphic: 'line', desc: 'The most discussed themes and issues in recent customer feedback.' },
+          { label: 'Sentiment Over Time', graphic: 'pie', desc: 'How customer sentiment changes month by month.' },
+          { label: 'Competitor Comparison', graphic: 'bars', desc: 'See how you stack up against competitors on major review topics.' },
+          { label: 'Market Gaps', graphic: 'gaps', desc: 'Opportunities and unmet needs found in your market.' },
+          { label: 'Suggested Actions', graphic: 'actions', desc: 'AI-powered recommendations to improve your product or service.' },
+          { label: 'AI Presentation', graphic: 'ai', desc: 'Auto-generated slides for sharing insights with your team.' },
+          { label: 'Key Insights', graphic: 'insights', desc: 'Notable trends, wins, and risks surfaced from your reviews.' },
+          { label: 'Live Monitoring', graphic: 'monitor', desc: 'Real-time alerts and updates as new reviews come in.' },
+          { label: 'Live Alerts in Dips', graphic: 'alert', desc: 'Instant notifications when sentiment or volume drops.' },
+          { label: 'Trust Score', graphic: 'trust', desc: 'A single score reflecting your brand’s reputation and reliability.' },
+          { label: 'Quantitative Signals', graphic: 'quant', desc: 'Hard metrics like complaint rates and resolution times.' },
         ].map((s, i) => (
           <div key={i} className="w-[260px] max-w-xs bg-[#1c1e26]/50 border border-white/10 rounded-3xl shadow-xl p-8 backdrop-blur-2xl flex flex-col items-center justify-center relative hover:scale-[1.06] hover:shadow-2xl transition-all duration-300 group" style={{margin:'16px 0'}}>
             {/* Glassy overlays */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
             <div className="font-semibold text-lg mb-2 text-white relative z-10 text-center">{s.label}</div>
             <div className="w-full h-20 flex items-center justify-center mb-2 relative z-10">
               {/* On-brand SVGs for each card */}
@@ -180,6 +228,7 @@ function SampleReportPreview() {
                 <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><rect x="10" y="30" width="8" height="8" rx="2" fill="#3b82f6" /><rect x="25" y="20" width="8" height="18" rx="2" fill="#7c3aed" /><rect x="40" y="10" width="8" height="28" rx="2" fill="#86EFF5" /><circle cx="54" cy="10" r="4" fill="#f59e42" /></svg>
               )}
             </div>
+            <div className="text-xs text-[#B0B0C0] text-center mt-1 relative z-10">{s.desc}</div>
           </div>
         ))}
       </div>
@@ -189,85 +238,86 @@ function SampleReportPreview() {
 
 function PricingSection() {
   return (
-    <section id="pricing" className="max-w-4xl mx-auto px-4 pb-20">
-      <div className="text-center mb-12">
+    <section id="pricing" className="max-w-5xl mx-auto px-4 pb-12 pt-8">
+      <div className="text-center mb-8">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-white">Start Free. Pay Only for What You Use.</h2>
         <p className="text-[#B0B0C0] text-lg max-w-2xl mx-auto">Execli is free to try with 1 source + 1 competitor. Want live data or more integrations? Add what you need.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Free Tier */}
-        <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden">
-          {/* Liquid effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-          
-          <div className="text-center mb-6 relative z-10">
-            <h3 className="text-xl font-bold text-white mb-2">Free</h3>
-            <div className="text-3xl font-bold text-[#2370FF] mb-1">$0</div>
+        <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-between min-h-[340px]">
+          <div className="text-center mb-4">
+            <h3 className="text-xl font-bold text-white mb-1">Free</h3>
+            <div className="text-3xl font-bold text-white mb-1">$0</div>
             <div className="text-[#B0B0C0] text-sm">forever</div>
           </div>
-          <ul className="space-y-3 text-[#B0B0C0] text-sm relative z-10">
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />1 data source</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />1 competitor</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />Static report</li>
+          <ul className="space-y-3 text-[#B0B0C0] text-sm mb-4">
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />1 review source</li>
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />1 competitor</li>
           </ul>
+          <button className="mt-2 w-full py-3 rounded-lg border border-white text-white font-semibold text-base bg-transparent hover:bg-white hover:text-[#181a20] transition">Get Started</button>
         </div>
-        
-        {/* Live Monitor */}
-        <div className="bg-[#1c1e26]/40 border border-[#3b82f6]/30 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden">
-          {/* Liquid effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-          
-          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 relative z-10">
-            <span className="pill text-xs">Most Popular</span>
+        {/* Pro Tier with rounded gradient border */}
+        <div className="relative flex flex-col justify-between scale-105 z-10 min-h-[340px]">
+          <div className="absolute inset-0 -z-10 rounded-2xl p-[2px] brand-gradient"></div>
+          <div className="bg-[#202a3c] rounded-2xl p-6 shadow-xl flex flex-col h-full">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+              <span className="px-4 py-1 rounded-full text-xs font-semibold shadow border border-white/20 text-white brand-gradient">Most Popular</span>
+            </div>
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-white mb-1">Pro</h3>
+              <div className="text-3xl font-bold text-white mb-1">$20</div>
+              <div className="text-[#B0B0C0] text-sm">per month</div>
+            </div>
+            <ul className="space-y-3 text-[#B0B0C0] text-sm mb-4">
+              <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />1 report</li>
+              <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />2 sources</li>
+              <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />4 competitors</li>
+              <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />Live monitor (real-time review syncs)</li>
+            </ul>
+            <button className="mt-2 w-full py-3 rounded-lg font-semibold text-base border-none brand-gradient text-white">Subscribe</button>
           </div>
-          <div className="text-center mb-6 relative z-10">
-            <h3 className="text-xl font-bold text-white mb-2">Live Monitor</h3>
-            <div className="text-3xl font-bold text-[#2370FF] mb-1">$20</div>
-            <div className="text-[#B0B0C0] text-sm">per month</div>
-          </div>
-          <ul className="space-y-3 text-[#B0B0C0] text-sm relative z-10">
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />Real-time syncing</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />Alerting</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#2370FF] mr-2" />Enable integrations</li>
-          </ul>
         </div>
-        
-        {/* Additional Sources */}
-        <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-8 backdrop-blur-2xl relative overflow-hidden">
-          {/* Liquid effect overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#8b5cf6]/5 via-transparent to-[#3b82f6]/5 rounded-3xl" />
-          
-          <div className="text-center mb-6 relative z-10">
-            <h3 className="text-xl font-bold text-white mb-2">Add Sources</h3>
-            <div className="text-3xl font-bold text-[#9F6BFA] mb-1">$19-39</div>
-            <div className="text-[#B0B0C0] text-sm">per source/month</div>
+        {/* Enterprise Tier */}
+        <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-between min-h-[340px]">
+          <div className="text-center mb-4">
+            <h3 className="text-xl font-bold text-white mb-1">Enterprise</h3>
+            <div className="text-3xl font-bold text-purple-400 mb-1">Custom</div>
+            <div className="text-[#B0B0C0] text-sm">pricing</div>
           </div>
-          <ul className="space-y-3 text-[#B0B0C0] text-sm relative z-10">
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#9F6BFA] mr-2" />Trustpilot, Amazon</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#9F6BFA] mr-2" />Twitter, Reddit</li>
-            <li className="flex items-center"><CheckCircle size={16} className="text-[#9F6BFA] mr-2" />And more...</li>
+          <ul className="space-y-3 text-[#B0B0C0] text-sm mb-4">
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />Everything in Pro</li>
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />Multiple reports</li>
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />Onsite chat integration</li>
+            <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />Account manager</li>
           </ul>
+          <button className="mt-2 w-full py-3 rounded-lg border border-white text-white font-semibold text-base bg-transparent hover:bg-white hover:text-[#181a20] transition">Contact Sales</button>
         </div>
       </div>
-      <div className="mt-6 text-center text-[#B0B0C0] text-sm">Live Monitor required for additional sources.</div>
     </section>
   );
 }
 
 function IntegrationsGrid() {
+  // Full list of integrations from REVIEW_SOURCES and modal
   const integrations = [
-    { name: 'Trustpilot', price: 19, icon: Star },
-    { name: 'Yelp', price: 19, icon: Users },
-    { name: 'App Store', price: 29, icon: PieChart },
-    { name: 'Reddit', price: 19, icon: MessageCircle },
-    { name: 'Intercom', price: 29, icon: Mail },
-    { name: 'Twitter', price: 39, icon: TrendingUp },
-    { name: 'Facebook', price: 29, icon: Users },
-    { name: 'Amazon', price: 39, icon: Star },
-    { name: 'Google', price: 29, icon: UserCheck },
+    { name: 'Trustpilot', price: 9, icon: Star },
+    { name: 'App Store', price: 9, icon: PieChart },
+    { name: 'Yelp', price: 9, icon: Users },
+    { name: 'Reddit', price: 9, icon: MessageCircle },
+    { name: 'Twitter', price: 9, icon: TrendingUp },
+    { name: 'Facebook', price: 9, icon: Users },
+    { name: 'Amazon', price: 9, icon: Star },
+    { name: 'Google Reviews', price: 9, icon: UserCheck },
+    { name: 'Expedia', price: 9, icon: Globe },
+    { name: 'Booking.com', price: 9, icon: Globe },
+    { name: 'Capterra', price: 9, icon: Globe },
+    { name: 'G2', price: 9, icon: Globe },
+    { name: 'TripAdvisor', price: 9, icon: Globe },
+    { name: 'Casino.org', price: 9, icon: Globe },
+    { name: 'Intercom', price: 'Custom', icon: Mail },
+    { name: 'Zendesk', price: 'Custom', icon: Mail },
+    { name: 'LiveChat', price: 'Custom', icon: Mail },
   ];
   return (
     <section className="max-w-6xl mx-auto px-4 pb-20">
@@ -280,14 +330,13 @@ function IntegrationsGrid() {
           <div key={i} className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-2xl hover:scale-105 transition-all duration-300 group overflow-hidden relative">
             {/* Liquid effect overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-            
-            <int.icon size={32} className="text-[#2370FF] mb-3 group-hover:text-[#9F6BFA] transition-all duration-300 relative z-10" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+            <int.icon size={32} className="text-purple-400 mb-3 group-hover:text-[#9F6BFA] transition-all duration-300 relative z-10" />
             <div className="font-semibold text-base text-white mb-1 relative z-10">{int.name}</div>
             <div className="text-xs text-[#B0B0C0] mb-3 relative z-10">Integration</div>
             <div className="flex items-center gap-2 relative z-10">
-              <span className="pill text-xs">${int.price}/mo</span>
-              {int.price > 0 && <Lock size={16} className="text-[#86EFF5] opacity-70 group-hover:opacity-100 transition-all duration-300" />}
+              <span className="pill text-xs">{int.price === 'Custom' ? 'Custom' : `€${int.price}/mo`}</span>
+              {int.price !== 0 && <Lock size={16} className="text-[#86EFF5] opacity-70 group-hover:opacity-100 transition-all duration-300" />}
             </div>
           </div>
         ))}
@@ -313,7 +362,7 @@ function FAQSection() {
           <div key={i} className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-6 backdrop-blur-2xl relative overflow-hidden">
             {/* Liquid effect overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
             
             <div className="font-semibold text-lg text-white mb-2 relative z-10">{faq.q}</div>
             <div className="text-[#B0B0C0] text-base relative z-10">{faq.a}</div>
@@ -330,7 +379,7 @@ function CTASection() {
       <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-12 backdrop-blur-2xl relative overflow-hidden text-center">
         {/* Liquid effect overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
         
         <div className="relative z-10 space-y-8">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
@@ -339,15 +388,24 @@ function CTASection() {
           <p className="text-xl text-[#B0B0C0] max-w-2xl mx-auto">
             Join thousands of businesses using Execli to understand their customers better and make data-driven decisions.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="#form" className="btn-primary px-8 py-4 text-lg font-semibold flex items-center gap-2">
-              <Wand2 className="w-5 h-5" />
-              Start Free Analysis
-            </Link>
-            <Link href="/blog" className="btn-secondary px-8 py-4 text-lg font-semibold flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Read Our Blog
-            </Link>
+          {/* CTA Buttons Row */}
+          <div className="flex flex-row gap-4 mb-6">
+                    <a
+                      href="/report"
+                      className="btn-primary"
+                    >
+                      Demo Report
+                    </a>
+            <a
+              href="/signup"
+              className="px-4 py-2 rounded-lg bg-white text-[#181a20] font-medium text-sm shadow-sm border border-white/20 hover:bg-gray-100 transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/40 focus:ring-offset-2"
+              style={{ boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+              Get Started
+            </a>
           </div>
         </div>
       </div>
@@ -367,15 +425,15 @@ function BlogSection() {
           <Link key={post.id} href={`/blog/${post.slug}`} className="group">
             <article className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-6 backdrop-blur-2xl relative overflow-hidden hover:scale-105 transition-all duration-300 h-full">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
               <div className="relative z-10 space-y-4 h-full flex flex-col">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-4 text-sm">
-                    <span className="bg-[#3b82f6]/10 text-[#3b82f6] px-2 py-1 rounded-full text-xs">{post.category}</span>
+                    <span className="bg-purple-400/10 text-purple-400 px-2 py-1 rounded-full text-xs">{post.category}</span>
                     <span className="text-[#B0B0C0]">{post.readTime}</span>
                   </div>
                   
-                  <h3 className="text-xl font-semibold text-white leading-tight group-hover:text-[#3b82f6] transition-colors">
+                  <h3 className="text-xl font-semibold text-white leading-tight group-hover:text-purple-400 transition-colors">
                     {post.title}
                   </h3>
                   
@@ -386,14 +444,14 @@ function BlogSection() {
                 
                 <div className="flex items-center justify-between pt-4 mt-auto">
                   <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 bg-[#3b82f6]/20 rounded-full flex items-center justify-center">
-                      <span className="text-[#3b82f6] text-xs font-semibold">
+                    <div className="w-6 h-6 bg-purple-400/20 rounded-full flex items-center justify-center">
+                      <span className="text-purple-400 text-xs font-semibold">
                         {post.author.split(' ').map(n => n[0]).join('')}
                       </span>
                     </div>
                     <span className="text-[#B0B0C0] text-sm">{post.author}</span>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-[#B0B0C0] group-hover:text-[#3b82f6] transition-colors" />
+                  <ArrowRight className="w-4 h-4 text-[#B0B0C0] group-hover:text-purple-400 transition-colors" />
                 </div>
               </div>
             </article>
@@ -410,6 +468,15 @@ function BlogSection() {
   );
 }
 
+function detectPlatform(url: string) {
+  if (!url) return null;
+  if (url.includes('trustpilot.com')) return { name: 'Trustpilot', icon: <Star className="w-4 h-4 text-[#3b82f6]" /> };
+  if (url.includes('reddit.com')) return { name: 'Reddit', icon: <MessageCircle className="w-4 h-4 text-[#ff4500]" /> };
+  if (url.includes('google.com/maps/place')) return { name: 'Google Reviews', icon: <Globe className="w-4 h-4 text-[#34a853]" /> };
+  if (url.includes('facebook.com')) return { name: 'Facebook', icon: <FileText className="w-4 h-4 text-[#1877f3]" /> };
+  return { name: 'Other', icon: <Globe className="w-4 h-4 text-[#B0B0C0]" /> };
+}
+
 export default function Home() {
   const [submitted, setSubmitted] = useState(false)
   const [email, setEmail] = useState('')
@@ -419,7 +486,20 @@ export default function Home() {
   const highlightTimeout = useRef<NodeJS.Timeout | null>(null);
   const [focusedField, setFocusedField] = useState<'businessUrl' | 'competitorUrl' | 'email' | null>('businessUrl');
   const [businessUrl, setBusinessUrl] = useState('');
-  const [competitorUrl, setCompetitorUrl] = useState('');
+  const [reviewSource, setReviewSource] = useState('');
+  const [reviewSourceUrl, setReviewSourceUrl] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  // Polling loader state
+  const [polling, setPolling] = useState(false);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const [pollingEmail, setPollingEmail] = useState('');
+  // Error state
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  // Platform detection state
+  const [detectingPlatforms, setDetectingPlatforms] = useState(false);
 
   useEffect(() => {
     setShowHighlight(true);
@@ -432,44 +512,46 @@ export default function Home() {
 
   const getFaviconUrl = (domain: string) => domain ? `https://www.google.com/s2/favicons?domain=${domain}` : '';
 
+  // Polling function
+  async function pollReportStatus(reportId: string, maxAttempts = 30) {
+    let attempts = 0;
+    setPolling(true);
+    setPollingError(null);
+    while (attempts < maxAttempts) {
+      try {
+        const res = await fetch(`/api/report-status?report_id=${reportId}`);
+        const data = await res.json();
+        if (data.status === 'complete' && data.report_url) {
+          window.location.href = data.report_url;
+          return;
+        }
+        if (data.status === 'error') {
+          setErrorMessage('There was an error generating your report. Please try again.');
+          setHasError(true);
+          setPolling(false);
+          setSubmitted(false);
+          return;
+        }
+      } catch (err) {
+        setErrorMessage('Network error. Please try again.');
+        setHasError(true);
+        setPolling(false);
+        setSubmitted(false);
+        return;
+      }
+      await new Promise(res => setTimeout(res, 3000));
+      attempts++;
+    }
+    setErrorMessage('Report generation timed out. Please try again.');
+    setHasError(true);
+    setPolling(false);
+    setSubmitted(false);
+  }
+
   return (
     <>
-      <nav className="sticky top-0 z-50 w-full bg-[#1c1e26]/60 backdrop-blur-2xl border-b border-white/10 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-6 flex items-center h-16 justify-between">
-          <div className="flex items-center">
-            <img src="/logo.svg" alt="Execli" className="h-7 w-auto py-1" />
-          </div>
-          <div className="hidden md:flex items-center space-x-4">
-            {NAV_LINKS.map((link, i) =>
-              !link.dropdown ? (
-                <Link key={i} href={link.href} className="px-2 py-1.5 rounded-md hover:bg-white/10 transition-all duration-300 text-[#B0B0C0] hover:text-white text-sm font-medium">{link.label}</Link>
-              ) : (
-                <div key={i} className="relative group" onMouseEnter={() => setShowDropdown(true)} onMouseLeave={() => setShowDropdown(false)}>
-                  <button className="px-2 py-1.5 rounded-md hover:bg-white/10 transition-all duration-300 flex items-center space-x-1 text-[#B0B0C0] hover:text-white text-sm font-medium">
-                    <span>{link.label}</span>
-                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" /></svg>
-                  </button>
-                  {showDropdown && (
-                    <div className="absolute left-0 mt-2 w-40 bg-[#1c1e26]/90 border border-white/20 rounded-xl shadow-2xl backdrop-blur-2xl">
-                      {link.dropdown.map((item, j) => (
-                        <Link key={j} href={item.href} className="block px-4 py-2 hover:bg-white/10 transition-all duration-300 text-[#B0B0C0] hover:text-white text-sm">{item.label}</Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Link href="/login" className="px-3 py-1.5 rounded-md btn-secondary text-sm">Sign In</Link>
-            <Link href="#form" className="px-3 py-1.5 rounded-md btn-primary text-sm font-semibold flex items-center gap-2">
-              <Wand2 className="w-4 h-4" />
-              Generate Report
-            </Link>
-          </div>
-        </div>
-      </nav>
-      <div className="min-h-screen bg-[#0f1117]/75 text-[#f3f4f6] font-sans relative overflow-x-hidden">
+      <Navigation />
+      <div className="min-h-screen bg-[#0f1117]/80 text-[#f3f4f6] font-sans relative overflow-x-hidden">
         {/* Enhanced Background */}
         <div className="fixed inset-0 -z-10">
           {/* Radial gradient/vignette for depth */}
@@ -479,146 +561,239 @@ export default function Home() {
           <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1200px] h-[900px] animate-gradient-shift blur-3xl" />
           {/* One major glow per quadrant, harmonized indigo-aqua */}
           <div className="absolute left-0 bottom-0 w-[500px] h-[400px] bg-gradient-to-tr from-[#232b4d]/40 to-[#86EFF5]/20 blur-2xl opacity-40" />
-          <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-[#3b82f6]/20 to-transparent blur-2xl opacity-30" />
+          <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-purple-400/10 to-transparent blur-2xl opacity-40" />
           {/* Top Fade Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-transparent" />
         </div>
         
-        {/* Hero Section */}
-        <section className="flex flex-col items-center justify-center min-h-[90vh] px-4 pt-16 pb-8 relative">
-          <div className="max-w-7xl w-full flex flex-col md:flex-row md:items-center md:justify-between gap-16 relative z-10">
-            {/* Left: Headline and Subheadline */}
-            <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left mb-10 md:mb-0 relative">
-              {/* Accent Glow Trail behind headline */}
-              <div className="absolute -z-10 left-0 top-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-gradient-to-r from-[#8b5cf6]/30 via-[#3b82f6]/25 to-transparent blur-3xl opacity-80 animate-subtle-pulse" />
-              
-              <h1 className="text-[2.2rem] md:text-[2.8rem] lg:text-[3.5rem] font-bold tracking-tight leading-tight mb-6 text-white relative">
-                Drowning in Reviews?<br />
-                Turn Feedback Into <span className="whitespace-nowrap"><span className="bg-gradient-to-r from-[#3b82f6] via-[#8b5cf6] to-[#3b82f6] bg-clip-text text-transparent animate-gradient-shift">insights</span>, Instantly.</span>
-              </h1>
-              <p className="text-sm md:text-base text-[#B0B0C0] font-mono mb-8 tracking-wide leading-snug max-w-xl">
-                Execli analyzes customer reviews across platforms and delivers clear insights so you know what to fix, build, or brag about — no analyst needed.
-              </p>
-              {/* Trust Row */}
-              <div className="flex flex-col items-center md:items-start w-full mt-4">
-                <div className="text-sm text-[#B0B0C0] mb-2">Trusted by teams at</div>
-                <div className="flex flex-wrap gap-6 items-center">
-                  {["/logos/stripe.svg","/logos/notion.svg","/logos/figma.svg","/logos/linear.svg","/logos/vercel.svg"].map((src, i) => (
-                    <img key={i} src={src} alt="Logo" className="h-7 w-auto opacity-40 grayscale contrast-75 hover:opacity-70 hover:grayscale-0 transition" style={{maxWidth: 100}} />
-                  ))}
+        {/* Error Page */}
+        {hasError && (
+          <ErrorPage 
+            message={errorMessage}
+            showRetry={true}
+            onRetry={() => {
+              setHasError(false);
+              setErrorMessage('');
+              setSubmitted(false);
+            }}
+          />
+        )}
+
+        {/* Main Content */}
+        {!hasError && (
+          <section className="relative z-10">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+              <div className="flex flex-col lg:flex-row items-start justify-between gap-12">
+                {/* Left: Hero Content */}
+                <div className="flex-1 min-w-0 space-y-8">
+                  <h1 className="text-[2.2rem] md:text-[2.8rem] lg:text-[3.5rem] font-bold tracking-tight leading-tight mb-6 text-white relative">
+                    Drowning in Reviews?<br />
+                    Turn Feedback Into <span className="whitespace-nowrap"><span className="bg-gradient-to-r from-[#3b82f6] via-[#8b5cf6] to-[#3b82f6] bg-clip-text text-transparent animate-gradient-shift">insights</span>, Instantly.</span>
+                  </h1>
+                  <p className="text-sm md:text-base text-[#B0B0C0] font-mono mb-8 tracking-wide leading-snug max-w-xl">
+                    Execli analyzes customer reviews across platforms and delivers clear insights so you know what to fix, build, or brag about — no analyst needed.
+                  </p>
+                  {/* CTA Buttons Row */}
+                  <div className="flex flex-row gap-4 mb-6">
+                    <a
+                      href="/report"
+                      className="btn-primary"
+                    >
+                      Demo Report
+                    </a>
+                    <a
+                      href="/signup"
+                      className="px-4 py-2 rounded-lg bg-white text-[#181a20] font-medium text-sm shadow-sm border border-white/20 hover:bg-gray-100 transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/40 focus:ring-offset-2"
+                      style={{ boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                      Get Started
+                    </a>
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            {/* Right: Form Card + Visual */}
-            <div className="flex flex-col items-center justify-center w-full max-w-md md:w-[380px] gap-8 relative">
-              {/* Hero Glow Background - Enhanced with pulsing */}
-              <div className="absolute -z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[340px] bg-gradient-radial bg-gradient-radial-from-purple bg-gradient-radial-to-transparent blur-3xl opacity-80 pointer-events-none animate-glow-pulse" />
-              
-              <div className="w-full">
-                <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-8 mx-auto backdrop-blur-2xl relative overflow-hidden">
-                  {/* Liquid effect overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+                
+                {/* Right: Form Card + Visual */}
+                <div className="w-full md:w-[380px] lg:w-[420px] flex-shrink-0 flex flex-col justify-center gap-8 relative px-4">
+                  {/* Hero Glow Background - Enhanced with pulsing */}
+                  <div className="absolute -z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[340px] bg-gradient-radial bg-gradient-radial-from-purple bg-gradient-radial-to-transparent blur-3xl opacity-80 pointer-events-none animate-glow-pulse" />
                   
-                  {!submitted ? (
-                    <form className="flex flex-col gap-6 relative z-10" onSubmit={e => { e.preventDefault(); setSubmitted(true); }} onChange={e => {
-                      const form = e.currentTarget as HTMLFormElement;
-                      setFormValid(form.checkValidity());
-                    }}>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-[#B0B0C0] font-medium mb-1">Step 1</span>
-                        <label htmlFor="businessUrl" className={`font-semibold text-base mb-1 ${focusedField === 'businessUrl' ? 'field-label-active' : 'field-label-faded'}`}>Paste Business URL</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
-                            {businessUrl && businessUrl.match(/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/) ? (
-                              <img src={getFaviconUrl(businessUrl)} alt="favicon" className="w-4 h-4 rounded" />
-                            ) : (
-                              <Globe className="w-4 h-4 text-[#B0B0C0]" />
-                            )}
-                            <span className="text-[#B0B0C0] select-none">https://</span>
-                          </span>
-                          <input
-                            id="businessUrl"
-                            name="businessUrl"
-                            type="text"
-                            required
-                            placeholder="yourbusiness.com"
-                            className="input-field pl-32"
-                            autoComplete="off"
-                            autoFocus
-                            value={businessUrl}
-                            onFocus={() => setFocusedField('businessUrl')}
-                            onBlur={() => setFocusedField(null)}
-                            onChange={e => setBusinessUrl(e.target.value)}
-                          />
+                  <div className="w-full max-w-full md:max-w-md md:w-[380px]">
+                    <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-8 mx-auto backdrop-blur-2xl relative overflow-hidden max-w-xl w-full">
+                      {/* Liquid effect overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
+                      <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+                      
+                      {!submitted ? (
+                        <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
+                          e.preventDefault(); 
+                          setSubmitted(true);
+                          setPollingEmail(email);
+                          setPolling(false);
+                          setPollingError(null);
+                          
+                          try {
+                            const response = await fetch('/api/scrape', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                business_name: businessUrl,
+                                business_url: `https://${reviewSourceUrl}`,
+                                email: email,
+                                selected_platforms: [] // or default to all, or empty
+                              })
+                            });
+                            const result = await response.json();
+                            if (result.error) {
+                              setErrorMessage(result.error || 'Unexpected error. Please try again.');
+                              setHasError(true);
+                              setSubmitted(false);
+                              return;
+                            }
+                            if (result.report_id) {
+                              // Redirect to report page with polling
+                              window.location.href = `/report/${result.report_id}`;
+                            } else {
+                              setErrorMessage('Unexpected error. Please try again.');
+                              setHasError(true);
+                              setSubmitted(false);
+                            }
+                          } catch (error) {
+                            setErrorMessage('Error submitting form. Please try again.');
+                            setHasError(true);
+                            setSubmitted(false);
+                          }
+                        }} onChange={e => {
+                          const form = e.currentTarget as HTMLFormElement;
+                          setFormValid(form.checkValidity());
+                        }}>
+                          {/* Brand Name */}
+                          <div className="flex flex-col gap-2 mb-4">
+                            <label htmlFor="brandName" className={`font-semibold text-base mb-1 ${focusedField === 'businessUrl' ? 'field-label-active' : 'field-label-faded'}`}>Brand Name</label>
+                            <input
+                              id="brandName"
+                              name="brandName"
+                              type="text"
+                              required
+                              placeholder="Your brand name"
+                              className="input-field"
+                              autoComplete="off"
+                              autoFocus
+                              value={businessUrl}
+                              onFocus={() => setFocusedField('businessUrl')}
+                              onBlur={() => setFocusedField(null)}
+                              onChange={e => setBusinessUrl(e.target.value)}
+                            />
+                          </div>
+                          {/* Brand URL (optional) */}
+                          <div className="flex flex-col gap-2 mb-4">
+                            <label htmlFor="brandUrl" className={`font-semibold text-base mb-1 ${focusedField === 'competitorUrl' ? 'field-label-active' : 'field-label-faded'}`}>Brand URL <span className="text-xs text-[#B0B0C0]">(optional)</span></label>
+                            <div className="flex items-center relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B0C0] select-none pointer-events-none text-base">https://</span>
+                              <input
+                                id="brandUrl"
+                                name="brandUrl"
+                                type="text"
+                                placeholder="yourbrand.com"
+                                className="input-field pl-20 pr-12 w-full"
+                                autoComplete="off"
+                                value={reviewSourceUrl}
+                                onFocus={() => setFocusedField('competitorUrl')}
+                                onBlur={() => setFocusedField(null)}
+                                onChange={e => setReviewSourceUrl(e.target.value.replace(/^https?:\/\//, ''))}
+                              />
+                              {reviewSourceUrl && (
+                                <img
+                                  src={`https://www.google.com/s2/favicons?domain=${reviewSourceUrl}`}
+                                  alt="favicon"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded"
+                                  style={{ background: '#fff', borderRadius: '6px' }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                          {/* Email Address */}
+                          <div className="flex flex-col gap-2">
+                            <label htmlFor="email" className={`font-semibold text-base mb-1 ${focusedField === 'email' ? 'field-label-active' : 'field-label-faded'}`}>Email Address</label>
+                            <input
+                              id="email"
+                              name="email"
+                              type="email"
+                              required
+                              placeholder="you@example.com"
+                              className="input-field"
+                              autoComplete="off"
+                              value={email}
+                              onChange={e => setEmail(e.target.value)}
+                              onFocus={() => setFocusedField('email')}
+                              onBlur={() => setFocusedField(null)}
+                            />
+                          </div>
+                          {/* Info Text */}
+                          <div className="text-xs text-[#B0B0C0] bg-white/5 border border-white/10 rounded-md px-4 py-3 mt-1 mb-2">
+                            Sign up to unlock <span className="font-semibold text-white">live monitoring</span>, <span className="font-semibold text-white">more sources</span>, and <span className="font-semibold text-white">competitor tracking</span>.
+                          </div>
+                          {/* Submit Button */}
+                          <div className="flex flex-col gap-2 mt-2">
+                            <button
+                              type="submit"
+                              className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 font-bold text-base shadow-lg transition-all duration-300 focus:ring-2 focus:ring-[#2370FF] focus:ring-offset-2 relative z-10 ${formValid ? 'bg-white text-[#181a20] border border-white/20 hover:bg-gray-100' : 'btn-ghost'}`}
+                              style={formValid ? { boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' } : {}}
+                              disabled={!formValid}
+                            >
+                              <Wand2 className="w-5 h-5" />
+                              Generate Free Report
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
+                          {detectingPlatforms ? (
+                            <>
+                              <div className="flex flex-col items-center gap-4">
+                                <svg className="animate-spin h-10 w-10 text-[#3b82f6]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                <h2 className="text-2xl font-semibold mb-2 text-white">Detecting review platforms...</h2>
+                                <p className="text-lg text-[#B0B0C0]">We're searching for reviews across all platforms.</p>
+                              </div>
+                            </>
+                          ) : polling ? (
+                            <>
+                              <div className="flex flex-col items-center gap-4">
+                                <svg className="animate-spin h-10 w-10 text-[#3b82f6]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                <h2 className="text-2xl font-semibold mb-2 text-white">We're analyzing your customer voice.</h2>
+                                <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{pollingEmail}</span> in under 1 minute.</p>
+                                <p className="text-sm text-[#B0B0C0]">This may take up to 60 seconds. Please keep this page open.</p>
+                              </div>
+                            </>
+                          ) : pollingError ? (
+                            <div className="flex flex-col items-center gap-4">
+                              <h2 className="text-2xl font-semibold mb-2 text-red-400">{pollingError}</h2>
+                              <button className="btn-primary" onClick={() => { setSubmitted(false); setPollingError(null); }}>Try Again</button>
+                            </div>
+                          ) : (
+                            <>
+                              <h2 className="text-2xl font-semibold mb-4 text-white">We're analyzing your customer voice.</h2>
+                              <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{pollingEmail}</span> in under 1 minute.</p>
+                            </>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-[#B0B0C0] font-medium mb-1">Step 2 <span className="text-xs text-[#B0B0C0]/60">(optional)</span></span>
-                        <label htmlFor="competitorUrl" className={`font-semibold text-base mb-1 ${focusedField === 'competitorUrl' ? 'field-label-active' : 'field-label-faded'}`}>Add 1 Competitor</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
-                            {businessUrl && businessUrl.match(/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/) ? (
-                              <img src={getFaviconUrl(competitorUrl)} alt="favicon" className="w-4 h-4 rounded" />
-                            ) : (
-                              <Globe className="w-4 h-4 text-[#B0B0C0]" />
-                            )}
-                            <span className="text-[#B0B0C0] select-none">https://</span>
-                          </span>
-                          <input
-                            id="competitorUrl"
-                            name="competitorUrl"
-                            type="text"
-                            placeholder="competitor.com"
-                            className="input-field pl-32"
-                            autoComplete="off"
-                            value={competitorUrl}
-                            onChange={e => setCompetitorUrl(e.target.value)}
-                            onFocus={() => setFocusedField('competitorUrl')}
-                            onBlur={() => setFocusedField(null)}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-[#B0B0C0] font-medium mb-1">Step 3</span>
-                        <label htmlFor="email" className={`font-semibold text-base mb-1 ${focusedField === 'email' ? 'field-label-active' : 'field-label-faded'}`}>Email Address</label>
-                        <input
-                          id="email"
-                          name="email"
-                          type="email"
-                          required
-                          placeholder="you@example.com"
-                          className="input-field"
-                          autoComplete="off"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          onFocus={() => setFocusedField('email')}
-                          onBlur={() => setFocusedField(null)}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2 mt-2">
-                        <button
-                          type="submit"
-                          className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 font-bold text-base shadow-lg transition-all duration-300 focus:ring-2 focus:ring-[#2370FF] focus:ring-offset-2 relative z-10 ${formValid ? 'btn-primary' : 'btn-ghost'}`}
-                          disabled={!formValid}
-                        >
-                          <Wand2 className="w-5 h-5" />
-                          Generate Free Report
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
-                      <h2 className="text-2xl font-semibold mb-4 text-white">We're analyzing your customer voice.</h2>
-                      <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{email}</span> in under 1 minute.</p>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
         
         {/* How it Works Section */}
         <HowItWorks />
@@ -642,18 +817,6 @@ export default function Home() {
         <CTASection />
         
         {/* Trust Logos */}
-        <section className="max-w-3xl mx-auto px-4 pb-16">
-          <div className="text-center text-[#B0B0C0] font-medium mb-6">Trusted by marketing teams and product managers at</div>
-          <div className="flex flex-wrap justify-center items-center gap-8 grayscale opacity-60">
-            {["/logos/stripe.svg","/logos/notion.svg","/logos/figma.svg","/logos/linear.svg","/logos/vercel.svg"].map((src, i) => (
-              <div key={i} className="h-10 flex items-center transition duration-200 hover:filter-none hover:opacity-100">
-                <img src={src} alt="Logo" className="h-8 w-auto object-contain" style={{maxWidth: 120}} />
-              </div>
-            ))}
-          </div>
-        </section>
-        
-        {/* Footer */}
         <footer className="w-full py-8 text-center text-[#B0B0C0] text-sm border-t border-white/10 bg-transparent">
           &copy; {new Date().getFullYear()} Execli. All rights reserved.
         </footer>

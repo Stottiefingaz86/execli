@@ -134,10 +134,10 @@ export default function Reports() {
 
       {/* Report Generator Form */}
       <section className="py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full">
             {/* Form */}
-            <div className="card p-8 space-y-6">
+            <div className="card p-6 space-y-6 w-full max-w-full">
               <h2 className="text-2xl font-semibold text-text">Generate Customer Insight Report</h2>
               
               <form onSubmit={handleSubmit} className="space-y-6">

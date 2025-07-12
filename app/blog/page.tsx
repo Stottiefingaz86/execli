@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { Wand2 } from 'lucide-react';
+import AgencyPromoCard from '../../components/AgencyPromoCard';
+import Navigation from '../../components/Navigation';
 
 export default function Blog() {
   const blogPosts = [
@@ -70,15 +72,12 @@ export default function Blog() {
     { href: '/#how-it-works', label: 'How it Works' },
     { href: '/#pricing', label: 'Pricing' },
     { href: '/report', label: 'Demo Report' },
-    { href: '#', label: 'Resources', dropdown: [
       { href: '/blog', label: 'Blog' },
-      { href: '#', label: 'Templates' },
-      { href: '#', label: 'Strategy' },
-    ]},
   ];
 
   return (
     <main className="min-h-screen bg-[#0f1117]/75 text-[#f3f4f6] font-sans relative overflow-x-hidden">
+      <Navigation />
       {/* Enhanced Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[#0f1117]" />
@@ -88,42 +87,6 @@ export default function Blog() {
         <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-[#3b82f6]/20 to-transparent blur-2xl opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-transparent" />
       </div>
-      {/* Navigation - exact match to landing page */}
-      <nav className="sticky top-0 z-50 w-full bg-[#1c1e26]/60 backdrop-blur-2xl border-b border-white/10 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-6 flex items-center h-16 justify-between">
-          <div className="flex items-center">
-            <Link href="/">
-              <img src="/logo.svg" alt="Execli" className="h-7 w-auto py-1 cursor-pointer" />
-            </Link>
-          </div>
-          <div className="hidden md:flex items-center space-x-4">
-            {NAV_LINKS.map((link, i) =>
-              !link.dropdown ? (
-                <Link key={i} href={link.href} className="px-2 py-1.5 rounded-md hover:bg-white/10 transition-all duration-300 text-[#B0B0C0] hover:text-white text-sm font-medium">{link.label}</Link>
-              ) : (
-                <div key={i} className="relative group">
-                  <button className="px-2 py-1.5 rounded-md hover:bg-white/10 transition-all duration-300 flex items-center space-x-1 text-[#B0B0C0] hover:text-white text-sm font-medium">
-                    <span>{link.label}</span>
-                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" /></svg>
-                  </button>
-                  <div className="absolute left-0 mt-2 w-40 bg-[#1c1e26]/90 border border-white/20 rounded-xl shadow-2xl backdrop-blur-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    {link.dropdown.map((item, j) => (
-                      <Link key={j} href={item.href} className="block px-4 py-2 hover:bg-white/10 transition-all duration-300 text-[#B0B0C0] hover:text-white text-sm">{item.label}</Link>
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Link href="/login" className="px-3 py-1.5 rounded-md btn-secondary text-sm">Sign In</Link>
-            <Link href="#form" className="px-3 py-1.5 rounded-md btn-primary text-sm font-semibold flex items-center gap-2">
-              <Wand2 className="w-4 h-4" />
-              Generate Report
-            </Link>
-          </div>
-        </div>
-      </nav>
       
       {/* Hero Section */}
       <section className="py-24 relative z-10">
@@ -136,6 +99,9 @@ export default function Blog() {
               Insights, tips, and stories from our team about productivity, automation, and building better software.
             </p>
           </div>
+        </div>
+        <div className="mt-12 flex justify-center">
+          <AgencyPromoCard />
         </div>
       </section>
 
@@ -165,18 +131,18 @@ export default function Blog() {
                     <span className="text-[#B0B0C0]">5 min read</span>
                   </div>
                   <h2 className="text-3xl font-semibold text-white leading-tight">
-                    10 Ways to Boost Team Productivity in 2024
+                    Why Do We Just Get Negative Reviews?
                   </h2>
                   <p className="text-[#B0B0C0] leading-relaxed">
-                    Discover the latest strategies and tools that leading companies are using to maximize their team's efficiency and output. From automation to collaboration, learn how to transform your workflow.
+                    Are you feeling overwhelmed by a flood of bad reviews? You’re not alone. This article explores why some businesses seem to attract mostly negative feedback, what it really means, and how you can turn criticism into a catalyst for growth. Learn practical steps to respond, recover, and rebuild your reputation—even when it feels like the odds are stacked against you.
                   </p>
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">SJ</span>
+                      <span className="text-white font-semibold text-sm">CH</span>
                     </div>
                     <div>
-                      <div className="text-white font-medium">Sarah Johnson</div>
-                      <div className="text-[#B0B0C0] text-sm">Product Manager</div>
+                      <div className="text-white font-medium">Chris Hunt</div>
+                      <div className="text-[#B0B0C0] text-sm">Reputation Specialist</div>
                     </div>
                   </div>
                   <button className="bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] text-white px-6 py-3 rounded-lg font-medium hover:from-[#2563eb] hover:to-[#7c3aed] transition-all duration-200">

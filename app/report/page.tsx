@@ -21,7 +21,9 @@ import {
   Zap,
   AlertTriangle,
   Wand2,
-  Activity
+  Activity,
+  RefreshCw,
+  X
 } from 'lucide-react'
 import { 
   LineChart as RechartsLineChart, 
@@ -34,6 +36,18 @@ import {
   BarChart,
   Bar
 } from 'recharts'
+
+// Add this helper for tooltips (at the top of the file or near imports)
+function MetricTooltip({ text }: { text: string }) {
+  return (
+    <span className="absolute top-2 right-2 group cursor-pointer">
+      <Info className="w-4 h-4 text-gray-400 hover:text-white" />
+      <span className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute z-50 right-0 mt-2 w-64 bg-[#23263a] text-white text-xs rounded-lg shadow-lg p-3 border border-white/10 pointer-events-none">
+        {text}
+      </span>
+    </span>
+  );
+}
 
 export default function VOCReport() {
   // Add company/industry toggle state
@@ -845,7 +859,7 @@ export default function VOCReport() {
   };
 
   // Use the selected company's data for the report
-  const reportData = demoData[selectedCompany];
+  const reportData = demoData[selectedCompany as keyof typeof demoData];
   const competitorNames = reportData.competitors;
   const competitorColors = reportData.competitorColors;
   const youColor = reportData.youColor;
@@ -867,6 +881,24 @@ export default function VOCReport() {
   const [stopped, setStopped] = useState(false);
   const audioRef = useRef(null);
   const scrollCooldown = useRef({});
+  // Add this helper at the top-level of the component
+  const [lastSyncTimes, setLastSyncTimes] = useState<{ [key: string]: string }>({});
+  const canSync = (sourceName: string) => {
+    const last = lastSyncTimes[sourceName];
+    if (!last) return true;
+    const lastDate = new Date(last);
+    const now = new Date();
+    return lastDate.toDateString() !== now.toDateString();
+  };
+  const handleSync = (sourceName: string) => {
+    setLastSyncTimes((prev) => ({ ...prev, [sourceName]: new Date().toISOString() }));
+    // Simulate sync logic here
+  };
+  const handleSyncAll = () => {
+    reportData.dataSources.current.forEach((src) => {
+      if (canSync(src.name)) handleSync(src.name);
+    });
+  };
 
   // Section map
   const sectionMap = [
@@ -886,30 +918,27 @@ export default function VOCReport() {
 
   // Preload audio
   useEffect(() => {
-    if (presentMode && audioRef.current) {
-      setAudioLoading(true);
-      const audio = audioRef.current;
+    const audio = audioRef.current as HTMLAudioElement | null;
+    if (audio) {
       const onCanPlay = () => {
-        setAudioLoading(false);
         setAudioReady(true);
       };
       audio.addEventListener('canplaythrough', onCanPlay, { once: true });
       audio.load();
       return () => audio.removeEventListener('canplaythrough', onCanPlay);
     }
-  }, [presentMode]);
+  }, []);
 
   // Scroll logic with improved timing
   useEffect(() => {
     if (!isPlaying || !audioRef.current) return;
-    const audio = audioRef.current;
+    const audio = audioRef.current as HTMLAudioElement | null;
     const scrolledSections = new Set();
-    let currentActiveSection = null;
+    let currentActiveSection: string | null = null;
     
     const onTimeUpdate = () => {
+      if (!audio) return;
       const current = audio.currentTime;
-      
-      // Find the appropriate section for current time
       let targetSection = null;
       for (let i = sectionMap.length - 1; i >= 0; i--) {
         if (current >= sectionMap[i].time) {
@@ -917,22 +946,22 @@ export default function VOCReport() {
           break;
         }
       }
-      
-      // Only scroll if this is a new section we haven't scrolled to yet
       if (targetSection && targetSection.id !== currentActiveSection) {
         const el = document.getElementById(targetSection.id);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setActiveSection(targetSection.id);
+          setActiveSection(targetSection.id as any);
           currentActiveSection = targetSection.id;
-          
           console.log(`Scrolled to ${targetSection.id} at ${current}s`);
         }
       }
     };
     
+    if (audio) {
     audio.addEventListener('timeupdate', onTimeUpdate);
     return () => audio.removeEventListener('timeupdate', onTimeUpdate);
+    }
+    return;
   }, [isPlaying]);
 
   // Present button handler
@@ -946,31 +975,35 @@ export default function VOCReport() {
     // Reset scroll cooldown when starting
     scrollCooldown.current = {};
     setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
+      const audio = audioRef.current as HTMLAudioElement | null;
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play();
         setIsPlaying(true);
       }
     }, 500);
   };
   const handlePause = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
+    const audio = audioRef.current as HTMLAudioElement | null;
+    if (audio) {
+      audio.pause();
       setPaused(true);
       setIsPlaying(false);
     }
   };
   const handleResume = () => {
-    if (audioRef.current) {
-      audioRef.current.play();
+    const audio = audioRef.current as HTMLAudioElement | null;
+    if (audio) {
+      audio.play();
       setPaused(false);
       setIsPlaying(true);
     }
   };
   const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    const audio = audioRef.current as HTMLAudioElement | null;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
       setStopped(true);
       setIsPlaying(false);
       setPresentMode(false);
@@ -1012,6 +1045,84 @@ export default function VOCReport() {
     )
   }
 
+  // Add at the top-level of the component
+  const [showMentionsModal, setShowMentionsModal] = useState(false);
+  const [modalReviews, setModalReviews] = useState<{ text: string; topic: string; sentiment: string; user?: { name: string; platform: string; avatar: string } }[]>([]);
+  const [modalSentiment, setModalSentiment] = useState('all');
+  const [modalSort, setModalSort] = useState('latest');
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalInsight, setModalInsight] = useState<{
+    insight: string;
+    direction: string;
+    mentions: number;
+    platforms: string[];
+    impact: string;
+    reviews: { text: string; topic: string; sentiment: string }[];
+  } | null>(null);
+
+  // Helper for avatar initials
+  function getInitials(name: string) {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    if (parts.length === 1) return parts[0][0];
+    return parts[0][0] + parts[1][0];
+  }
+
+  // Example fallback user data for demo
+  function getDemoUser(idx: number) {
+    const users = [
+      { name: 'Jane D.', platform: 'Google', avatar: '🧑' },
+      { name: 'Alex P.', platform: 'Yelp', avatar: '👨‍💼' },
+      { name: 'Sam R.', platform: 'Facebook', avatar: '👩‍💻' },
+      { name: 'Chris T.', platform: 'Reddit', avatar: '👽' },
+      { name: 'Taylor S.', platform: 'Trustpilot', avatar: '⭐' },
+      { name: 'Jordan M.', platform: 'App Store', avatar: '📱' },
+    ];
+    return users[idx % users.length];
+  }
+
+  // Demo reviews for modal if not enough real reviews
+  const demoReviews = [
+    { text: 'Best espresso in town!', topic: 'Espresso Quality', sentiment: 'positive', user: { name: 'Jane D.', platform: 'Google', avatar: '🧑' } },
+    { text: 'Service was slow and unfriendly.', topic: 'Service', sentiment: 'negative', user: { name: 'Alex P.', platform: 'Yelp', avatar: '👨‍💼' } },
+    { text: 'Cozy and relaxing vibe.', topic: 'Atmosphere', sentiment: 'positive', user: { name: 'Sam R.', platform: 'Facebook', avatar: '👩‍💻' } },
+    { text: 'Coffee was cold when served.', topic: 'Espresso Quality', sentiment: 'negative', user: { name: 'Chris T.', platform: 'Reddit', avatar: '👽' } },
+    { text: 'Love the rich flavor of their coffee.', topic: 'Espresso Quality', sentiment: 'positive', user: { name: 'Taylor S.', platform: 'Trustpilot', avatar: '⭐' } },
+    { text: 'Prices are a bit high for the quality.', topic: 'Pricing', sentiment: 'neutral', user: { name: 'Jordan M.', platform: 'App Store', avatar: '📱' } },
+    { text: 'Great place to work remotely.', topic: 'Atmosphere', sentiment: 'positive', user: { name: 'Morgan L.', platform: 'Google', avatar: '🧑‍💼' } },
+    { text: 'Pastries were stale.', topic: 'Pastries', sentiment: 'negative', user: { name: 'Jamie F.', platform: 'Yelp', avatar: '👩‍🍳' } },
+    { text: 'Staff was very attentive.', topic: 'Service', sentiment: 'positive', user: { name: 'Pat K.', platform: 'Facebook', avatar: '🧑‍🎤' } },
+    { text: 'Music was too loud.', topic: 'Atmosphere', sentiment: 'neutral', user: { name: 'Riley Q.', platform: 'Reddit', avatar: '🎧' } },
+    { text: 'The new menu is fantastic!', topic: 'Pastries', sentiment: 'positive', user: { name: 'Casey W.', platform: 'Trustpilot', avatar: '🍰' } },
+    { text: 'Waited 20 minutes for my order.', topic: 'Service', sentiment: 'negative', user: { name: 'Drew Z.', platform: 'Google', avatar: '⏳' } },
+  ];
+
+  // In the Mentions Modal, use more reviews if needed
+  const reviewsToShow = (modalReviews && modalReviews.length < 8)
+    ? [...modalReviews, ...demoReviews.slice(0, 12 - modalReviews.length)]
+    : modalReviews;
+
+  // Add at the top-level of the component
+  const [competitors, setCompetitors] = useState([
+    { name: 'Comp A', url: 'https://compa.com' },
+    { name: 'Comp B', url: 'https://compb.com' },
+    { name: 'Comp C', url: 'https://compc.com' },
+    { name: 'Comp D', url: 'https://compd.com' },
+  ]);
+  const [showAddCompetitor, setShowAddCompetitor] = useState(false);
+  const [newCompetitor, setNewCompetitor] = useState({ name: '', url: '' });
+  const maxCompetitors = 4;
+  const handleAddCompetitor = () => {
+    if (competitors.length < maxCompetitors && newCompetitor.name.trim()) {
+      setCompetitors([...competitors, { ...newCompetitor }]);
+      setNewCompetitor({ name: '', url: '' });
+      setShowAddCompetitor(false);
+    }
+  };
+  const handleRemoveCompetitor = (idx: number) => {
+    setCompetitors(competitors.filter((_, i) => i !== idx));
+  };
+
   return (
     <div className="min-h-screen bg-[#0f1117]/80 text-[#f3f4f6] font-sans relative">
       <audio ref={audioRef} src="/coffe case study.mp3" preload="auto" hidden />
@@ -1024,7 +1135,7 @@ export default function VOCReport() {
         <div className="absolute left-1/2 top-0 -translate-x-1/2 w-[1200px] h-[900px] animate-gradient-shift blur-3xl" />
         {/* One major glow per quadrant, harmonized indigo-aqua */}
         <div className="absolute left-0 bottom-0 w-[500px] h-[400px] bg-gradient-to-tr from-[#232b4d]/40 to-[#86EFF5]/20 blur-2xl opacity-40" />
-        <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-[#3b82f6]/20 to-transparent blur-2xl opacity-30" />
+        <div className="absolute right-0 top-1/3 w-[400px] h-[300px] bg-gradient-to-bl from-purple-400/10 to-transparent blur-2xl opacity-40" />
         {/* Top Fade Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-transparent" />
       </div>
@@ -1033,7 +1144,7 @@ export default function VOCReport() {
         <div className="max-w-7xl mx-auto px-6 flex items-center h-16 justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center">
-              <img src="/logo.svg" alt="Execli" className="h-7 w-auto py-1" />
+              <img src="/logo.svg" alt="Execli" style={{ width: '120px', height: '70px', display: 'block' }} />
             </Link>
             <div className="h-6 w-px bg-white/20" />
             <div>
@@ -1115,22 +1226,22 @@ export default function VOCReport() {
 
       {/* Industry Toggle Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-          {companies.map((company) => (
-            <button
-              key={company.key}
-              onClick={() => setSelectedCompany(company.key)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium text-base transition-all duration-200 border shadow-sm
-                ${selectedCompany === company.key
-                  ? 'bg-white text-black border-white shadow-lg'
-                  : 'bg-[#181a20]/70 text-[#B0B0C0] border-white/10 hover:bg-[#23263a] hover:text-white'}
-              `}
-              style={{ minWidth: 160 }}
-            >
+        <div className="flex gap-3 justify-center md:justify-start overflow-x-auto whitespace-nowrap scrollbar-hide py-2">
+            {companies.map((company) => (
+              <button
+                key={company.key}
+                onClick={() => setSelectedCompany(company.key)}
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full font-medium text-sm transition-all duration-200 border shadow-sm whitespace-nowrap
+                  ${selectedCompany === company.key
+                    ? 'bg-white text-black border-white shadow-lg'
+                    : 'bg-[#181a20]/70 text-[#B0B0C0] border-white/10 hover:bg-[#23263a] hover:text-white'}
+                `}
+              style={{ minWidth: 110 }}
+              >
               <span className="text-xl">{company.icon}</span>
-              <span>{company.label}</span>
-            </button>
-          ))}
+                <span>{company.label}</span>
+              </button>
+            ))}
         </div>
       </div>
 
@@ -1139,7 +1250,7 @@ export default function VOCReport() {
         <div id="sources-section" className={`bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden transition-all duration-500 ${activeSection === 'sources-section' ? 'ring-4 ring-[#22d3ee]/60 ring-offset-2 z-20' : ''}`}>
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -1147,7 +1258,7 @@ export default function VOCReport() {
                 <p className="text-[#B0B0C0] mt-2">Generated on {reportData.generatedAt}</p>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-[#8b5cf6] rounded-xl flex items-center justify-center shadow-lg">
                   <span className="text-white font-bold text-lg">A</span>
                 </div>
                 <div>
@@ -1161,6 +1272,14 @@ export default function VOCReport() {
             <div className="border-t border-white/10 pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-white">Active Sources</h3>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleSyncAll}
+                    className="flex items-center space-x-2 px-4 py-2 border border-white/10 rounded-lg bg-transparent hover:bg-white/5 transition-all duration-200 text-[#B0B0C0] hover:text-white"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Sync All</span>
+                  </button>
                 <button 
                   onClick={() => setShowAddSource(!showAddSource)}
                   className="flex items-center space-x-2 px-4 py-2 bg-[#0f1117]/60 backdrop-blur-md border border-white/10 rounded-lg hover:bg-white/5 transition-all duration-200 text-[#B0B0C0] hover:text-white"
@@ -1168,6 +1287,7 @@ export default function VOCReport() {
                   <Plus className="w-4 h-4" />
                   <span>Add Source</span>
                 </button>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {reportData.dataSources.current.map((source, index) => (
@@ -1183,7 +1303,21 @@ export default function VOCReport() {
                           </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSync(source.name)}
+                          disabled={!canSync(source.name)}
+                          className={`flex items-center gap-1 px-3 py-1 rounded-md border text-xs font-medium transition-all duration-200 shadow-sm
+                            ${canSync(source.name)
+                              ? 'border-[#3b82f6]/40 text-[#3b82f6] hover:bg-[#23263a] hover:text-white'
+                              : 'border-white/10 text-[#B0B0C0] opacity-60 cursor-not-allowed'}
+                          `}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          {canSync(source.name) ? 'Sync' : 'Synced'}
+                        </button>
                       <ExternalLink className="w-4 h-4 text-[#B0B0C0]" />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-[#B0B0C0]">{source.reviews} reviews</span>
@@ -1192,31 +1326,96 @@ export default function VOCReport() {
                   </div>
                 ))}
               </div>
+              {/* Unintegrated sources as integration-style cards with review/mention badge */}
+              {reportData.dataSources.available && reportData.dataSources.available.length > 0 && (
+                <div className="mt-4 border border-white/20 rounded-2xl bg-[#181a20]/60 p-5">
+                  <div className="mb-2 flex items-center gap-2 text-white text-sm font-medium">
+                    <Info className="w-4 h-4" />
+                    Did you know? You have reviews on these other platforms ready to be synced.
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {reportData.dataSources.available.map((src, i) => (
+                      <div key={src.name} className="flex flex-col justify-between bg-[#181a20] border border-white/10 rounded-2xl p-5 min-w-[220px] max-w-[320px] shadow-md">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">{src.icon}</span>
+                          <span className="font-semibold text-lg text-white">{src.name}</span>
+                        </div>
+                        <div className="text-xs text-white/70 mb-2">{src.description || 'Reviews & mentions'}</div>
+                        {/* Badge for reviews/mentions */}
+                        <div className="mb-3">
+                          <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold mb-1">
+                            {typeof (src as any).reviews === 'number'
+                              ? `${(src as any).reviews} reviews ready to sync`
+                              : `${i % 2 === 0 ? 57 : 160} reviews ready to sync`}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <span className="text-white font-bold text-base">€10 <span className="text-xs font-normal">/month</span></span>
+                        </div>
+                        <button className="w-full mt-1 py-2 rounded-xl bg-white text-[#181a20] font-semibold text-sm transition hover:bg-[#a855f7] hover:text-white border border-white/10">Add Integration</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Live Monitor CTA */}
               <div className="mt-6 p-6 bg-[#1c1e26]/60 backdrop-blur-md rounded-xl border border-[#3b82f6]/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] rounded-lg flex items-center justify-center shadow-lg">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-[#8b5cf6] rounded-lg flex items-center justify-center shadow-lg">
                       <Activity className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-white text-lg">Live Monitor</h4>
-                      <p className="text-[#B0B0C0]">
-                        {selectedCompany === 'coffee' 
-                          ? 'Next payment: March 15, 2025' 
-                          : 'Get real-time insights and alerts every 24 hours'
-                        }
-                      </p>
+                      {/* Plan Title and Details */}
+                      {selectedCompany === 'coffee' && (
+                        <>
+                          <h4 className="font-semibold text-white text-lg">Pro Plan</h4>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-[#B0B0C0] text-sm">2/2 sources</span>
+                            <span className="text-[#B0B0C0] text-sm">1/4 competitors</span>
+                    </div>
+                          <p className="text-[#B0B0C0] mt-1">Next payment: March 15, 2025</p>
+                        </>
+                      )}
+                      {selectedCompany === 'saas' && (
+                        <>
+                          <h4 className="font-semibold text-white text-lg">Enterprise Plan</h4>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-[#B0B0C0] text-sm">Sources: Unlimited</span>
+                            <span className="text-[#B0B0C0] text-sm">Competitors: 4+</span>
+                  </div>
+                          <p className="text-[#B0B0C0] mt-1">Account Manager: Ava Lee</p>
+                        </>
+                      )}
+                      {selectedCompany === 'hotel' && (
+                        <>
+                          <h4 className="font-semibold text-white text-lg">Free Plan</h4>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-[#B0B0C0] text-sm">1/1 sources</span>
+                            <span className="text-[#B0B0C0] text-sm">1/1 competitors</span>
+                    </div>
+                          <p className="text-[#B0B0C0] mt-1">Upgrade to unlock more features</p>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {selectedCompany === 'coffee' ? (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-full text-green-400 font-medium">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span>Subscribed</span>
-                    </div>
-                  ) : (
-                    <button className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-100 transition-all duration-200 shadow-lg font-medium">
-                      Upgrade
+                  {/* Plan Action Button */}
+                  {selectedCompany === 'coffee' && (
+                    <button className="px-6 py-3 border border-green-400 text-green-400 rounded-full font-medium flex items-center gap-2 bg-transparent hover:bg-green-400 hover:text-white transition-all duration-200 shadow-none">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 15v-3m0 0V9m0 3h3m-3 0H9" /><circle cx="12" cy="12" r="10" /></svg>
+                      Change Plan
+                    </button>
+                  )}
+                  {selectedCompany === 'saas' && (
+                    <button className="px-6 py-3 border border-blue-400 text-blue-400 rounded-full font-medium flex items-center gap-2 bg-transparent hover:bg-blue-400 hover:text-white transition-all duration-200 shadow-none">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" /></svg>
+                      Create New Report
+                    </button>
+                  )}
+                  {selectedCompany === 'hotel' && (
+                    <button className="px-6 py-3 border border-purple-400 text-purple-400 rounded-full font-medium flex items-center gap-2 bg-transparent hover:bg-purple-400 hover:text-white transition-all duration-200 shadow-none">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                      Upgrade to Pro
                     </button>
                   )}
                 </div>
@@ -1245,32 +1444,57 @@ export default function VOCReport() {
               <div className="flex items-center justify-between mb-4 p-3 bg-[#0f1117]/60 backdrop-blur-md rounded-lg border border-white/5">
                 <div className="flex items-center space-x-2 text-sm text-gray-400">
                   <Zap className="w-4 h-4" />
-                  <span>1 source included free • Additional sources $19-39/month</span>
+                  <span>1 source included free • Additional sources €10/month</span>
                 </div>
               </div>
               
+              {/* Hardcoded list of all available integrations for the modal */}
+              {(() => {
+                const allSources = [
+                  { name: 'Trustpilot', description: 'Customer review platform', icon: '⭐', price: 9 },
+                  { name: 'App Store', description: 'Mobile app reviews', icon: '📱', price: 9 },
+                  { name: 'Yelp', description: 'Restaurant and local business reviews', icon: '🍽️', price: 9 },
+                  { name: 'Reddit', description: 'Community discussions and mentions', icon: '🤖', price: 9 },
+                  { name: 'Twitter', description: 'Social media mentions and sentiment', icon: '🐦', price: 9 },
+                  { name: 'Facebook', description: 'Social media reviews and comments', icon: '📘', price: 9 },
+                  { name: 'Amazon', description: 'Product reviews and ratings', icon: '📦', price: 9 },
+                  { name: 'Google Reviews', description: 'Google business reviews', icon: '🔍', price: 9 },
+                  { name: 'Expedia', description: 'Travel reviews', icon: '✈️', price: 9 },
+                  { name: 'Booking.com', description: 'Hotel reviews', icon: '🏨', price: 9 },
+                  { name: 'Capterra', description: 'Software reviews', icon: '💻', price: 9 },
+                  { name: 'G2', description: 'B2B software reviews', icon: '🧑‍💼', price: 9 },
+                  { name: 'TripAdvisor', description: 'Travel and attraction reviews', icon: '🦉', price: 9 },
+                  { name: 'Casino.org', description: 'Casino and gambling reviews', icon: '🎰', price: 9 },
+                  { name: 'Intercom', description: 'Customer support conversations', icon: '💬', price: 'Custom' },
+                  { name: 'Zendesk', description: 'Customer support platform', icon: '🛎️', price: 'Custom' },
+                  { name: 'LiveChat', description: 'Live chat support', icon: '💻', price: 'Custom' },
+                ];
+                return (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reportData.dataSources.available.map((source, index) => (
-                  <div key={index} className="bg-[#0f1117]/60 backdrop-blur-md rounded-lg p-4 border border-white/5 hover:border-[#a855f7]/50 transition-all duration-200 shadow-lg hover:shadow-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{source.icon}</span>
-                        <div>
-                          <h5 className="font-medium">{source.name}</h5>
-                          <p className="text-xs text-gray-400">{source.description}</p>
+                    {allSources.map((src, i) => (
+                      <div key={src.name} className="flex flex-col justify-between bg-[#181a20] border border-white/10 rounded-2xl p-5 min-w-[220px] max-w-[320px] shadow-md">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">{src.icon}</span>
+                          <span className="font-semibold text-lg text-white">{src.name}</span>
                         </div>
+                        <div className="text-xs text-white/70 mb-2">{src.description}</div>
+                        {/* Badge for reviews/mentions */}
+                        <div className="mb-3">
+                          <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold mb-1">
+                            {i % 2 === 0 ? '57 reviews ready to sync' : '160 reviews ready to sync'}
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold bg-gradient-to-r from-[#a855f7] to-pink-500 bg-clip-text text-transparent">${source.price}</div>
-                        <div className="text-xs text-gray-400">/month</div>
                       </div>
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <span className="text-white font-bold text-base">
+                            {src.price === 'Custom' ? 'Custom' : `€${src.price}`} <span className="text-xs font-normal">{src.price === 'Custom' ? '' : '/month'}</span>
+                          </span>
                     </div>
-                    <button className="w-full px-4 py-2 btn-primary rounded-lg transition-all duration-200 shadow-lg">
-                      Add Integration
-                    </button>
+                        <button className="w-full mt-1 py-2 rounded-xl bg-white text-[#181a20] font-semibold text-sm transition hover:bg-[#a855f7] hover:text-white border border-white/10">Add Integration</button>
                   </div>
                 ))}
               </div>
+                );
+              })()}
               
               <div className="mt-4 p-3 bg-[#0f1117]/60 backdrop-blur-md rounded-lg border border-white/5">
                 <div className="flex items-center space-x-2 text-sm text-gray-400">
@@ -1289,7 +1513,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1353,7 +1577,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1373,8 +1597,15 @@ export default function VOCReport() {
                       <p className="font-semibold mb-3 text-white text-lg">{insight.insight}</p>
                       <div className="flex items-center space-x-4 text-sm text-[#B0B0C0]">
                         <button 
-                          onClick={() => setSelectedMentions(selectedMentions === insight.insight ? null : insight.insight)}
-                          className="text-[#22d3ee] hover:text-cyan-300 transition-colors font-semibold"
+                          onClick={() => {
+                            setShowMentionsModal(true);
+                            setModalReviews(insight.reviews || []);
+                            setModalInsight(insight);
+                            setModalSentiment('all');
+                            setModalSort('latest');
+                            setModalSearch('');
+                          }}
+                          className="text-emerald-400 hover:text-emerald-300 transition-colors font-semibold border border-emerald-400 rounded-md px-3 py-1 bg-[#0f1117]/60"
                         >
                           {insight.mentions} mentions
                         </button>
@@ -1388,27 +1619,6 @@ export default function VOCReport() {
                       </div>
                     </div>
                   </div>
-                  
-                  {selectedMentions === insight.insight && (
-                    <div className="mt-6 p-4 bg-[#1c1e26]/60 backdrop-blur-md rounded-xl border border-white/10 shadow-lg">
-                      <h4 className="font-semibold mb-4 text-white">Sample Reviews:</h4>
-                      <div className="space-y-3">
-                        {insight.reviews.map((review, rIndex) => (
-                          <div key={rIndex} className="text-sm">
-                            <span className="text-gray-400">"{review.text}"</span>
-                            <div className="flex items-center space-x-2 mt-2">
-                              <span className={`px-3 py-1 rounded-lg text-xs ${getSentimentColor(review.sentiment)} bg-[#0f1117]/60 backdrop-blur-md border border-white/10`}>
-                                {review.topic}
-                              </span>
-                              <span className={`text-xs ${getSentimentColor(review.sentiment)}`}>
-                                {review.sentiment}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -1422,7 +1632,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1484,7 +1694,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1552,7 +1762,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1604,7 +1814,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1663,7 +1873,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-bold text-white">Competitor Comparison</h3>
@@ -1672,23 +1882,56 @@ export default function VOCReport() {
                 <span>Context: See how you stack up across review themes against selected competitors.</span>
               </div>
             </div>
-
-            {/* Callout Badges */}
-            <div className="flex flex-wrap gap-3 mb-8">
-              <div className="flex items-center space-x-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm">
-                <span>🔥</span>
-                <span>You're trending higher on sentiment</span>
+            {/* Add Competitor Button */}
+            <div className="flex items-center mb-4">
+              <button
+                className="px-4 py-2 rounded-lg bg-[#23263a] text-white border border-white/10 font-semibold hover:bg-[#a855f7] hover:text-white transition disabled:opacity-50"
+                onClick={() => setShowAddCompetitor(true)}
+                disabled={competitors.length >= maxCompetitors}
+              >
+                + Add Competitor
+              </button>
+              {competitors.length >= maxCompetitors && (
+                <span className="ml-3 text-xs text-gray-400">Max 4 competitors</span>
+              )}
               </div>
-              <div className="flex items-center space-x-2 px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400 text-sm">
-                <span>⚠️</span>
-                <span>Falling behind in volume</span>
+            {/* Add Competitor Modal */}
+            {showAddCompetitor && (
+              <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+                  <button className="absolute top-3 right-3 text-gray-400 hover:text-white" onClick={() => setShowAddCompetitor(false)}><X className="w-5 h-5" /></button>
+                  <h4 className="text-lg font-bold text-white mb-4">Add Competitor</h4>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Brand Name</label>
+                      <input
+                        className="w-full px-3 py-2 rounded-lg bg-[#23263a] border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#a855f7]"
+                        value={newCompetitor.name}
+                        onChange={e => setNewCompetitor({ ...newCompetitor, name: e.target.value })}
+                        placeholder="e.g. Java House"
+                        required
+                      />
               </div>
-              <div className="flex items-center space-x-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-sm">
-                <span>🥇</span>
-                <span>You win in Support. Keep it up</span>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Brand URL (optional)</label>
+                      <input
+                        className="w-full px-3 py-2 rounded-lg bg-[#23263a] border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#a855f7]"
+                        value={newCompetitor.url}
+                        onChange={e => setNewCompetitor({ ...newCompetitor, url: e.target.value })}
+                        placeholder="https://brand.com"
+                      />
               </div>
+                    <button
+                      className="mt-2 px-4 py-2 rounded-lg bg-[#a855f7] text-white font-semibold hover:bg-[#23263a] border border-white/10 transition"
+                      onClick={handleAddCompetitor}
+                      disabled={!newCompetitor.name.trim()}
+                    >
+                      Add
+                    </button>
             </div>
-
+                </div>
+              </div>
+            )}
             {/* Side-by-Side Snapshot Table */}
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-white mb-4">Your Brand vs Competitors</h4>
@@ -1698,48 +1941,53 @@ export default function VOCReport() {
                     <tr className="border-b border-white/10">
                       <th className="text-left py-4 text-gray-300 font-semibold">Metric</th>
                       <th className="text-center py-4 text-gray-300 font-semibold">You</th>
-                      <th className="text-center py-4 text-gray-300 font-semibold">Comp A</th>
-                      <th className="text-center py-4 text-gray-300 font-semibold">Comp B</th>
-                      <th className="text-center py-4 text-gray-300 font-semibold">Comp C</th>
-                      <th className="text-center py-4 text-gray-300 font-semibold">Comp D</th>
+                      {competitors.map((comp, idx) => (
+                        <th key={comp.name} className="text-center py-4 text-gray-300 font-semibold relative group">
+                          {comp.name}
+                          <button
+                            className="ml-2 text-gray-400 hover:text-red-400 transition absolute top-1 right-1"
+                            onClick={() => handleRemoveCompetitor(idx)}
+                            aria-label={`Remove ${comp.name}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </th>
+                      ))}
                       <th className="text-center py-4 text-gray-300 font-semibold">Industry Avg</th>
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Example metrics, replace with real data as needed */}
                     <tr className="border-b border-white/5">
                       <td className="py-4 text-white font-semibold">Avg Rating</td>
                       <td className="py-4 text-center text-white">4.2★</td>
-                      <td className="py-4 text-center text-white">3.9★</td>
-                      <td className="py-4 text-center text-white">4.1★</td>
-                      <td className="py-4 text-center text-white">3.7★</td>
-                      <td className="py-4 text-center text-white">4.0★</td>
+                      {competitors.map((comp, idx) => (
+                        <td key={comp.name} className="py-4 text-center text-white">{3.9 + idx * 0.1}★</td>
+                      ))}
                       <td className="py-4 text-center text-gray-400">3.9★</td>
                     </tr>
                     <tr className="border-b border-white/5">
                       <td className="py-4 text-white font-semibold">Reviews (Last 30d)</td>
                       <td className="py-4 text-center text-white">287</td>
-                      <td className="py-4 text-center text-white">421</td>
-                      <td className="py-4 text-center text-white">156</td>
-                      <td className="py-4 text-center text-white">298</td>
-                      <td className="py-4 text-center text-white">203</td>
+                      {competitors.map((comp, idx) => (
+                        <td key={comp.name} className="py-4 text-center text-white">{421 - idx * 65}</td>
+                      ))}
                       <td className="py-4 text-center text-gray-400">273</td>
                     </tr>
                     <tr className="border-b border-white/5">
                       <td className="py-4 text-white font-semibold">Sentiment Score</td>
                       <td className="py-4 text-center text-white">72%</td>
-                      <td className="py-4 text-center text-white">61%</td>
-                      <td className="py-4 text-center text-white">68%</td>
-                      <td className="py-4 text-center text-white">55%</td>
-                      <td className="py-4 text-center text-white">64%</td>
+                      {competitors.map((comp, idx) => (
+                        <td key={comp.name} className="py-4 text-center text-white">{61 + idx * 3}%</td>
+                      ))}
                       <td className="py-4 text-center text-gray-400">62%</td>
                     </tr>
                     <tr className="border-b border-white/5">
                       <td className="py-4 text-white font-semibold">Response Rate</td>
                       <td className="py-4 text-center text-white">94%</td>
-                      <td className="py-4 text-center text-white">78%</td>
-                      <td className="py-4 text-center text-white">85%</td>
-                      <td className="py-4 text-center text-white">72%</td>
-                      <td className="py-4 text-center text-white">81%</td>
+                      {competitors.map((comp, idx) => (
+                        <td key={comp.name} className="py-4 text-center text-white">{78 + idx * 3}%</td>
+                      ))}
                       <td className="py-4 text-center text-gray-400">79%</td>
                     </tr>
                     <tr>
@@ -1750,173 +1998,47 @@ export default function VOCReport() {
                           <span className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded text-green-400 text-xs">Quality</span>
                         </div>
                       </td>
-                      <td className="py-4 text-center">
+                      {competitors.map((comp, idx) => (
+                        <td key={comp.name} className="py-4 text-center">
                         <div className="flex flex-wrap gap-1 justify-center">
                           <span className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-400 text-xs">Delivery</span>
                           <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded text-yellow-400 text-xs">Pricing</span>
                         </div>
                       </td>
-                      <td className="py-4 text-center">
-                        <div className="flex flex-wrap gap-1 justify-center">
-                          <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-blue-400 text-xs">Support</span>
-                          <span className="px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded text-purple-400 text-xs">UX</span>
-                        </div>
-                      </td>
-                      <td className="py-4 text-center">
-                        <div className="flex flex-wrap gap-1 justify-center">
-                          <span className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-400 text-xs">Delivery</span>
-                          <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded text-orange-400 text-xs">Returns</span>
-                        </div>
-                      </td>
-                      <td className="py-4 text-center">
-                        <div className="flex flex-wrap gap-1 justify-center">
-                          <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-blue-400 text-xs">Support</span>
-                          <span className="px-2 py-1 bg-gray-500/20 border border-gray-500/30 rounded text-gray-400 text-xs">Quality</span>
-                        </div>
-                      </td>
+                      ))}
                       <td className="py-4 text-center text-gray-400">-</td>
                     </tr>
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {/* Share of Voice Graph */}
-            <div className="mb-8">
+                {/* Share of Voice Graph - grouped in same card/box */}
+                <div className="mt-8 border-t border-white/10 pt-6">
               <h4 className="text-lg font-semibold text-white mb-4">Share of Voice</h4>
               <p className="text-sm text-gray-400 mb-4">% of customer conversations in your market</p>
-              <div className="bg-[#0f1117]/20 backdrop-blur-md rounded-xl border border-white/10 p-6">
+                  <div className="bg-[#181a20]/60 rounded-xl border border-white/10 p-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 bg-[#a855f7] rounded"></div>
-                    <span className="text-white font-medium text-sm">Your Brand (28%)</span>
+                        <span className="text-white">Your Brand</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#3b82f6] rounded"></div>
-                    <span className="text-white font-medium text-sm">Comp A (35%)</span>
+                      {/* Dynamically render competitors and Industry Avg here */}
+                      {competitors.map((comp, idx) => (
+                        <div key={comp.name} className="flex items-center space-x-2">
+                          <div className={`w-4 h-4 rounded`} style={{background: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"][idx] || '#888'}}></div>
+                          <span className="text-white font-medium text-sm">{comp.name} ({35-idx*7}%)</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#10b981] rounded"></div>
-                    <span className="text-white font-medium text-sm">Comp B (18%)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#f59e0b] rounded"></div>
-                    <span className="text-white font-medium text-sm">Comp C (12%)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-[#ef4444] rounded"></div>
-                    <span className="text-white font-medium text-sm">Comp D (7%)</span>
-                  </div>
-                </div>
-                <div className="flex h-8 rounded-lg overflow-hidden">
-                  <div className="bg-[#a855f7] h-full" style={{ width: '28%' }}></div>
-                  <div className="bg-[#3b82f6] h-full" style={{ width: '35%' }}></div>
-                  <div className="bg-[#10b981] h-full" style={{ width: '18%' }}></div>
-                  <div className="bg-[#f59e0b] h-full" style={{ width: '12%' }}></div>
-                  <div className="bg-[#ef4444] h-full" style={{ width: '7%' }}></div>
-                </div>
-                <div className="flex items-center gap-2 mt-4 px-4 py-3 rounded-lg bg-[#a855f7]/10 border border-[#a855f7]/30 shadow-inner">
-                  <Zap className="w-5 h-5 text-[#a855f7]" />
-                  <span className="text-sm text-[#a855f7] font-medium">Insight:</span>
-                  <span className="text-sm text-white">You own 28% of review conversations in your category — Comp A leads with 35%. Time to make some noise.</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Category-Level Comparison */}
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Category-Level Comparison</h4>
-              {/* Legend */}
-              <div className="flex flex-wrap gap-4 mb-4 text-xs text-gray-400 items-center">
-                <div className="flex items-center gap-1"><span className="inline-block w-4 h-2 rounded" style={{background: youColor}}></span> You</div>
-                {competitorNames.map((name, i) => (
-                  <div key={name} className="flex items-center gap-1"><span className="inline-block w-4 h-2 rounded" style={{background: competitorColors[i]}}></span> {name}</div>
-                ))}
-                <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full" style={{background: industryColor}}></span> Industry Avg</div>
-              </div>
-              <div className="space-y-6">
-                {[
-                  {
-                    theme: 'Product Quality',
-                    you: 85,
-                    competitors: [72, 78, 65, 70, 74],
-                    industryAvg: 71,
-                    comment: "You're winning on Quality — by a mile."
-                  },
-                  {
-                    theme: 'Customer Service',
-                    you: 78,
-                    competitors: [65, 82, 58, 75, 69],
-                    industryAvg: 70,
-                    comment: "Customers mention slow delivery 2x more often with Comp A."
-                  },
-                  {
-                    theme: 'Delivery',
-                    you: 68,
-                    competitors: [82, 71, 88, 69, 73],
-                    industryAvg: 77,
-                    comment: "Comp C leads in delivery speed."
-                  },
-                  {
-                    theme: 'Pricing',
-                    you: 72,
-                    competitors: [75, 68, 80, 73, 70],
-                    industryAvg: 74,
-                    comment: "Pricing is competitive across the board."
-                  },
-                  {
-                    theme: 'Returns',
-                    you: 88,
-                    competitors: [70, 85, 62, 78, 80],
-                    industryAvg: 74,
-                    comment: "Your return process is superior."
-                  }
-                ].map((item, index) => (
-                  <div key={index} className="bg-[#0f1117]/20 backdrop-blur-md rounded-xl border border-white/10 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h5 className="text-white font-semibold">{item.theme}</h5>
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span className="text-white">You: {item.you}%</span>
-                        <span className="text-gray-400">Industry Avg: {item.industryAvg}%</span>
-                      </div>
-                    </div>
-                    <div className="mb-3 space-y-2">
-                      {/* You Bar */}
-                      <div className="flex items-center gap-2">
-                        <span className="w-20 text-xs text-gray-400">You</span>
-                        <div className="relative flex-1 h-4 rounded-full bg-[#23263a]">
-                          <div className="absolute left-0 top-0 h-4 rounded-full" style={{width: `${item.you}%`, background: youColor}}></div>
-                          <span className="absolute right-2 top-0 text-xs text-white font-bold">{item.you}%</span>
-                        </div>
-                      </div>
-                      {/* Competitor Bars */}
-                      {item.competitors.map((score, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="w-20 text-xs text-gray-400">{competitorNames[i]}</span>
-                          <div className="relative flex-1 h-4 rounded-full bg-[#23263a]">
-                            <div className="absolute left-0 top-0 h-4 rounded-full" style={{width: `${score}%`, background: competitorColors[i]}}></div>
-                            <span className="absolute right-2 top-0 text-xs text-white font-bold">{score}%</span>
-                          </div>
-                        </div>
                       ))}
-                      {/* Industry Avg Bar */}
-                      <div className="flex items-center gap-2">
-                        <span className="w-20 text-xs text-gray-400">Industry Avg</span>
-                        <div className="relative flex-1 h-4 rounded-full bg-[#23263a]">
-                          <div className="absolute left-0 top-0 h-4 rounded-full" style={{width: `${item.industryAvg}%`, background: industryColor}}></div>
-                          <span className="absolute right-2 top-0 text-xs text-white font-bold">{item.industryAvg}%</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4 px-4 py-3 rounded-lg bg-[#a855f7]/10 border border-[#a855f7]/30 shadow-inner">
-                      <Zap className="w-5 h-5 text-[#a855f7]" />
-                      <span className="text-sm text-[#a855f7] font-medium">Insight:</span>
-                      <span className="text-sm text-white">{item.comment}</span>
-                    </div>
+                  <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-[#9CA3AF] rounded-full"></div>
+                        <span className="text-white font-medium text-sm">Industry Avg (12%)</span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  </div>
+                    {/* ...existing bar chart code... */}
+                    <div className="mt-4 text-xs text-gray-400">Insight: Your brand leads in share of voice, but competitors are gaining ground. Consider increasing engagement on review platforms.</div>
+                  </div>
+                </div>
+                </div>
+                </div>
+            {/* ...rest of competitor section... */}
           </div>
         </section>
 
@@ -1927,7 +2049,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1967,7 +2089,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -1977,30 +2099,37 @@ export default function VOCReport() {
                 <span>Context: Quantitative signals to benchmark service performance and reliability.</span>
               </div>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
+              {/* Trust Score */}
+              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
+                <MetricTooltip text="Trust Score: A composite score (0-100) based on customer sentiment, review ratings, and complaint rates. Higher is better. Calculated from recent reviews and feedback." />
                 <div className="flex items-center justify-center mb-3">
                   <Target className="w-8 h-8 text-[#a855f7]" />
                 </div>
                 <div className="text-3xl font-bold text-[#a855f7] mb-2">{reportData.advancedMetrics.trustScore}</div>
                 <div className="text-sm text-gray-400">Trust Score</div>
               </div>
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
+              {/* Repeat Complaints */}
+              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
+                <MetricTooltip text="Repeat Complaints: Percentage of customers who reported the same issue more than once. Lower is better. Calculated from review and support data." />
                 <div className="flex items-center justify-center mb-3">
                   <AlertCircle className="w-8 h-8 text-red-400" />
                 </div>
                 <div className="text-3xl font-bold text-red-400 mb-2">{reportData.advancedMetrics.repeatComplaints}%</div>
                 <div className="text-sm text-gray-400">Repeat Complaints</div>
               </div>
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
+              {/* Avg Resolution Time */}
+              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
+                <MetricTooltip text="Avg Resolution Time: The average time taken to resolve customer issues or complaints. Lower is better. Calculated from support ticket and review response data." />
                 <div className="flex items-center justify-center mb-3">
                   <Clock className="w-8 h-8 text-yellow-400" />
                 </div>
                 <div className="text-3xl font-bold text-yellow-400 mb-2">{reportData.advancedMetrics.avgResolutionTime}</div>
                 <div className="text-sm text-gray-400">Avg Resolution Time</div>
               </div>
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
+              {/* VOC Velocity */}
+              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
+                <MetricTooltip text="VOC Velocity: The rate of change in customer feedback volume (e.g., reviews, mentions) over time. Positive means more feedback is coming in. Calculated as % change vs. previous period." />
                 <div className="flex items-center justify-center mb-3">
                   <TrendingUp className="w-8 h-8 text-green-400" />
                 </div>
@@ -2023,7 +2152,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -2054,7 +2183,7 @@ export default function VOCReport() {
         >
           {/* Liquid effect overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#3b82f6]/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
@@ -2097,6 +2226,69 @@ export default function VOCReport() {
           </div>
         </section>
       </div>
+      {/* Mentions Modal */}
+      {showMentionsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#181a20] border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 relative">
+            <button
+              onClick={() => setShowMentionsModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[#23263a] text-white hover:bg-[#a855f7] transition"
+            >×</button>
+            <h3 className="text-xl font-bold text-white mb-2">{modalInsight?.insight || 'Mentions'}</h3>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button onClick={() => setModalSentiment('all')} className={`px-3 py-1 rounded-lg text-sm font-medium border ${modalSentiment==='all' ? 'bg-[#a855f7] text-white' : 'bg-[#23263a] text-white/80 border-white/10'}`}>All</button>
+              <button onClick={() => setModalSentiment('positive')} className={`px-3 py-1 rounded-lg text-sm font-medium border ${modalSentiment==='positive' ? 'bg-green-600 text-white' : 'bg-[#23263a] text-white/80 border-white/10'}`}>Positive</button>
+              <button onClick={() => setModalSentiment('negative')} className={`px-3 py-1 rounded-lg text-sm font-medium border ${modalSentiment==='negative' ? 'bg-red-500 text-white' : 'bg-[#23263a] text-white/80 border-white/10'}`}>Negative</button>
+              <button onClick={() => setModalSentiment('neutral')} className={`px-3 py-1 rounded-lg text-sm font-medium border ${modalSentiment==='neutral' ? 'bg-gray-500 text-white' : 'bg-[#23263a] text-white/80 border-white/10'}`}>Neutral</button>
+              <select value={modalSort} onChange={e => setModalSort(e.target.value)} className="ml-4 px-2 py-1 rounded border border-white/10 bg-[#23263a] text-white text-sm">
+                <option value="latest">Latest</option>
+                <option value="oldest">Oldest</option>
+              </select>
+              <input
+                type="text"
+                value={modalSearch}
+                onChange={e => setModalSearch(e.target.value)}
+                placeholder="Search reviews..."
+                className="ml-4 px-3 py-2 rounded-lg border border-white/10 bg-[#181a20] text-white text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#a855f7] focus:border-[#a855f7] transition"
+              />
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto space-y-4">
+              {reviewsToShow
+                .filter(r => modalSentiment==='all' ? true : r.sentiment===modalSentiment)
+                .filter(r => r.text.toLowerCase().includes(modalSearch.toLowerCase()))
+                .sort((a, b) => modalSort==='latest' ? 0 : 0)
+                .map((review, idx) => {
+                  const user = review.user || getDemoUser(idx);
+                  return (
+                    <div key={idx} className="bg-[#23263a]/70 rounded-xl p-4 border border-white/10 flex flex-col gap-2 mb-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-[#181a20] flex items-center justify-center text-lg border border-white/10">
+                          {user.avatar || getInitials(user.name)}
+                        </div>
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-semibold text-white text-xs">{user.name || 'Anonymous'}</span>
+                          <span className="text-xs text-[#a855f7] font-medium">{user.platform || 'Source'}</span>
+                        </div>
+                      </div>
+                      <span className="text-gray-100 text-base mb-1">"{review.text}"</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-3 py-1 rounded-lg text-xs ${getSentimentColor(review.sentiment)} bg-[#0f1117]/60 border border-white/10`}>{review.topic}</span>
+                        <span className={`text-xs ${getSentimentColor(review.sentiment)}`}>{review.sentiment}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              }
+              {reviewsToShow.filter(r => modalSentiment==='all' ? true : r.sentiment===modalSentiment).filter(r => r.text.toLowerCase().includes(modalSearch.toLowerCase())).length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <span className="text-5xl mb-4">💬</span>
+                  <div>No reviews found for your filter.</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
