@@ -502,6 +502,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   // Platform detection state
   const [detectingPlatforms, setDetectingPlatforms] = useState(false);
+  const [industry, setIndustry] = useState('');
 
   useEffect(() => {
     setShowHighlight(true);
@@ -631,40 +632,38 @@ export default function Home() {
                     <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
                       e.preventDefault(); 
                       setSubmitted(true);
-                          setPollingEmail(email);
-                          setPolling(false);
-                          setPollingError(null);
-                      
+                      setPollingEmail(email);
+                      setPolling(false);
+                      setPollingError(null);
                       try {
-                            const response = await fetch('/api/scrape', {
+                        const response = await fetch('/api/scrape', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
                           },
                           body: JSON.stringify({
                             business_name: businessUrl,
-                                business_url: `https://${reviewSourceUrl}`,
+                            business_url: `https://${reviewSourceUrl}`,
                             email: email,
-                                selected_platforms: [] // or default to all, or empty
+                            industry: industry,
+                            selected_platforms: [] // or default to all, or empty
                           })
                         });
-                            const result = await response.json();
-                            if (result.report_id) {
-                              // Always redirect to report page, even if there's an error
-                              window.location.href = `/report/${result.report_id}`;
-                              return;
-                            }
-                            // If no report_id, show error
-                            let fullError = result.error;
-                            if (result.stack) {
-                              fullError += '\n' + result.stack;
-                            }
-                            setErrorMessage(fullError || 'Unexpected error. Please try again.');
-                            setHasError(true);
-                            setSubmitted(false);
-                      } catch (error) {
-                            setErrorMessage('Error submitting form. Please try again.');
-                            setHasError(true);
+                        const result = await response.json();
+                        if (result.report_id) {
+                          window.location.href = `/report/${result.report_id}`;
+                          return;
+                        }
+                        let fullError = result.error;
+                        if (result.stack) {
+                          fullError += '\n' + result.stack;
+                        }
+                        setErrorMessage(fullError || 'Unexpected error. Please try again.');
+                        setHasError(true);
+                        setSubmitted(false);
+                      } catch {
+                        setErrorMessage('Error submitting form. Please try again.');
+                        setHasError(true);
                         setSubmitted(false);
                       }
                     }} onChange={e => {
@@ -715,6 +714,20 @@ export default function Home() {
                                 />
                           )}
                         </div>
+                      </div>
+                      {/* Industry */}
+                      <div className="flex flex-col gap-2 mb-4">
+                        <label htmlFor="industry" className="font-semibold text-base mb-1">Industry <span className="text-xs text-[#B0B0C0]">(optional)</span></label>
+                        <input
+                          id="industry"
+                          name="industry"
+                          type="text"
+                          placeholder="e.g. Retail, SaaS, Hospitality"
+                          className="input-field"
+                          autoComplete="off"
+                          value={industry}
+                          onChange={e => setIndustry(e.target.value)}
+                        />
                       </div>
                       {/* Email Address */}
                       <div className="flex flex-col gap-2">
