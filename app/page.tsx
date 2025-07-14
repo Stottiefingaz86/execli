@@ -7,6 +7,8 @@ import { CheckCircle, Mail, BarChart2, Users, Lock, Zap, FileText, TrendingUp, P
 import PlatformSelection from '../components/PlatformSelection'
 import ErrorPage from '../components/ErrorPage'
 
+const VERSION = 'v0.1.0-deploy-20240714';
+
 const TRUST_LOGOS = [
   '/logos/stripe.svg',
   '/logos/notion.svg',
@@ -817,7 +819,7 @@ export default function Home() {
         
         {/* Trust Logos */}
         <footer className="w-full py-8 text-center text-[#B0B0C0] text-sm border-t border-white/10 bg-transparent">
-          &copy; {new Date().getFullYear()} Execli. All rights reserved.
+          &copy; {new Date().getFullYear()} Execli. All rights reserved. | Version: {VERSION}
         </footer>
       </div>
     </>
