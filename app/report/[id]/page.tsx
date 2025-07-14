@@ -142,22 +142,54 @@ export default function ReportPage() {
   }
 
   if (polling) {
+    // Define the workflow steps (with Sitejabber removed)
+    const workflowSteps = [
+      'Initializing report',
+      'Scraping Trustpilot',
+      'Scraping Google',
+      'Scraping Yelp',
+      'Scraping Reddit',
+      'Scraping TripAdvisor',
+      'Analyzing customer feedback',
+      'Generating insights and charts',
+      'Sending email notification',
+      'Report ready!'
+    ];
+    // Determine current step from progressMessage
+    const lowerMsg = progressMessage.toLowerCase();
+    let currentStep = 0;
+    if (lowerMsg.includes('trustpilot')) currentStep = 1;
+    else if (lowerMsg.includes('google')) currentStep = 2;
+    else if (lowerMsg.includes('yelp')) currentStep = 3;
+    else if (lowerMsg.includes('reddit')) currentStep = 4;
+    else if (lowerMsg.includes('tripadvisor')) currentStep = 5;
+    else if (lowerMsg.includes('analyzing')) currentStep = 6;
+    else if (lowerMsg.includes('insights')) currentStep = 7;
+    else if (lowerMsg.includes('email')) currentStep = 8;
+    else if (lowerMsg.includes('ready')) currentStep = 9;
+    // Render stepper
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3b82f6] mx-auto mb-4"></div>
+        <div className="text-center max-w-md w-full">
           <h2 className="text-2xl font-semibold mb-2">Creating your Voice of Customer report...</h2>
-          <p className="text-[#B0B0C0] mb-4 text-lg font-mono whitespace-pre-line">
-            {progressMessage}
-          </p>
+          <div className="flex flex-col items-start gap-4 bg-[#181a20] rounded-xl p-6 mb-6">
+            {workflowSteps.map((step, idx) => (
+              <div key={step} className={`flex items-center gap-3 text-left w-full ${idx < currentStep ? 'opacity-60' : idx === currentStep ? 'font-bold text-[#3b82f6]' : 'opacity-40'}`}>
+                {idx < currentStep ? (
+                  <span className="inline-block w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-xs">✓</span>
+                ) : idx === currentStep ? (
+                  <span className="inline-block w-5 h-5 border-2 border-[#3b82f6] rounded-full animate-spin"></span>
+                ) : (
+                  <span className="inline-block w-5 h-5 border-2 border-gray-500 rounded-full"></span>
+                )}
+                <span>{step}</span>
+                {idx === currentStep && (
+                  <span className="ml-2 text-xs text-[#B0B0C0]">{progressMessage}</span>
+                )}
+              </div>
+            ))}
+          </div>
           <div className="bg-[#1c1e26] rounded-lg p-4">
-            <p className="text-sm text-[#B0B0C0] mb-2">Progress: {pollingAttempts}/30</p>
-            <div className="w-full bg-[#23263a] rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(pollingAttempts / 30) * 100}%` }}
-              ></div>
-            </div>
             <p className="text-xs text-[#B0B0C0] mt-2">
               This may take up to 5 minutes. Feel free to refresh the page - we'll continue where we left off!
             </p>

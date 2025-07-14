@@ -59,7 +59,6 @@ export class ScraperAPIVOCScraper {
       { name: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(businessName + ' reviews')}` },
       { name: 'Yelp', url: `https://www.yelp.com/search?find_desc=${encodeURIComponent(businessName)}` },
       { name: 'Reddit', url: `https://www.reddit.com/search/?q=${encodeURIComponent(businessName + ' review')}` },
-      { name: 'Sitejabber', url: `https://www.sitejabber.com/reviews/${businessName}.com` },
       { name: 'TripAdvisor', url: `https://www.tripadvisor.com/Search?q=${encodeURIComponent(businessName)}` }
     ];
 
@@ -108,7 +107,6 @@ export class ScraperAPIVOCScraper {
       { name: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(businessName + ' reviews')}` },
       { name: 'Yelp', url: `https://www.yelp.com/search?find_desc=${encodeURIComponent(businessName)}` },
       { name: 'Reddit', url: `https://www.reddit.com/search/?q=${encodeURIComponent(businessName + ' review')}` },
-      { name: 'Sitejabber', url: `https://www.sitejabber.com/reviews/${businessName}.com` },
       { name: 'TripAdvisor', url: `https://www.tripadvisor.com/Search?q=${encodeURIComponent(businessName)}` }
     ];
 
@@ -220,9 +218,6 @@ export class ScraperAPIVOCScraper {
           break
         case 'yelp':
           reviews.push(...this.parseYelpReviews(html))
-          break
-        case 'sitejabber':
-          reviews.push(...this.parseSitejabberReviews(html))
           break
         case 'tripadvisor':
           reviews.push(...this.parseTripAdvisorReviews(html))
@@ -444,72 +439,6 @@ export class ScraperAPIVOCScraper {
       console.error('Error parsing Yelp reviews:', error)
     }
 
-    return reviews
-  }
-
-  // Parse Sitejabber reviews
-  parseSitejabberReviews(html: string): Review[] {
-    const reviews: Review[] = []
-    
-    try {
-      // Look for JSON-LD structured data first
-      const jsonLdMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs)
-      if (jsonLdMatches) {
-        for (const match of jsonLdMatches) {
-          try {
-            const jsonContent = match.replace(/<script[^>]*>/, '').replace(/<\/script>/, '')
-            const data = JSON.parse(jsonContent)
-            if (data['@type'] === 'Review' || Array.isArray(data) && data.some(item => item['@type'] === 'Review')) {
-              if (Array.isArray(data)) {
-                data.forEach(item => {
-                  if (item['@type'] === 'Review' && item.reviewBody) {
-                    reviews.push({
-                      text: item.reviewBody,
-                      rating: item.reviewRating?.ratingValue,
-                      source: 'Sitejabber',
-                      author: item.author?.name || 'Anonymous'
-                    })
-                  }
-                })
-              } else if (data.reviewBody) {
-                reviews.push({
-                  text: data.reviewBody,
-                  rating: data.reviewRating?.ratingValue,
-                  source: 'Sitejabber',
-                  author: data.author?.name || 'Anonymous'
-                })
-              }
-            }
-          } catch (e) {
-            // Continue if JSON parsing fails
-          }
-        }
-      }
-      
-      // Look for review cards in HTML
-      const reviewCardPatterns = [
-        /<div[^>]*class="[^"]*review[^"]*"[^>]*>.*?<p[^>]*>(.*?)<\/p>/gs,
-        /<div[^>]*class="[^"]*comment[^"]*"[^>]*>.*?<p[^>]*>(.*?)<\/p>/gs,
-        /<div[^>]*class="[^"]*review-text[^"]*"[^>]*>(.*?)<\/div>/gs
-      ]
-      
-      for (const pattern of reviewCardPatterns) {
-        const matches = html.match(pattern)
-        if (matches) {
-          matches.forEach(match => {
-            try {
-              const text = this.cleanHtml(match[1] || match[0])
-              if (text.length > 20) {
-                reviews.push({ text, source: 'Sitejabber' })
-              }
-            } catch {}
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing Sitejabber reviews:', error)
-    }
-    
     return reviews
   }
 

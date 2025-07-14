@@ -57,7 +57,6 @@ export class EnhancedVOCScraper {
       'Yelp', 
       'Trustpilot',
       'TripAdvisor',
-      'Sitejabber',
       'BBB',
       'Reddit',
       'Facebook Reviews'
@@ -188,9 +187,6 @@ export class EnhancedVOCScraper {
       
       case 'TripAdvisor':
         return `https://www.tripadvisor.com/Search?q=${encodeURIComponent(businessName)}`
-      
-      case 'Sitejabber':
-        return `https://www.sitejabber.com/reviews/${domain}`
       
       case 'BBB':
         return `https://www.bbb.org/us/search?find_text=${encodeURIComponent(businessName)}`
@@ -359,7 +355,6 @@ export class EnhancedVOCScraper {
           'Yelp': ['.review', '.review-content', '[data-review-id]'],
           'Trustpilot': ['[data-service-review-card]', '.review-card', '.styles_reviewCard__hcAvl'],
           'TripAdvisor': ['.review-container', '.review', '.ui_column'],
-          'Sitejabber': ['.review', '.review-content'],
           'BBB': ['.review', '.rating'],
           'Reddit': ['.comment', '.Post'],
           'Facebook Reviews': ['.review', '.rating'],
@@ -413,7 +408,6 @@ export class EnhancedVOCScraper {
           'Yelp': ['.review-count', '.total-reviews'],
           'Trustpilot': ['.review-count', '.total-reviews'],
           'TripAdvisor': ['.review-count', '.total-reviews'],
-          'Sitejabber': ['.review-count', '.total-reviews'],
           'BBB': ['.review-count', '.rating-count'],
           'Reddit': ['.comment-count', '.Post'],
           'Facebook Reviews': ['.review-count', '.rating-count'],
@@ -451,7 +445,6 @@ export class EnhancedVOCScraper {
     if (hostname.includes('yelp')) return 'Yelp'
     if (hostname.includes('trustpilot')) return 'Trustpilot'
     if (hostname.includes('tripadvisor')) return 'TripAdvisor'
-    if (hostname.includes('sitejabber')) return 'Sitejabber'
     if (hostname.includes('bbb.org')) return 'BBB'
     if (hostname.includes('reddit')) return 'Reddit'
     if (hostname.includes('facebook')) return 'Facebook Reviews'
