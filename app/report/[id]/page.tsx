@@ -12,7 +12,7 @@ import Navigation from '@/components/Navigation';
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic'
 
-// Define the workflow steps and commentary
+// Define the workflow steps and commentary (top-level)
 const workflowSteps = [
   { label: 'Finding review sources with AI', commentary: 'Locating the best review sites for this business using AI.' },
   { label: 'Scraping reviews from sources', commentary: 'Collecting reviews from all discovered platforms.' },
@@ -20,14 +20,6 @@ const workflowSteps = [
   { label: 'Generating insights and charts', commentary: 'Creating summaries, themes, and visualizations.' },
   { label: 'Report ready!', commentary: 'Your Voice of Customer report is complete.' }
 ];
-
-// Determine current step from progressMessage
-const lowerMsg = (progressMessage || '').toLowerCase();
-let currentStep = 0;
-if (lowerMsg.includes('scraping')) currentStep = 1;
-else if (lowerMsg.includes('analyzing')) currentStep = 2;
-else if (lowerMsg.includes('insights')) currentStep = 3;
-else if (lowerMsg.includes('ready')) currentStep = 4;
 
 export default function ReportPage() {
   const params = useParams()
@@ -38,6 +30,14 @@ export default function ReportPage() {
   const [polling, setPolling] = useState(false)
   const [pollingAttempts, setPollingAttempts] = useState(0)
   const [progressMessage, setProgressMessage] = useState<string>('Initializing your report...')
+
+  // Determine current step from progressMessage
+  const lowerMsg = (progressMessage || '').toLowerCase();
+  let currentStep = 0;
+  if (lowerMsg.includes('scraping')) currentStep = 1;
+  else if (lowerMsg.includes('analyzing')) currentStep = 2;
+  else if (lowerMsg.includes('insights')) currentStep = 3;
+  else if (lowerMsg.includes('ready')) currentStep = 4;
 
   useEffect(() => {
     async function fetchData() {
