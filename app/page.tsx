@@ -648,7 +648,11 @@ export default function Home() {
                         });
                             const result = await response.json();
                             if (result.error) {
-                              setErrorMessage(result.error || 'Unexpected error. Please try again.');
+                              let fullError = result.error;
+                              if (result.stack) {
+                                fullError += '\n' + result.stack;
+                              }
+                              setErrorMessage(fullError || 'Unexpected error. Please try again.');
                               setHasError(true);
                               setSubmitted(false);
                               return;
