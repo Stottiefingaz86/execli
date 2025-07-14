@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
           company_id: company.id,
           business_name: business_name,
           business_url: business_url,
-          industry: industry || null, // Placeholder: in future, infer from business_url
           processed_at: new Date().toISOString(),
           sources: [],
           status: 'processing',
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
           company_id: null,
           business_name: business_name,
           business_url: business_url,
-          industry: industry || null, // Placeholder: in future, infer from business_url
           processed_at: new Date().toISOString(),
           sources: [],
           status: 'error',
