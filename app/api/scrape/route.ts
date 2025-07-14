@@ -195,7 +195,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Scrape API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error && error.stack ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

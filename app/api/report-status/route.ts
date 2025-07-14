@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       status: 'error', 
       report_id: reportId,
-      error: 'Internal server error'
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error && error.stack ? error.stack : undefined
     })
   }
 } 
