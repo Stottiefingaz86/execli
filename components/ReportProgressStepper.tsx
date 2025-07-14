@@ -6,15 +6,15 @@ interface Step {
 }
 
 interface ReportProgressStepperProps {
-  steps: Step[];
+  workflowSteps: Step[];
   currentStep: number;
   progressMessage: string;
 }
 
-const ReportProgressStepper: React.FC<ReportProgressStepperProps> = ({ steps, currentStep, progressMessage }) => (
+const ReportProgressStepper: React.FC<ReportProgressStepperProps> = ({ workflowSteps, currentStep, progressMessage }) => (
   <div className="w-full max-w-md mx-auto p-6 bg-white/10 rounded-2xl shadow-lg border border-white/20">
     <ol className="space-y-4">
-      {steps.map((step, idx) => (
+      {workflowSteps.map((step, idx) => (
         <li key={step.label} className={`flex items-center gap-3 ${idx < currentStep ? 'opacity-80' : idx === currentStep ? 'font-bold text-accent' : 'opacity-40'}`}>
           {idx < currentStep ? (
             <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs">✓</span>
@@ -28,7 +28,7 @@ const ReportProgressStepper: React.FC<ReportProgressStepperProps> = ({ steps, cu
       ))}
     </ol>
     <div className="mt-6 text-center text-[#B0B0C0] text-base min-h-[32px]">
-      {steps[currentStep]?.commentary}
+      {workflowSteps[currentStep]?.commentary}
     </div>
     <div className="mt-2 text-xs text-[#B0B0C0] text-center">
       {progressMessage}
