@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json()
-    const { business_name, business_url, email, industry, selected_platforms = [], reviewSourceUrl } = body
+    const { business_name, business_url, email, industry = null, selected_platforms = [], reviewSourceUrl } = body
 
     if (!business_name || !business_url || !email) {
       return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
           company_id: company.id,
           business_name: business_name,
           business_url: business_url,
-          industry: industry || null,
+          industry: industry || null, // Placeholder: in future, infer from business_url
           processed_at: new Date().toISOString(),
           sources: [],
           status: 'processing',
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
           company_id: null,
           business_name: business_name,
           business_url: business_url,
-          industry: industry || null,
+          industry: industry || null, // Placeholder: in future, infer from business_url
           processed_at: new Date().toISOString(),
           sources: [],
           status: 'error',

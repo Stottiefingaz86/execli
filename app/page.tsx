@@ -502,7 +502,6 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   // Platform detection state
   const [detectingPlatforms, setDetectingPlatforms] = useState(false);
-  const [industry, setIndustry] = useState('');
 
   useEffect(() => {
     setShowHighlight(true);
@@ -645,7 +644,6 @@ export default function Home() {
                             business_name: businessUrl,
                             business_url: `https://${reviewSourceUrl}`,
                             email: email,
-                            industry: industry,
                             selected_platforms: [] // or default to all, or empty
                           })
                         });
@@ -714,20 +712,6 @@ export default function Home() {
                                 />
                           )}
                         </div>
-                      </div>
-                      {/* Industry */}
-                      <div className="flex flex-col gap-2 mb-4">
-                        <label htmlFor="industry" className="font-semibold text-base mb-1">Industry <span className="text-xs text-[#B0B0C0]">(optional)</span></label>
-                        <input
-                          id="industry"
-                          name="industry"
-                          type="text"
-                          placeholder="e.g. Retail, SaaS, Hospitality"
-                          className="input-field"
-                          autoComplete="off"
-                          value={industry}
-                          onChange={e => setIndustry(e.target.value)}
-                        />
                       </div>
                       {/* Email Address */}
                       <div className="flex flex-col gap-2">
