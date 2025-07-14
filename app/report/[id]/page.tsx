@@ -154,16 +154,8 @@ export default function ReportPage() {
   if (loading || polling) {
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex flex-col">
-        {/* Glassmorphic Header/Nav */}
-        <header className="w-full px-0 py-0 bg-transparent">
-          <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Execli Logo" width={40} height={40} className="drop-shadow-lg" />
-              <span className="text-2xl font-bold text-white tracking-tight">execli</span>
-            </div>
-            <button className="px-4 py-2 rounded-lg bg-white/10 text-white font-semibold text-sm shadow border border-white/20 opacity-60 cursor-not-allowed" disabled>Share</button>
-          </div>
-        </header>
+        {/* Use Navigation component for header/nav, matching demo */}
+        <Navigation />
         {/* Glassmorphic Main Card */}
         <main className="flex flex-1 items-center justify-center">
           <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
@@ -176,8 +168,8 @@ export default function ReportPage() {
                     {idx < currentStep ? (
                       <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs shadow-[0_0_8px_2px_#8b5cf6]">✓</span>
                     ) : idx === currentStep ? (
-                      <span className="inline-block w-5 h-5">
-                        <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-gradient-spin"></span>
+                      <span className="inline-block w-5 h-5 animate-pulse">
+                        <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5]" />
                       </span>
                     ) : (
                       <span className="inline-block w-5 h-5 border-2 border-[#a78bfa] rounded-full"></span>
