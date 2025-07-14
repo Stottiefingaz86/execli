@@ -107,19 +107,16 @@ export async function POST(request: NextRequest) {
     setTimeout(async () => {
       if (company && !companyError) {
         try {
-          console.log('Starting ScraperAPI scraping...')
-          await updateProgress(supabase, report.id, '🔍 Discovering review sources...')
-          
+          await updateProgress(supabase, report.id, '🔍 Scraping review sources...');
           // Use ScraperAPI to scrape all sources with progress updates
           const scrapingResults = await scraper.scrapeAllSourcesWithProgress(business_name, company.id, report.id)
-          
-          console.log('Scraping results:', scrapingResults)
-          await updateProgress(supabase, report.id, '🤖 Analyzing customer feedback...')
-          
+
+          await updateProgress(supabase, report.id, '🤖 Analyzing customer feedback...');
           // Calculate totals
-          const totalReviews = scrapingResults.reduce((sum: number, result: any) => sum + result.reviewCount, 0)
-          const successfulPlatforms = scrapingResults.filter((result: any) => result.success && result.reviewCount > 0)
-          
+          const totalReviews = scrapingResults.reduce((sum, result) => sum + result.reviewCount, 0)
+          const successfulPlatforms = scrapingResults.filter((result) => result.success && result.reviewCount > 0)
+
+          await updateProgress(supabase, report.id, '📊 Generating insights and charts...');
           // Generate analysis based on scraped data
           const analysisData = {
             executive_summary: {
@@ -148,14 +145,12 @@ export async function POST(request: NextRequest) {
             ] : []
           }
 
-          await updateProgress(supabase, report.id, '📊 Generating insights and charts...')
-
           // Update report with scraping results and analysis
           await supabase
             .from('voc_reports')
             .update({
               analysis: analysisData,
-              sources: successfulPlatforms.map((result: any) => ({
+              sources: successfulPlatforms.map((result) => ({
                 platform: result.platform,
                 reviewCount: result.reviewCount,
                 hasRealData: result.reviewCount > 0
@@ -166,15 +161,9 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', report.id)
 
-          // Update company status
-          await supabase
-            .from('companies')
-            .update({ status: 'complete' })
-            .eq('id', company.id)
-
+          await updateProgress(supabase, report.id, '📧 Sending your report via email...');
           // Send email notification
           try {
-            await updateProgress(supabase, report.id, '📧 Sending your report via email...')
             await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-email`, {
               method: 'POST',
               headers: {
@@ -190,11 +179,6 @@ export async function POST(request: NextRequest) {
             console.error('Error sending email notification:', emailError)
             // Don't fail the whole process if email fails
           }
-
-          console.log('Report processing completed for:', report.id)
-          console.log('Total reviews found:', totalReviews)
-          console.log('Successful platforms:', successfulPlatforms.map((p: any) => `${p.platform}: ${p.reviewCount} reviews`))
-          
         } catch (error) {
           console.error('Error in background processing:', error)
           await supabase

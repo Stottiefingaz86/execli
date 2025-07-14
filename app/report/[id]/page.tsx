@@ -147,7 +147,7 @@ export default function ReportPage() {
         <div className="text-center max-w-md">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3b82f6] mx-auto mb-4"></div>
           <h2 className="text-2xl font-semibold mb-2">Creating your Voice of Customer report...</h2>
-          <p className="text-[#B0B0C0] mb-4">
+          <p className="text-[#B0B0C0] mb-4 text-lg font-mono whitespace-pre-line">
             {progressMessage}
           </p>
           <div className="bg-[#1c1e26] rounded-lg p-4">
