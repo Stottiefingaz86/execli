@@ -296,7 +296,7 @@ export default function ReportPage() {
         <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 shadow-lg min-h-[180px] flex flex-col items-center justify-center">
           {sources && sources.length > 0 ? (
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sources.map((src, i) => (
+              {sources.map((src: { url: string }, i: number) => (
                 <SourceCard key={i} source={src} />
               ))}
             </div>
