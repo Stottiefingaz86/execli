@@ -38,7 +38,7 @@ export default function ReportPage() {
             .single()
 
           if (oldError || !oldReport || !oldReport.report_data) {
-            setError('No report found')
+            setError(oldError ? (typeof oldError === 'object' ? JSON.stringify(oldError) : String(oldError)) : 'No report found')
             return
           }
           setReportData(oldReport.report_data)
@@ -46,11 +46,10 @@ export default function ReportPage() {
           // Check if report is still processing
           if (vocReport.status === 'processing' && !vocReport.analysis) {
             setProgressMessage(vocReport.progress_message || 'Initializing your report...')
-      setPolling(true)
+            setPolling(true)
             startPolling()
             return
           }
-          
           // Use the analysis data from voc_reports
           const reportWithSources = {
             ...vocReport,
@@ -61,9 +60,9 @@ export default function ReportPage() {
         } else {
           setError('No report found')
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching report:', err)
-        setError('Failed to load report')
+        setError(err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err)) || 'Failed to load report')
       } finally {
         setLoading(false)
       }
@@ -173,7 +172,7 @@ export default function ReportPage() {
       <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-4 text-red-400">Error</h2>
-          <p className="text-[#B0B0C0] mb-4">{error}</p>
+          <p className="text-[#B0B0C0] mb-4 break-all whitespace-pre-wrap">{error}</p>
           <button 
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors"
