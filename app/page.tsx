@@ -19,7 +19,7 @@ const NAV_LINKS = [
   { href: '#how-it-works', label: 'How it Works' },
   { href: '#pricing', label: 'Pricing' },
   { href: '/report', label: 'Demo Report' },
-  { href: '/blog', label: 'Blog' },
+    { href: '/blog', label: 'Blog' },
 ];
 
 // Blog posts data
@@ -263,11 +263,11 @@ function PricingSection() {
           <div className="bg-[#202a3c] rounded-2xl p-6 shadow-xl flex flex-col h-full">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2">
               <span className="px-4 py-1 rounded-full text-xs font-semibold shadow border border-white/20 text-white brand-gradient">Most Popular</span>
-            </div>
+          </div>
             <div className="text-center mb-4">
               <h3 className="text-xl font-bold text-white mb-1">Pro</h3>
               <div className="text-3xl font-bold text-white mb-1">$20</div>
-              <div className="text-[#B0B0C0] text-sm">per month</div>
+            <div className="text-[#B0B0C0] text-sm">per month</div>
             </div>
             <ul className="space-y-3 text-[#B0B0C0] text-sm mb-4">
               <li className="flex items-center"><CheckCircle size={18} className="text-white mr-2" />1 report</li>
@@ -390,12 +390,12 @@ function CTASection() {
           </p>
           {/* CTA Buttons Row */}
           <div className="flex flex-row gap-4 mb-6">
-                    <a
-                      href="/report"
+            <a
+              href="/report"
                       className="btn-primary"
-                    >
-                      Demo Report
-                    </a>
+            >
+              Demo Report
+            </a>
             <a
               href="/signup"
               className="px-4 py-2 rounded-lg bg-white text-[#181a20] font-medium text-sm shadow-sm border border-white/20 hover:bg-gray-100 transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/40 focus:ring-offset-2"
@@ -586,66 +586,66 @@ export default function Home() {
               <div className="flex flex-col lg:flex-row items-start justify-between gap-12">
                 {/* Left: Hero Content */}
                 <div className="flex-1 min-w-0 space-y-8">
-                  <h1 className="text-[2.2rem] md:text-[2.8rem] lg:text-[3.5rem] font-bold tracking-tight leading-tight mb-6 text-white relative">
-                    Drowning in Reviews?<br />
-                    Turn Feedback Into <span className="whitespace-nowrap"><span className="bg-gradient-to-r from-[#3b82f6] via-[#8b5cf6] to-[#3b82f6] bg-clip-text text-transparent animate-gradient-shift">insights</span>, Instantly.</span>
-                  </h1>
-                  <p className="text-sm md:text-base text-[#B0B0C0] font-mono mb-8 tracking-wide leading-snug max-w-xl">
-                    Execli analyzes customer reviews across platforms and delivers clear insights so you know what to fix, build, or brag about — no analyst needed.
-                  </p>
-                  {/* CTA Buttons Row */}
-                  <div className="flex flex-row gap-4 mb-6">
-                    <a
-                      href="/report"
+              <h1 className="text-[2.2rem] md:text-[2.8rem] lg:text-[3.5rem] font-bold tracking-tight leading-tight mb-6 text-white relative">
+                Drowning in Reviews?<br />
+                Turn Feedback Into <span className="whitespace-nowrap"><span className="bg-gradient-to-r from-[#3b82f6] via-[#8b5cf6] to-[#3b82f6] bg-clip-text text-transparent animate-gradient-shift">insights</span>, Instantly.</span>
+              </h1>
+              <p className="text-sm md:text-base text-[#B0B0C0] font-mono mb-8 tracking-wide leading-snug max-w-xl">
+                Execli analyzes customer reviews across platforms and delivers clear insights so you know what to fix, build, or brag about — no analyst needed.
+              </p>
+              {/* CTA Buttons Row */}
+              <div className="flex flex-row gap-4 mb-6">
+                <a
+                  href="/report"
                       className="btn-primary"
-                    >
-                      Demo Report
-                    </a>
-                    <a
-                      href="/signup"
-                      className="px-4 py-2 rounded-lg bg-white text-[#181a20] font-medium text-sm shadow-sm border border-white/20 hover:bg-gray-100 transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/40 focus:ring-offset-2"
-                      style={{ boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' }}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                      Get Started
-                    </a>
-                  </div>
-                </div>
-                
-                {/* Right: Form Card + Visual */}
+                >
+                  Demo Report
+                </a>
+                <a
+                  href="/signup"
+                  className="px-4 py-2 rounded-lg bg-white text-[#181a20] font-medium text-sm shadow-sm border border-white/20 hover:bg-gray-100 transition flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/40 focus:ring-offset-2"
+                  style={{ boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                  Get Started
+                </a>
+              </div>
+            </div>
+            
+            {/* Right: Form Card + Visual */}
                 <div className="w-full md:w-[380px] lg:w-[420px] flex-shrink-0 flex flex-col justify-center gap-8 relative px-4">
-                  {/* Hero Glow Background - Enhanced with pulsing */}
-                  <div className="absolute -z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[340px] bg-gradient-radial bg-gradient-radial-from-purple bg-gradient-radial-to-transparent blur-3xl opacity-80 pointer-events-none animate-glow-pulse" />
-                  
-                  <div className="w-full max-w-full md:max-w-md md:w-[380px]">
-                    <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-8 mx-auto backdrop-blur-2xl relative overflow-hidden max-w-xl w-full">
-                      {/* Liquid effect overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
+              {/* Hero Glow Background - Enhanced with pulsing */}
+              <div className="absolute -z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[340px] bg-gradient-radial bg-gradient-radial-from-purple bg-gradient-radial-to-transparent blur-3xl opacity-80 pointer-events-none animate-glow-pulse" />
+              
+              <div className="w-full max-w-full md:max-w-md md:w-[380px]">
+                <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-8 mx-auto backdrop-blur-2xl relative overflow-hidden max-w-xl w-full">
+                  {/* Liquid effect overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
                       <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-                      
-                      {!submitted ? (
-                        <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
-                          e.preventDefault(); 
-                          setSubmitted(true);
+                  
+                  {!submitted ? (
+                    <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
+                      e.preventDefault(); 
+                      setSubmitted(true);
                           setPollingEmail(email);
                           setPolling(false);
                           setPollingError(null);
-                          
-                          try {
+                      
+                      try {
                             const response = await fetch('/api/scrape', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                business_name: businessUrl,
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            business_name: businessUrl,
                                 business_url: `https://${reviewSourceUrl}`,
-                                email: email,
+                            email: email,
                                 selected_platforms: [] // or default to all, or empty
-                              })
-                            });
+                          })
+                        });
                             const result = await response.json();
                             if (result.error) {
                               setErrorMessage(result.error || 'Unexpected error. Please try again.');
@@ -661,33 +661,33 @@ export default function Home() {
                               setHasError(true);
                               setSubmitted(false);
                             }
-                          } catch (error) {
+                      } catch (error) {
                             setErrorMessage('Error submitting form. Please try again.');
                             setHasError(true);
-                            setSubmitted(false);
-                          }
-                        }} onChange={e => {
-                          const form = e.currentTarget as HTMLFormElement;
-                          setFormValid(form.checkValidity());
-                        }}>
+                        setSubmitted(false);
+                      }
+                    }} onChange={e => {
+                      const form = e.currentTarget as HTMLFormElement;
+                      setFormValid(form.checkValidity());
+                    }}>
                           {/* Brand Name */}
-                          <div className="flex flex-col gap-2 mb-4">
+                      <div className="flex flex-col gap-2 mb-4">
                             <label htmlFor="brandName" className={`font-semibold text-base mb-1 ${focusedField === 'businessUrl' ? 'field-label-active' : 'field-label-faded'}`}>Brand Name</label>
-                            <input
+                          <input
                               id="brandName"
                               name="brandName"
-                              type="text"
-                              required
+                            type="text"
+                            required
                               placeholder="Your brand name"
                               className="input-field"
-                              autoComplete="off"
-                              autoFocus
-                              value={businessUrl}
-                              onFocus={() => setFocusedField('businessUrl')}
-                              onBlur={() => setFocusedField(null)}
-                              onChange={e => setBusinessUrl(e.target.value)}
-                            />
-                          </div>
+                            autoComplete="off"
+                            autoFocus
+                            value={businessUrl}
+                            onFocus={() => setFocusedField('businessUrl')}
+                            onBlur={() => setFocusedField(null)}
+                            onChange={e => setBusinessUrl(e.target.value)}
+                          />
+                        </div>
                           {/* Brand URL (optional) */}
                           <div className="flex flex-col gap-2 mb-4">
                             <label htmlFor="brandUrl" className={`font-semibold text-base mb-1 ${focusedField === 'competitorUrl' ? 'field-label-active' : 'field-label-faded'}`}>Brand URL <span className="text-xs text-[#B0B0C0]">(optional)</span></label>
@@ -712,45 +712,45 @@ export default function Home() {
                                   className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded"
                                   style={{ background: '#fff', borderRadius: '6px' }}
                                 />
-                              )}
-                            </div>
-                          </div>
-                          {/* Email Address */}
-                          <div className="flex flex-col gap-2">
-                            <label htmlFor="email" className={`font-semibold text-base mb-1 ${focusedField === 'email' ? 'field-label-active' : 'field-label-faded'}`}>Email Address</label>
-                            <input
-                              id="email"
-                              name="email"
-                              type="email"
-                              required
-                              placeholder="you@example.com"
-                              className="input-field"
-                              autoComplete="off"
-                              value={email}
-                              onChange={e => setEmail(e.target.value)}
-                              onFocus={() => setFocusedField('email')}
-                              onBlur={() => setFocusedField(null)}
-                            />
-                          </div>
-                          {/* Info Text */}
-                          <div className="text-xs text-[#B0B0C0] bg-white/5 border border-white/10 rounded-md px-4 py-3 mt-1 mb-2">
-                            Sign up to unlock <span className="font-semibold text-white">live monitoring</span>, <span className="font-semibold text-white">more sources</span>, and <span className="font-semibold text-white">competitor tracking</span>.
-                          </div>
-                          {/* Submit Button */}
-                          <div className="flex flex-col gap-2 mt-2">
-                            <button
-                              type="submit"
+                          )}
+                        </div>
+                      </div>
+                      {/* Email Address */}
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="email" className={`font-semibold text-base mb-1 ${focusedField === 'email' ? 'field-label-active' : 'field-label-faded'}`}>Email Address</label>
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          required
+                          placeholder="you@example.com"
+                          className="input-field"
+                          autoComplete="off"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          onFocus={() => setFocusedField('email')}
+                          onBlur={() => setFocusedField(null)}
+                        />
+                      </div>
+                      {/* Info Text */}
+                      <div className="text-xs text-[#B0B0C0] bg-white/5 border border-white/10 rounded-md px-4 py-3 mt-1 mb-2">
+                        Sign up to unlock <span className="font-semibold text-white">live monitoring</span>, <span className="font-semibold text-white">more sources</span>, and <span className="font-semibold text-white">competitor tracking</span>.
+                      </div>
+                      {/* Submit Button */}
+                      <div className="flex flex-col gap-2 mt-2">
+                        <button
+                          type="submit"
                               className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 font-bold text-base shadow-lg transition-all duration-300 focus:ring-2 focus:ring-[#2370FF] focus:ring-offset-2 relative z-10 ${formValid ? 'bg-white text-[#181a20] border border-white/20 hover:bg-gray-100' : 'btn-ghost'}`}
                               style={formValid ? { boxShadow: '0 2px 12px 0 rgba(139,92,246,0.08)' } : {}}
-                              disabled={!formValid}
-                            >
-                              <Wand2 className="w-5 h-5" />
-                              Generate Free Report
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
+                          disabled={!formValid}
+                        >
+                          <Wand2 className="w-5 h-5" />
+                          Generate Free Report
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
                           {detectingPlatforms ? (
                             <>
                               <div className="flex flex-col items-center gap-4">
@@ -781,18 +781,18 @@ export default function Home() {
                             </div>
                           ) : (
                             <>
-                              <h2 className="text-2xl font-semibold mb-4 text-white">We're analyzing your customer voice.</h2>
+                      <h2 className="text-2xl font-semibold mb-4 text-white">We're analyzing your customer voice.</h2>
                               <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{pollingEmail}</span> in under 1 minute.</p>
                             </>
                           )}
-                        </div>
-                      )}
                     </div>
-                  </div>
+                  )}
+                    </div>
                 </div>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
         )}
         
         {/* How it Works Section */}

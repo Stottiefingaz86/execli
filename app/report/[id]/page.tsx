@@ -46,7 +46,7 @@ export default function ReportPage() {
           // Check if report is still processing
           if (vocReport.status === 'processing' && !vocReport.analysis) {
             setProgressMessage(vocReport.progress_message || 'Initializing your report...')
-            setPolling(true)
+      setPolling(true)
             startPolling()
             return
           }
@@ -95,9 +95,9 @@ export default function ReportPage() {
           // Fetch the updated report data
           const { data: updatedReport, error } = await supabase()
             .from('voc_reports')
-            .select('*')
+        .select('*')
             .eq('id', reportId)
-            .single()
+        .single()
 
           if (!error && updatedReport) {
             const reportWithSources = {
@@ -112,7 +112,7 @@ export default function ReportPage() {
         } else if (data.status === 'error') {
           setError('Report generation failed. Please try again.')
           setPolling(false)
-          return
+        return
         }
 
         attempts++
@@ -120,12 +120,12 @@ export default function ReportPage() {
         
         // Continue polling
         setTimeout(poll, 10000) // Poll every 10 seconds
-      } catch (err) {
+    } catch (err) {
         console.error('Polling error:', err)
         attempts++
         setPollingAttempts(attempts)
         setTimeout(poll, 10000)
-      }
+    }
     }
 
     poll()

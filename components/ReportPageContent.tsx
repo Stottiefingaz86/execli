@@ -124,6 +124,9 @@ export default function ReportPageContent({ report }: { report: any }) {
   const keyInsights = analysis?.key_insights || [];
   const trendingTopics = analysis?.trending_topics || [];
 
+  // Check if we should show the full report (when sources are active)
+  const shouldShowFullReport = activeSources.length > 0;
+
   return (
     <div className="min-h-screen bg-[#0f1117] text-white">
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -136,8 +139,8 @@ export default function ReportPageContent({ report }: { report: any }) {
           </p>
         </div>
 
-        {/* Voice of Customer Section - Top Card */}
-        {executiveSummary && (
+        {/* Voice of Customer Section - Only show when sources are active */}
+        {shouldShowFullReport && executiveSummary && (
           <div className="mb-10">
             <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
               <MessageCircle className="w-6 h-6 text-[#3b82f6]" />
@@ -229,44 +232,46 @@ export default function ReportPageContent({ report }: { report: any }) {
               <ExternalLink className="w-6 h-6" />
               Review Sources
             </h2>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-[#B0B0C0]">
-                {userPlan === 'free' ? 'Free plan: 1 source' : 'Pro plan: Unlimited sources'}
-              </div>
-              {userPlan !== 'free' && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/weekly-sync', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          report_id: report.id,
-                          user_plan: userPlan
-                        })
-                      });
+            {shouldShowFullReport && (
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-[#B0B0C0]">
+                  {userPlan === 'free' ? 'Free plan: 1 source' : 'Pro plan: Unlimited sources'}
+                </div>
+                {userPlan !== 'free' && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/weekly-sync', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            report_id: report.id,
+                            user_plan: userPlan
+                          })
+                        });
 
-                      const result = await response.json();
-                      
-                      if (result.error) {
-                        alert(result.error);
-                      } else {
-                        alert('Weekly sync started! You will be notified when complete.');
+                        const result = await response.json();
+                        
+                        if (result.error) {
+                          alert(result.error);
+                        } else {
+                          alert('Weekly sync started! You will be notified when complete.');
+                        }
+                      } catch (error) {
+                        console.error('Error starting weekly sync:', error);
+                        alert('Failed to start weekly sync. Please try again.');
                       }
-                    } catch (error) {
-                      console.error('Error starting weekly sync:', error);
-                      alert('Failed to start weekly sync. Please try again.');
-                    }
-                  }}
-                  className="px-4 py-2 bg-gradient-to-r from-[#10b981] to-[#059669] text-white rounded-lg font-medium hover:opacity-90 transition-all flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Weekly Sync
-                </button>
-              )}
-            </div>
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-[#10b981] to-[#059669] text-white rounded-lg font-medium hover:opacity-90 transition-all flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Weekly Sync
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Show active sources if any */}
@@ -322,8 +327,8 @@ export default function ReportPageContent({ report }: { report: any }) {
             <div className="rounded-xl bg-[#181a20]/60 border border-white/10 p-8 text-center text-[#B0B0C0] mb-6">
               {detectedSources.length > 0 ? (
                 <>
-                  <h3 className="text-xl font-semibold text-white mb-2">No sources connected yet</h3>
-                  <p className="mb-4">Activate your first review source to get started. You can add more sources as you upgrade your plan.</p>
+                  <h3 className="text-xl font-semibold text-white mb-2">Choose a review source to view insights</h3>
+                  <p className="mb-4">Select a review platform to analyze customer feedback and generate your Voice of Customer report.</p>
                   <div className="flex flex-wrap gap-4 justify-center">
                     {detectedSources.map((src: any, i: number) => {
                       const limitReached = activeSources.length >= maxSources;
@@ -371,8 +376,8 @@ export default function ReportPageContent({ report }: { report: any }) {
           )}
         </div>
 
-        {/* Key Insights Section */}
-        {keyInsights.length > 0 && (
+        {/* Key Insights Section - Only show when sources are active */}
+        {shouldShowFullReport && keyInsights.length > 0 && (
           <div className="mb-10">
             <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
               <Lightbulb className="w-6 h-6 text-[#f59e0b]" />
@@ -402,8 +407,8 @@ export default function ReportPageContent({ report }: { report: any }) {
           </div>
         )}
 
-        {/* Trending Topics Section */}
-        {trendingTopics.length > 0 && (
+        {/* Trending Topics Section - Only show when sources are active */}
+        {shouldShowFullReport && trendingTopics.length > 0 && (
           <div className="mb-10">
             <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
               <TrendingUp className="w-6 h-6 text-[#10b981]" />
@@ -428,30 +433,37 @@ export default function ReportPageContent({ report }: { report: any }) {
           </div>
         )}
 
-        {/* Did You Know Section */}
-        <div className="bg-gradient-to-r from-[#1c1e26] to-[#23263a] border border-white/10 rounded-xl p-6 backdrop-blur-xl">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-[#f59e0b]" />
-            Did You Know?
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#3b82f6] mt-2 flex-shrink-0"></div>
-              <div>
-                <p className="text-white font-medium mb-1">Response Time Matters</p>
-                <p className="text-sm text-[#B0B0C0]">Customers expect responses within 24 hours. Quick responses can improve your rating by up to 0.5 stars.</p>
+        {/* Did You Know Section - Only show when sources are active */}
+        {shouldShowFullReport && (
+          <div className="bg-gradient-to-r from-[#1c1e26] to-[#23263a] border border-white/10 rounded-xl p-6 backdrop-blur-xl">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-[#f59e0b]" />
+              Did You Know?
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-[#3b82f6] mt-2 flex-shrink-0"></div>
+                <div>
+                  <p className="text-white font-medium mb-1">Response Time Matters</p>
+                  <p className="text-sm text-[#B0B0C0]">Customers expect responses within 24 hours. Quick responses can improve your rating by up to 0.5 stars.</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#8b5cf6] mt-2 flex-shrink-0"></div>
-              <div>
-                <p className="text-white font-medium mb-1">Negative Reviews Are Opportunities</p>
-                <p className="text-sm text-[#B0B0C0]">Responding to negative reviews can turn dissatisfied customers into loyal advocates.</p>
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-[#8b5cf6] mt-2 flex-shrink-0"></div>
+                <div>
+                  <p className="text-white font-medium mb-1">Negative Reviews Are Opportunities</p>
+                  <p className="text-sm text-[#B0B0C0]">Responding to negative reviews can turn dissatisfied customers into loyal advocates.</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
-} 
+}             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
