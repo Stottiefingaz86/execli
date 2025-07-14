@@ -93,12 +93,12 @@ export class ScraperAPIVOCScraper {
   }
 
   // Main method to scrape all sources for a business with progress updates
-  async scrapeAllSourcesWithProgress(businessName: string, companyId: string, reportId: string): Promise<ScrapingResult[]> {
+  async scrapeAllSourcesWithProgress(businessName: string, companyId: string, reportId: string, businessUrl?: string): Promise<ScrapingResult[]> {
     console.log(`Starting ScraperAPI scraping for: ${businessName}`);
     const results: ScrapingResult[] = [];
 
     // --- AI/Google-based Trustpilot URL discovery ---
-    let trustpilotUrl = await this.findTrustpilotUrl(businessName);
+    let trustpilotUrl = await this.findTrustpilotUrl(businessName, businessUrl);
     if (!trustpilotUrl) {
       trustpilotUrl = `https://www.trustpilot.com/review/${businessName}`;
     }
@@ -235,23 +235,83 @@ export class ScraperAPIVOCScraper {
   }
 
   // --- AI/Google-based Trustpilot URL discovery ---
-  async findTrustpilotUrl(businessName: string): Promise<string | null> {
+  async findTrustpilotUrl(businessName: string, businessUrl?: string): Promise<string | null> {
     try {
+      // 1. Try domain-based Trustpilot URL first
+      let domain = '';
+      if (businessUrl) {
+        try {
+          domain = businessUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0];
+        } catch {}
+      }
+      if (domain) {
+        const trustpilotDomainUrl = `https://www.trustpilot.com/review/${domain}`;
+        // Optionally: fetch and check if this page exists and matches businessName
+        const exists = await this.pageExistsAndMatches(trustpilotDomainUrl, businessName, domain);
+        console.log('Tried Trustpilot domain URL:', trustpilotDomainUrl, 'Exists/Matches:', exists);
+        if (exists) return trustpilotDomainUrl;
+      }
+      // 2. Google search with domain
+      if (domain) {
+        const googleUrl = `https://www.google.com/search?q=site:trustpilot.com+${encodeURIComponent(domain)}`;
+        const scraperUrl = `http://api.scraperapi.com?api_key=${this.apiKey}&url=${encodeURIComponent(googleUrl)}&render=true`;
+        const response = await fetch(scraperUrl, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (response.ok) {
+          const html = await response.text();
+          const match = html.match(/https:\/\/www\.trustpilot\.com\/review\/[a-zA-Z0-9\-\.]+/);
+          if (match) {
+            const foundUrl = match[0];
+            const exists = await this.pageExistsAndMatches(foundUrl, businessName, domain);
+            console.log('Google domain search found:', foundUrl, 'Exists/Matches:', exists);
+            if (exists) return foundUrl;
+          }
+        }
+      }
+      // 3. Google search with business name
       const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(businessName + ' site:trustpilot.com')}`;
       const scraperUrl = `http://api.scraperapi.com?api_key=${this.apiKey}&url=${encodeURIComponent(googleUrl)}&render=true`;
-      const response = await fetch(scraperUrl, {
-        method: 'GET',
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (!response.ok) return null;
-      const html = await response.text();
-      // Try to find a Trustpilot review URL in the search results
-      const match = html.match(/https:\/\/www\.trustpilot\.com\/review\/[a-zA-Z0-9\-\.]+/);
-      if (match) return match[0];
+      const response = await fetch(scraperUrl, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (response.ok) {
+        const html = await response.text();
+        const match = html.match(/https:\/\/www\.trustpilot\.com\/review\/[a-zA-Z0-9\-\.]+/);
+        if (match) {
+          const foundUrl = match[0];
+          const exists = await this.pageExistsAndMatches(foundUrl, businessName, domain);
+          console.log('Google name search found:', foundUrl, 'Exists/Matches:', exists);
+          if (exists) return foundUrl;
+        }
+      }
+      // 4. Fallback: use businessName as slug
+      if (businessName) {
+        const fallbackUrl = `https://www.trustpilot.com/review/${businessName}`;
+        const exists = await this.pageExistsAndMatches(fallbackUrl, businessName, domain);
+        console.log('Fallback Trustpilot URL:', fallbackUrl, 'Exists/Matches:', exists);
+        if (exists) return fallbackUrl;
+      }
       return null;
     } catch (e) {
       console.error('Error finding Trustpilot URL:', e);
       return null;
+    }
+  }
+
+  // AI/heuristic validation: check if the Trustpilot page matches the business name and domain
+  async pageExistsAndMatches(url: string, businessName: string, domain: string): Promise<boolean> {
+    try {
+      const scraperUrl = `http://api.scraperapi.com?api_key=${this.apiKey}&url=${encodeURIComponent(url)}&render=true`;
+      const response = await fetch(scraperUrl, { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!response.ok) return false;
+      const html = await response.text();
+      // Heuristic: check if domain or businessName appears in the page title or meta tags
+      const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].toLowerCase() : '';
+      if (title.includes(domain.toLowerCase()) || title.includes(businessName.toLowerCase())) return true;
+      // Optionally: use AI/LLM API to further validate (pseudo-code)
+      // const aiResult = await callLLM(`Does this Trustpilot page match the business '${businessName}' and domain '${domain}'? HTML: ...`)
+      // if (aiResult.match) return true;
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 

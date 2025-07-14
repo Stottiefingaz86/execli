@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import ReportPageContent from '../../../components/ReportPageContent'
 import Image from 'next/image';
+import ReportProgressStepper from '../../../components/ReportProgressStepper'; // Added import
+import SourceCard from '../../../components/SourceCard'; // Added import
+import Navigation from '@/components/Navigation';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic'
@@ -142,71 +145,64 @@ export default function ReportPage() {
     )
   }
 
+  // Define the workflow steps and commentary
+  const workflowSteps = [
+    { label: 'Finding review sources with AI', commentary: 'Locating the best review sites for this business using AI.' },
+    { label: 'Scraping reviews from sources', commentary: 'Collecting reviews from all discovered platforms.' },
+    { label: 'Analyzing customer feedback with AI', commentary: 'AI is analyzing all collected reviews for insights.' },
+    { label: 'Generating insights and charts', commentary: 'Creating summaries, themes, and visualizations.' },
+    { label: 'Report ready!', commentary: 'Your Voice of Customer report is complete.' }
+  ];
+
+  // Determine current step from progressMessage
+  const lowerMsg = (progressMessage || '').toLowerCase();
+  let currentStep = 0;
+  if (lowerMsg.includes('scraping')) currentStep = 1;
+  else if (lowerMsg.includes('analyzing')) currentStep = 2;
+  else if (lowerMsg.includes('insights')) currentStep = 3;
+  else if (lowerMsg.includes('ready')) currentStep = 4;
+
   if (polling) {
-    // Define the workflow steps (with Sitejabber removed)
-    const workflowSteps = [
-      'Initializing report',
-      'Scraping Trustpilot',
-      'Scraping Google',
-      'Scraping Yelp',
-      'Scraping Reddit',
-      'Scraping TripAdvisor',
-      'Analyzing customer feedback',
-      'Generating insights and charts',
-      'Sending email notification',
-      'Report ready!'
-    ];
-    // Determine current step from progressMessage
-    const lowerMsg = progressMessage.toLowerCase();
-    let currentStep = 0;
-    if (lowerMsg.includes('trustpilot')) currentStep = 1;
-    else if (lowerMsg.includes('google')) currentStep = 2;
-    else if (lowerMsg.includes('yelp')) currentStep = 3;
-    else if (lowerMsg.includes('reddit')) currentStep = 4;
-    else if (lowerMsg.includes('tripadvisor')) currentStep = 5;
-    else if (lowerMsg.includes('analyzing')) currentStep = 6;
-    else if (lowerMsg.includes('insights')) currentStep = 7;
-    else if (lowerMsg.includes('email')) currentStep = 8;
-    else if (lowerMsg.includes('ready')) currentStep = 9;
-    // Glassmorphic + logo + gradient spinner + shiny text
     return (
-      <div className="min-h-screen bg-[#0f1117] text-white flex flex-col items-center justify-center">
-        {/* Logo at the top */}
-        <div className="mb-8">
-          <Image src="/logo.svg" alt="Execli Logo" width={64} height={64} className="mx-auto drop-shadow-lg" />
-        </div>
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
-          {/* Glassy overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/10 via-[#23263a]/10 to-[#3b82f6]/5 rounded-2xl pointer-events-none" />
-          <div className="relative z-10">
-            <h2 className="text-2xl font-semibold mb-6 text-center">Creating your Voice of Customer report...</h2>
-            <div className="flex flex-col items-start gap-4">
-              {workflowSteps.map((step, idx) => (
-                <div key={step} className={`flex items-center gap-3 text-left w-full transition-all duration-300 ${idx < currentStep ? 'opacity-80' : idx === currentStep ? 'font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine' : 'opacity-40'}`}>
-                  {idx < currentStep ? (
-                    <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs shadow-[0_0_8px_2px_#8b5cf6]">✓</span>
-                  ) : idx === currentStep ? (
-                    <span className="inline-block w-5 h-5">
-                      <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-gradient-spin"></span>
-                    </span>
-                  ) : (
-                    <span className="inline-block w-5 h-5 border-2 border-[#a78bfa] rounded-full"></span>
-                  )}
-                  <span>{step}</span>
-                  {idx === currentStep && (
-                    <span className="ml-2 text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine">
-                      {progressMessage}
-                    </span>
-                  )}
-                </div>
-              ))}
+      <div className="min-h-screen bg-[#0f1117] text-white flex flex-col">
+        <Navigation />
+        <div className="flex flex-col items-center justify-center flex-1">
+          <div className="mb-8 mt-12">
+            <img src="/logo.svg" alt="Execli Logo" width={64} height={64} className="mx-auto drop-shadow-lg" />
+          </div>
+          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/10 via-[#23263a]/10 to-[#3b82f6]/5 rounded-2xl pointer-events-none" />
+            <div className="relative z-10">
+              <h2 className="text-2xl font-semibold mb-6 text-center">Creating your Voice of Customer report...</h2>
+              <div className="flex flex-col items-start gap-4">
+                {workflowSteps.map((step, idx) => (
+                  <div key={step.label} className={`flex items-center gap-3 text-left w-full transition-all duration-300 ${idx < currentStep ? 'opacity-80' : idx === currentStep ? 'font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine' : 'opacity-40'}`}>
+                    {idx < currentStep ? (
+                      <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs shadow-[0_0_8px_2px_#8b5cf6]">✓</span>
+                    ) : idx === currentStep ? (
+                      <span className="inline-block w-5 h-5">
+                        <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-gradient-spin"></span>
+                      </span>
+                    ) : (
+                      <span className="inline-block w-5 h-5 border-2 border-[#a78bfa] rounded-full"></span>
+                    )}
+                    <span>{step.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 text-center text-[#B0B0C0] text-base min-h-[32px]">
+                {workflowSteps[currentStep]?.commentary}
+              </div>
+              <div className="mt-2 text-xs text-[#B0B0C0] text-center">
+                {progressMessage}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-[#1c1e26]/80 rounded-lg p-4 mt-6 shadow-lg max-w-md w-full">
-          <p className="text-xs text-[#B0B0C0] mt-2 text-center">
-            This may take up to 5 minutes. Feel free to refresh the page - we'll continue where we left off!
-          </p>
+          <div className="bg-[#1c1e26]/80 rounded-lg p-4 mt-6 shadow-lg max-w-md w-full">
+            <p className="text-xs text-[#B0B0C0] mt-2 text-center">
+              This may take up to 5 minutes. Feel free to refresh the page - we'll continue where we left off!
+            </p>
+          </div>
         </div>
         <style jsx global>{`
           .animate-gradient-spin {
@@ -227,7 +223,7 @@ export default function ReportPage() {
           }
         `}</style>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -267,5 +263,52 @@ export default function ReportPage() {
     )
   }
 
-  return <ReportPageContent report={reportData} />
+  // Extract report and sources for the new structure
+  const report = reportData;
+  const sources = report?.detected_sources || [];
+
+  // Helper function for date formatting
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString; // Fallback to original string if formatting fails
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0f1117] text-[#f3f4f6] font-sans relative overflow-x-hidden">
+      <Navigation />
+      {/* Header section (like demo report) */}
+      <div className="max-w-5xl mx-auto px-4 pt-8 pb-4">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-white">Voice of Customer Report</h1>
+        <div className="text-lg text-[#B0B0C0] mb-1">{report?.business_name || ''}</div>
+        <div className="text-sm text-[#B0B0C0] mb-6">Generated on {report ? formatDate(report.processed_at) : ''}</div>
+      </div>
+      {/* Active Sources section (like demo report) */}
+      <div className="max-w-5xl mx-auto px-4 pb-8">
+        <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+          <span>Active Sources</span>
+        </h2>
+        <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 shadow-lg min-h-[180px] flex flex-col items-center justify-center">
+          {sources && sources.length > 0 ? (
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+              {sources.map((src, i) => (
+                <SourceCard key={i} source={src} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-[#B0B0C0] text-base text-center py-8">
+              <div className="font-semibold text-lg mb-2">No sources added yet</div>
+              <div>Add a source to begin syncing reviews for this business.</div>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* ...rest of report sections, if any... */}
+    </div>
+  );
 } 
