@@ -461,9 +461,4 @@ export default function ReportPageContent({ report }: { report: any }) {
       </div>
     </div>
   );
-}             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+}
