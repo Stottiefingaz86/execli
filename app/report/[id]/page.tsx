@@ -175,10 +175,19 @@ export default function ReportPage() {
           <p className="text-[#B0B0C0] mb-4 break-all whitespace-pre-wrap">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors"
+            className="px-6 py-3 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] transition-colors mb-4"
           >
             Try Again
           </button>
+          <br />
+          <a
+            href={`mailto:support@execli.com?subject=Bug Report for Report ID: ${reportId}&body=Error: ${encodeURIComponent(error)}%0AReport ID: ${reportId}%0AURL: ${encodeURIComponent(window.location.href)}`}
+            className="inline-block mt-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Report Bug
+          </a>
         </div>
       </div>
     )

@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
   const scraper = new ScraperAPIVOCScraper()
+  let createdReportId: string | null = null;
   
   try {
     const body = await request.json()
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+    createdReportId = report.id;
 
     console.log('VOC report created:', report.id)
 
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
       .update({ report_id: report.id })
       .eq('id', company.id)
 
-    // Start background processing with ScraperAPI
+    // Respond immediately with report id (even before scraping)
     setTimeout(async () => {
       try {
         console.log('Starting ScraperAPI scraping...')
@@ -179,13 +181,12 @@ export async function POST(request: NextRequest) {
           .from('voc_reports')
           .update({ 
             status: 'error',
-            progress_message: '❌ Something went wrong. Please try again.'
+            progress_message: '❌ ScraperAPI or backend error: ' + (error instanceof Error ? error.message : String(error))
           })
           .eq('id', report.id)
       }
     }, 2000) // Reduced processing time since ScraperAPI is faster
 
-    // Respond immediately with report id
     return NextResponse.json({
       success: true,
       report_id: report.id,
@@ -194,6 +195,20 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Scrape API error:', error)
+    if (createdReportId) {
+      await supabase
+        .from('voc_reports')
+        .update({ 
+          status: 'error',
+          progress_message: '❌ ScraperAPI or backend error: ' + (error instanceof Error ? error.message : String(error))
+        })
+        .eq('id', createdReportId)
+      return NextResponse.json({
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error && error.stack ? error.stack : undefined,
+        report_id: createdReportId
+      }, { status: 500 })
+    }
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : String(error),

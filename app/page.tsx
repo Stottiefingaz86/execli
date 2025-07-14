@@ -647,24 +647,19 @@ export default function Home() {
                           })
                         });
                             const result = await response.json();
-                            if (result.error) {
-                              let fullError = result.error;
-                              if (result.stack) {
-                                fullError += '\n' + result.stack;
-                              }
-                              setErrorMessage(fullError || 'Unexpected error. Please try again.');
-                              setHasError(true);
-                              setSubmitted(false);
+                            if (result.report_id) {
+                              // Always redirect to report page, even if there's an error
+                              window.location.href = `/report/${result.report_id}`;
                               return;
                             }
-                            if (result.report_id) {
-                              // Redirect to report page with polling
-                              window.location.href = `/report/${result.report_id}`;
-                            } else {
-                              setErrorMessage('Unexpected error. Please try again.');
-                              setHasError(true);
-                              setSubmitted(false);
+                            // If no report_id, show error
+                            let fullError = result.error;
+                            if (result.stack) {
+                              fullError += '\n' + result.stack;
                             }
+                            setErrorMessage(fullError || 'Unexpected error. Please try again.');
+                            setHasError(true);
+                            setSubmitted(false);
                       } catch (error) {
                             setErrorMessage('Error submitting form. Please try again.');
                             setHasError(true);
