@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import ReportPageContent from '../../../components/ReportPageContent'
+import Image from 'next/image';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic'
@@ -167,34 +168,64 @@ export default function ReportPage() {
     else if (lowerMsg.includes('insights')) currentStep = 7;
     else if (lowerMsg.includes('email')) currentStep = 8;
     else if (lowerMsg.includes('ready')) currentStep = 9;
-    // Render stepper
+    // Glassmorphic + logo + gradient spinner + shiny text
     return (
-      <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-        <div className="text-center max-w-md w-full">
-          <h2 className="text-2xl font-semibold mb-2">Creating your Voice of Customer report...</h2>
-          <div className="flex flex-col items-start gap-4 bg-[#181a20] rounded-xl p-6 mb-6">
-            {workflowSteps.map((step, idx) => (
-              <div key={step} className={`flex items-center gap-3 text-left w-full ${idx < currentStep ? 'opacity-60' : idx === currentStep ? 'font-bold text-[#3b82f6]' : 'opacity-40'}`}>
-                {idx < currentStep ? (
-                  <span className="inline-block w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-xs">✓</span>
-                ) : idx === currentStep ? (
-                  <span className="inline-block w-5 h-5 border-2 border-[#3b82f6] rounded-full animate-spin"></span>
-                ) : (
-                  <span className="inline-block w-5 h-5 border-2 border-gray-500 rounded-full"></span>
-                )}
-                <span>{step}</span>
-                {idx === currentStep && (
-                  <span className="ml-2 text-xs text-[#B0B0C0]">{progressMessage}</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="bg-[#1c1e26] rounded-lg p-4">
-            <p className="text-xs text-[#B0B0C0] mt-2">
-              This may take up to 5 minutes. Feel free to refresh the page - we'll continue where we left off!
-            </p>
+      <div className="min-h-screen bg-[#0f1117] text-white flex flex-col items-center justify-center">
+        {/* Logo at the top */}
+        <div className="mb-8">
+          <Image src="/logo.svg" alt="Execli Logo" width={64} height={64} className="mx-auto drop-shadow-lg" />
+        </div>
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
+          {/* Glassy overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/10 via-[#23263a]/10 to-[#3b82f6]/5 rounded-2xl pointer-events-none" />
+          <div className="relative z-10">
+            <h2 className="text-2xl font-semibold mb-6 text-center">Creating your Voice of Customer report...</h2>
+            <div className="flex flex-col items-start gap-4">
+              {workflowSteps.map((step, idx) => (
+                <div key={step} className={`flex items-center gap-3 text-left w-full transition-all duration-300 ${idx < currentStep ? 'opacity-80' : idx === currentStep ? 'font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine' : 'opacity-40'}`}>
+                  {idx < currentStep ? (
+                    <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs shadow-[0_0_8px_2px_#8b5cf6]">✓</span>
+                  ) : idx === currentStep ? (
+                    <span className="inline-block w-5 h-5">
+                      <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-gradient-spin"></span>
+                    </span>
+                  ) : (
+                    <span className="inline-block w-5 h-5 border-2 border-[#a78bfa] rounded-full"></span>
+                  )}
+                  <span>{step}</span>
+                  {idx === currentStep && (
+                    <span className="ml-2 text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine">
+                      {progressMessage}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+        <div className="bg-[#1c1e26]/80 rounded-lg p-4 mt-6 shadow-lg max-w-md w-full">
+          <p className="text-xs text-[#B0B0C0] mt-2 text-center">
+            This may take up to 5 minutes. Feel free to refresh the page - we'll continue where we left off!
+          </p>
+        </div>
+        <style jsx global>{`
+          .animate-gradient-spin {
+            animation: gradient-spin 1.2s linear infinite;
+            background-size: 200% 200%;
+          }
+          @keyframes gradient-spin {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+          }
+          .animate-shine {
+            background-size: 200% 200%;
+            animation: shine 2s linear infinite;
+          }
+          @keyframes shine {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+          }
+        `}</style>
       </div>
     )
   }
