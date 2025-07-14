@@ -306,6 +306,9 @@ export default function ReportPage() {
     sourcesByPlatform[platform] = src;
   });
 
+  // Only show sources with reviews
+  const sourcesWithReviews = sources.filter((src: any) => src.reviewCount && src.reviewCount > 0);
+
   // Handler for sync/integrate (to be wired up)
   const handleSync = (platform: string) => {
     // TODO: Wire up backend sync/integrate action
@@ -337,39 +340,10 @@ export default function ReportPage() {
         </div>
       )}
       {/* Active Sources section (modern card layout) */}
-      <div className="max-w-5xl mx-auto px-4 pb-8">
-        <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
-          <span>Active Sources</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {allPlatforms.map((platform) => {
-            const src = sourcesByPlatform[platform];
-            if (src) {
-              return (
-                <SourceCard
-                  key={platform}
-                  source={{
-                    platform,
-                    url: src.url,
-                    reviewCount: src.reviewCount, // to be wired from backend
-                    lastSync: src.lastSync, // to be wired from backend
-                    status: 'active',
-                  }}
-                  onSync={() => handleSync(platform)}
-                />
-              );
-            } else {
-              return (
-                <SourceCard
-                  key={platform}
-                  source={{ platform }}
-                  isIntegrate
-                  onSync={() => handleSync(platform)}
-                />
-              );
-            }
-          })}
-        </div>
+      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {sourcesWithReviews.map((src: any, i: number) => (
+          <SourceCard key={i} source={src} />
+        ))}
       </div>
       {/* ...rest of report sections, if any... */}
     </div>
