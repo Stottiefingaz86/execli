@@ -290,36 +290,85 @@ export default function ReportPage() {
     return 'Unknown';
   }
 
+  // List of all supported platforms
+  const allPlatforms = [
+    'Trustpilot',
+    'Google',
+    'Yelp',
+    'Reddit',
+    'TripAdvisor'
+  ];
+
+  // Map sources by platform for quick lookup
+  const sourcesByPlatform: Record<string, any> = {};
+  sources.forEach((src: any) => {
+    const platform = src.platform || extractPlatformFromUrl(src.url);
+    sourcesByPlatform[platform] = src;
+  });
+
+  // Handler for sync/integrate (to be wired up)
+  const handleSync = (platform: string) => {
+    // TODO: Wire up backend sync/integrate action
+    alert(`Sync or integrate for ${platform} coming soon!`);
+  };
+
   return (
     <div className="min-h-screen bg-[#0f1117] text-[#f3f4f6] font-sans relative overflow-x-hidden">
-      <Navigation />
+      {/* Brand header and share button */}
+      <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="Execli Logo" width={40} height={40} className="drop-shadow-lg" />
+          <span className="text-2xl font-bold text-white tracking-tight">execli</span>
+        </div>
+        <button className="px-4 py-2 rounded-lg bg-[#23263a] text-[#B0B0C0] font-semibold border border-white/10 cursor-not-allowed opacity-60" disabled>
+          Share
+        </button>
+      </div>
       {/* Header section (like demo report) */}
-      <div className="max-w-5xl mx-auto px-4 pt-8 pb-4">
+      <div className="max-w-5xl mx-auto px-4 pt-2 pb-4">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-white">Voice of Customer Report</h1>
         <div className="text-lg text-[#B0B0C0] mb-1">{report?.business_name || ''}</div>
         <div className="text-sm text-[#B0B0C0] mb-6">Generated on {report ? formatDate(report.processed_at) : ''}</div>
       </div>
-      {/* Active Sources section (like demo report) */}
+      {/* Stepper/progress UI always visible until report is complete */}
+      {polling && (
+        <div className="max-w-5xl mx-auto px-4 pb-4">
+          <ReportProgressStepper currentStep={currentStep} workflowSteps={workflowSteps} progressMessage={progressMessage} />
+        </div>
+      )}
+      {/* Active Sources section (modern card layout) */}
       <div className="max-w-5xl mx-auto px-4 pb-8">
         <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
           <span>Active Sources</span>
         </h2>
-        <div className="bg-[#181a20] border border-white/10 rounded-2xl p-6 shadow-lg min-h-[180px] flex flex-col items-center justify-center">
-          {sources && sources.length > 0 ? (
-            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sources.map((src: { url: string; platform?: string }, i: number) => (
-                <SourceCard key={i} source={{
-                  url: src.url,
-                  platform: src.platform || extractPlatformFromUrl(src.url)
-                }} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-[#B0B0C0] text-base text-center py-8">
-              <div className="font-semibold text-lg mb-2">No sources added yet</div>
-              <div>Add a source to begin syncing reviews for this business.</div>
-            </div>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {allPlatforms.map((platform) => {
+            const src = sourcesByPlatform[platform];
+            if (src) {
+              return (
+                <SourceCard
+                  key={platform}
+                  source={{
+                    platform,
+                    url: src.url,
+                    reviewCount: src.reviewCount, // to be wired from backend
+                    lastSync: src.lastSync, // to be wired from backend
+                    status: 'active',
+                  }}
+                  onSync={() => handleSync(platform)}
+                />
+              );
+            } else {
+              return (
+                <SourceCard
+                  key={platform}
+                  source={{ platform }}
+                  isIntegrate
+                  onSync={() => handleSync(platform)}
+                />
+              );
+            }
+          })}
         </div>
       </div>
       {/* ...rest of report sections, if any... */}

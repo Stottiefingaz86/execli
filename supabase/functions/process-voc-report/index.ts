@@ -463,6 +463,21 @@ class ScraperAPIVOCScraper {
   }
 }
 
+// Helper: Extract JSON from OpenAI response
+function extractJsonFromOpenAI(content: string): any {
+  // Try to extract JSON from a markdown code block
+  const match = content.match(/```json\s*([\s\S]*?)```/i);
+  if (match) {
+    return JSON.parse(match[1]);
+  }
+  // Fallback: try to find the first { ... } block
+  const curlyMatch = content.match(/{[\s\S]*}/);
+  if (curlyMatch) {
+    return JSON.parse(curlyMatch[0]);
+  }
+  throw new Error('No JSON found in OpenAI response');
+}
+
 // Helper: Use OpenAI to get review URLs for a business
 async function getReviewSourceUrls(businessName: string, businessUrl: string): Promise<{ [platform: string]: string }> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -482,7 +497,7 @@ async function getReviewSourceUrls(businessName: string, businessUrl: string): P
   });
   const data = await response.json();
   try {
-    return JSON.parse(data.choices[0].message.content);
+    return extractJsonFromOpenAI(data.choices[0].message.content);
   } catch (e) {
     throw new Error('Failed to parse OpenAI review source URLs: ' + data.choices[0].message.content);
   }
@@ -548,26 +563,28 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Error finding review sources' }), { status: 500 });
     }
 
-    // 2. Scrape reviews from those URLs
-    await updateProgress('Scraping reviews from sources...');
+    // 2. Only create scraper if there are URLs to scrape
+    const urlsToScrape = Object.entries(reviewSourceUrls).filter(([_, url]) => !!url);
     let allReviews: Review[] = [];
     let scrapingResults: ScrapingResult[] = [];
-    try {
-      const scraper = new ScraperAPIVOCScraper(supabase);
-      for (const [platform, url] of Object.entries(reviewSourceUrls)) {
-        if (!url) continue;
-        const result = await scraper.scrapePlatform(platform, url, business_name);
-        scrapingResults.push(result);
-        if (result.success && result.reviews.length > 0) {
-          allReviews = allReviews.concat(result.reviews);
-          await scraper.storeReviews(company_id, result.reviews);
+    if (urlsToScrape.length > 0) {
+      await updateProgress('Scraping reviews from sources...');
+      try {
+        const scraper = new ScraperAPIVOCScraper(supabase);
+        for (const [platform, url] of urlsToScrape) {
+          const result = await scraper.scrapePlatform(platform, url, business_name);
+          scrapingResults.push(result);
+          if (result.success && result.reviews.length > 0) {
+            allReviews = allReviews.concat(result.reviews);
+            await scraper.storeReviews(company_id, result.reviews);
+          }
+          await updateProgress(`Scraped ${platform} (${result.reviewCount} reviews)`);
         }
-        await updateProgress(`Scraped ${platform} (${result.reviewCount} reviews)`);
+      } catch (err) {
+        console.error('Error during scraping:', err);
+        await updateProgress('Error during scraping: ' + (err.message || err), 'error');
+        return new Response(JSON.stringify({ error: 'Error during scraping' }), { status: 500 });
       }
-    } catch (err) {
-      console.error('Error during scraping:', err);
-      await updateProgress('Error during scraping: ' + (err.message || err), 'error');
-      return new Response(JSON.stringify({ error: 'Error during scraping' }), { status: 500 });
     }
 
     // 3. Analyze reviews with OpenAI
