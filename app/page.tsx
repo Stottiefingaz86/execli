@@ -502,6 +502,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   // Platform detection state
   const [detectingPlatforms, setDetectingPlatforms] = useState(false);
+  const [loading, setLoading] = useState(false); // New loading state
 
   useEffect(() => {
     setShowHighlight(true);
@@ -523,7 +524,18 @@ export default function Home() {
       try {
         const res = await fetch(`/api/report-status?report_id=${reportId}`);
         const data = await res.json();
+        
+        // Add debugging logs
+        console.log('Polling response:', {
+          attempt: attempts + 1,
+          status: data.status,
+          reportUrl: data.report_url,
+          hasAnalysis: data.has_analysis,
+          progressMessage: data.progress_message
+        });
+        
         if (data.status === 'complete' && data.report_url) {
+          console.log('Report complete, redirecting to:', data.report_url);
           window.location.href = data.report_url;
           return;
         }
@@ -627,6 +639,17 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
                       <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
                   
+                  {loading && (
+                    <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
+                      <div className="flex flex-col items-center gap-4">
+                        <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        <span className="text-white text-lg font-semibold">Creating your report...</span>
+                      </div>
+                    </div>
+                  )}
                   {!submitted ? (
                     <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
                       e.preventDefault(); 
@@ -634,6 +657,7 @@ export default function Home() {
                       setPollingEmail(email);
                       setPolling(false);
                       setPollingError(null);
+                      setLoading(true); // Show loading spinner/overlay
                       try {
                         const response = await fetch('/api/scrape', {
                           method: 'POST',
@@ -649,7 +673,8 @@ export default function Home() {
                         });
                         const result = await response.json();
                         if (result.report_id) {
-                          window.location.href = `/report/${result.report_id}`;
+                          // Start polling instead of immediate redirect
+                          pollReportStatus(result.report_id);
                           return;
                         }
                         let fullError = result.error;
@@ -659,10 +684,12 @@ export default function Home() {
                         setErrorMessage(fullError || 'Unexpected error. Please try again.');
                         setHasError(true);
                         setSubmitted(false);
+                        setLoading(false);
                       } catch {
                         setErrorMessage('Error submitting form. Please try again.');
                         setHasError(true);
                         setSubmitted(false);
+                        setLoading(false);
                       }
                     }} onChange={e => {
                       const form = e.currentTarget as HTMLFormElement;

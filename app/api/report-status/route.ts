@@ -38,6 +38,15 @@ export async function GET(request: NextRequest) {
       reportUrl = `/report/${reportId}`
     }
 
+    // Add debugging logs
+    console.log('Report status API response:', {
+      reportId,
+      status: data.status,
+      hasAnalysis: !!data.analysis,
+      reportUrl,
+      progressMessage: data.progress_message
+    });
+
     return NextResponse.json({
       status: data.status || 'processing',
       report_id: reportId,

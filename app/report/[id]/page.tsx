@@ -8,6 +8,7 @@ import Image from 'next/image';
 import ReportProgressStepper from '../../../components/ReportProgressStepper'; // Added import
 import SourceCard from '../../../components/SourceCard'; // Added import
 import Navigation from '@/components/Navigation';
+import { RefreshCw } from 'lucide-react';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,11 @@ export default function ReportPage() {
   const [polling, setPolling] = useState(false)
   const [pollingAttempts, setPollingAttempts] = useState(0)
   const [progressMessage, setProgressMessage] = useState<string>('Initializing your report...')
+  const [minProgressTimeElapsed, setMinProgressTimeElapsed] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  // Minimum progress overlay duration (ms)
+  const MIN_PROGRESS_DURATION = 5000;
 
   // Determine current step from progressMessage
   const lowerMsg = (progressMessage || '').toLowerCase();
@@ -64,20 +70,26 @@ export default function ReportPage() {
           }
           setReportData(oldReport.report_data)
         } else if (vocReport) {
-          // Check if report is still processing
-          if (vocReport.status === 'processing' && !vocReport.analysis) {
+          console.log('VOC Report found:', vocReport);
+          console.log('Analysis data:', vocReport.analysis);
+          
+          // Check if report has analysis data
+          if (vocReport.analysis && Object.keys(vocReport.analysis).length > 0) {
+            console.log('Analysis data found, displaying report');
+            // Use the analysis data from voc_reports
+            const reportWithSources = {
+              ...vocReport,
+              detected_sources: vocReport.sources || [], // Map sources to detected_sources for compatibility
+              ...vocReport.analysis // Spread the analysis data into the main object
+            }
+            setReportData(reportWithSources)
+          } else {
+            console.log('No analysis data found, starting polling');
             setProgressMessage(vocReport.progress_message || 'Initializing your report...')
             setPolling(true)
             startPolling()
             return
           }
-          // Use the analysis data from voc_reports
-          const reportWithSources = {
-            ...vocReport,
-            detected_sources: vocReport.sources || [], // Map sources to detected_sources for compatibility
-            analysis: vocReport.analysis || {}
-          }
-          setReportData(reportWithSources)
         } else {
           setError('No report found')
         }
@@ -90,6 +102,14 @@ export default function ReportPage() {
     }
     fetchData()
   }, [reportId])
+
+  useEffect(() => {
+    if (polling) {
+      setMinProgressTimeElapsed(false);
+      const timer = setTimeout(() => setMinProgressTimeElapsed(true), MIN_PROGRESS_DURATION);
+      return () => clearTimeout(timer);
+    }
+  }, [polling]);
 
   const startPolling = async () => {
     const maxAttempts = 30 // 5 minutes with 10-second intervals
@@ -123,7 +143,7 @@ export default function ReportPage() {
             const reportWithSources = {
               ...updatedReport,
               detected_sources: updatedReport.sources || [],
-              analysis: updatedReport.analysis || {}
+              ...updatedReport.analysis // Spread the analysis data into the main object
             }
             setReportData(reportWithSources)
             setPolling(false)
@@ -151,7 +171,61 @@ export default function ReportPage() {
     poll()
   }
 
-  if (loading || polling) {
+  const regenerateReport = async () => {
+    setRegenerating(true);
+    setLoading(true);
+    
+    try {
+      // Clear the analysis data to force regeneration
+      const { error } = await supabase()
+        .from('voc_reports')
+        .update({ 
+          analysis: null,
+          progress_message: 'Regenerating report with updated AI analysis...',
+          status: 'processing'
+        })
+        .eq('id', reportId);
+      
+      if (error) {
+        console.error('Error clearing analysis:', error);
+        setError('Failed to regenerate report');
+        return;
+      }
+      
+      // Trigger the Edge Function to regenerate the report
+      console.log('Calling regenerate API with reportId:', reportId);
+      const response = await fetch('/api/regenerate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reportId })
+      });
+      
+      console.log('Regenerate API response status:', response.status);
+      const responseData = await response.json();
+      console.log('Regenerate API response:', responseData);
+      
+      if (!response.ok) {
+        console.error('Error triggering regeneration:', responseData);
+        setError(`Failed to trigger report regeneration: ${responseData.error || 'Unknown error'}`);
+        return;
+      }
+      
+      // Start polling for the new analysis
+      setProgressMessage('Regenerating report with updated AI analysis...');
+      setPolling(true);
+      startPolling();
+      
+    } catch (err) {
+      console.error('Error regenerating report:', err);
+      setError('Failed to regenerate report');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  if ((loading || polling) && !minProgressTimeElapsed) {
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex flex-col">
         {/* Use Navigation component for header/nav, matching demo */}
@@ -228,88 +302,24 @@ export default function ReportPage() {
     )
   }
 
-  // Extract report and sources for the new structure
-  const report = reportData;
-  const sources = report?.detected_sources || [];
-
-  // Helper function for date formatting
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (e) {
-      console.error('Error formatting date:', e);
-      return dateString; // Fallback to original string if formatting fails
-    }
-  };
-
-  // Helper to infer platform from URL
-  function extractPlatformFromUrl(url: string): string {
-    if (!url) return 'Unknown';
-    if (url.includes('trustpilot.com')) return 'Trustpilot';
-    if (url.includes('google.com')) return 'Google';
-    if (url.includes('yelp.com')) return 'Yelp';
-    if (url.includes('reddit.com')) return 'Reddit';
-    if (url.includes('tripadvisor.com')) return 'TripAdvisor';
-    return 'Unknown';
-  }
-
-  // List of all supported platforms
-  const allPlatforms = [
-    'Trustpilot',
-    'Google',
-    'Yelp',
-    'Reddit',
-    'TripAdvisor'
-  ];
-
-  // Map sources by platform for quick lookup
-  const sourcesByPlatform: Record<string, any> = {};
-  sources.forEach((src: any) => {
-    const platform = src.platform || extractPlatformFromUrl(src.url);
-    sourcesByPlatform[platform] = src;
-  });
-
-  // Only show sources with reviews
-  const sourcesWithReviews = sources.filter((src: any) => src.reviewCount && src.reviewCount > 0);
-
-  // Handler for sync/integrate (to be wired up)
-  const handleSync = (platform: string) => {
-    // TODO: Wire up backend sync/integrate action
-    alert(`Sync or integrate for ${platform} coming soon!`);
-  };
-
+  // Show the full report using ReportPageContent component
   return (
-    <div className="min-h-screen bg-[#0f1117] text-[#f3f4f6] font-sans relative overflow-x-hidden">
-      {/* Brand header and share button */}
-      <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Execli Logo" width={64} height={64} className="mx-auto drop-shadow-lg" />
+    <div className="min-h-screen bg-[#0f1117] text-white">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8">
+        {/* Regenerate Button */}
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={regenerateReport}
+            disabled={regenerating}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#8b5cf6] to-[#3b82f6] text-white rounded-lg hover:from-[#7c3aed] hover:to-[#2563eb] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
+            {regenerating ? 'Regenerating...' : 'Regenerate Report'}
+          </button>
         </div>
-        <button className="px-4 py-2 rounded-lg bg-[#23263a] text-[#B0B0C0] font-semibold border border-white/10 cursor-not-allowed opacity-60" disabled>
-          Share
-        </button>
+        <ReportPageContent reportData={reportData} reportId={Array.isArray(params.id) ? params.id[0] : params.id} />
       </div>
-      {/* Header section (like demo report) */}
-      <div className="max-w-5xl mx-auto px-4 pt-2 pb-4">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-white">Voice of Customer Report</h1>
-        <div className="text-lg text-[#B0B0C0] mb-1">{report?.business_name || ''}</div>
-        <div className="text-sm text-[#B0B0C0] mb-6">Generated on {report ? formatDate(report.processed_at) : ''}</div>
-      </div>
-      {/* Stepper/progress UI always visible until report is complete */}
-      {polling && (
-        <div className="max-w-5xl mx-auto px-4 pb-4">
-          <ReportProgressStepper currentStep={currentStep} workflowSteps={workflowSteps} progressMessage={progressMessage} />
-        </div>
-      )}
-      {/* Active Sources section (modern card layout) */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        {sourcesWithReviews.map((src: any, i: number) => (
-          <SourceCard key={i} source={src} />
-        ))}
-      </div>
-      {/* ...rest of report sections, if any... */}
     </div>
-  );
+  )
 } 

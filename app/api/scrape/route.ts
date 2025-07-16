@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { ScraperAPIVOCScraper } from '../../../lib/scraperapi-scraper'
 
 // Helper function to update progress
 async function updateProgress(supabase: any, reportId: string, message: string) {
@@ -15,7 +14,6 @@ export async function POST(request: NextRequest) {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  const scraper = new ScraperAPIVOCScraper()
   let createdReportId: string | null = null;
   
   try {
@@ -106,8 +104,10 @@ export async function POST(request: NextRequest) {
 
     // === NEW: Trigger Supabase Edge Function for background processing ===
     try {
+      console.log('Triggering Edge Function for report:', report.id);
       const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-voc-report`;
-      await fetch(edgeFunctionUrl, {
+      
+      const functionResponse = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,8 +121,26 @@ export async function POST(request: NextRequest) {
           email
         })
       });
+      
+      if (!functionResponse.ok) {
+        const errorText = await functionResponse.text();
+        console.error('Edge Function failed:', functionResponse.status, errorText);
+        throw new Error(`Edge Function failed: ${functionResponse.status} - ${errorText}`);
+      }
+      
+      const functionResult = await functionResponse.json();
+      console.log('Edge Function response:', functionResult);
+      
     } catch (err) {
       console.error('Failed to trigger Edge Function:', err);
+      // Update report status to error
+      await supabase
+        .from('voc_reports')
+        .update({ 
+          status: 'error',
+          progress_message: '❌ Failed to trigger processing: ' + (err instanceof Error ? err.message : String(err))
+        })
+        .eq('id', report.id);
     }
 
     // Respond immediately with report id
@@ -139,7 +157,7 @@ export async function POST(request: NextRequest) {
         .from('voc_reports')
         .update({ 
           status: 'error',
-          progress_message: '❌ ScraperAPI or backend error: ' + (error instanceof Error ? error.message : String(error))
+          progress_message: '❌ Backend error: ' + (error instanceof Error ? error.message : String(error))
         })
         .eq('id', createdReportId)
       return NextResponse.json({

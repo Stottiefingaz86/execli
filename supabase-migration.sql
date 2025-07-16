@@ -259,4 +259,6 @@ alter table public.voc_reports
   add column if not exists competitor_comparison jsonb,
   add column if not exists market_gaps jsonb,
   add column if not exists advanced_metrics jsonb,
-  add column if not exists voc_digest jsonb; 
+  add column if not exists voc_digest jsonb,
+  add column if not exists status text default 'processing',
+  add column if not exists progress_message text; 
