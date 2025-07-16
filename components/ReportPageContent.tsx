@@ -229,23 +229,56 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const handleTopicClick = (topicName: string, rawMentions?: string[], topicData?: any) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Use the backend sentiment data instead of recalculating
-      const totalReviews = rawMentions.length;
-      const positiveCount = topicData ? Math.round((topicData.positive / 100) * totalReviews) : 0;
-      const negativeCount = topicData ? Math.round((topicData.negative / 100) * totalReviews) : 0;
-      
-      // Create reviews with proper sentiment distribution
-      const reviews = rawMentions.map((text, index) => {
+      // Analyze actual review content for sentiment
+      const reviews = rawMentions.map((text) => {
+        const lowerText = text.toLowerCase();
         let sentiment = 'positive'; // Default
         
-        // Distribute sentiment based on backend percentages
-        if (index < negativeCount) {
+        // Enhanced negative keywords including gambling-specific terms
+        const negativeKeywords = [
+          'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointed', 'bad', 'poor', 'frustrated',
+          'ridiculous', 'charge', 'fee', 'problem', 'issue', 'complaint', 'scam', 'annoying', 'useless',
+          'waste', 'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'forced', 'ridiculous charge', 'credit card charge', 'deposit charge', 'withdrawal fee',
+          'minimum deposit', 'high fees', 'expensive', 'costly', 'overpriced'
+        ];
+        
+        // Enhanced positive keywords
+        const positiveKeywords = [
+          'great', 'excellent', 'amazing', 'love', 'best', 'awesome', 'perfect', 'outstanding', 'fantastic',
+          'good', 'nice', 'helpful', 'satisfied', 'happy', 'pleased', 'recommend', 'vouch', 'smooth', 'easy',
+          'fast', 'quick', 'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'supportive', 'responsive',
+          'can\'t complain', 'no complaints', 'excellent service', 'great experience', 'love it', 'best ever'
+        ];
+        
+        // Count negative and positive keywords
+        const negativeCount = negativeKeywords.filter(keyword => lowerText.includes(keyword)).length;
+        const positiveCount = positiveKeywords.filter(keyword => lowerText.includes(keyword)).length;
+        
+        // Determine sentiment based on keyword analysis
+        if (negativeCount > positiveCount) {
           sentiment = 'negative';
-        } else if (index < negativeCount + positiveCount) {
+        } else if (positiveCount > negativeCount) {
           sentiment = 'positive';
         } else {
-          // For any remaining reviews, default to positive
-          sentiment = 'positive';
+          // If equal, check for tone indicators
+          const hasNegativeTone = lowerText.includes('scam') || lowerText.includes('terrible') || 
+                                 lowerText.includes('hate') || lowerText.includes('worst') || 
+                                 lowerText.includes('complaint') || lowerText.includes('forced') ||
+                                 lowerText.includes('ridiculous charge');
+          const hasPositiveTone = lowerText.includes('great') || lowerText.includes('love') || 
+                                 lowerText.includes('recommend') || lowerText.includes('vouch') || 
+                                 lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
+          
+          if (hasNegativeTone && !hasPositiveTone) {
+            sentiment = 'negative';
+          } else if (hasPositiveTone && !hasNegativeTone) {
+            sentiment = 'positive';
+          } else {
+            // Default to negative if unclear (safer assumption)
+            sentiment = 'negative';
+          }
         }
         
         return { text, sentiment, topic: topicName };
@@ -1867,57 +1900,17 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
             
             <div className="space-y-4">
               {selectedReviews.map((review, index) => {
-                // Analyze the actual review text for sentiment
-                const text = review.text.toLowerCase();
-                const positiveWords = [
-                  'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
-                  'wonderful', 'brilliant', 'superb', 'outstanding', 'exceptional', 'satisfied', 'happy', 'pleased',
-                  'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
-                  'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
-                ];
-                const negativeWords = [
-                  'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
-                  'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
-                  'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
-                  'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive'
-                ];
-                
-                const positiveCount = positiveWords.filter(word => text.includes(word)).length;
-                const negativeCount = negativeWords.filter(word => text.includes(word)).length;
-                
-                // Determine actual sentiment
-                let actualSentiment = 'neutral';
-                if (positiveCount > negativeCount) {
-                  actualSentiment = 'positive';
-                } else if (negativeCount > positiveCount) {
-                  actualSentiment = 'negative';
-                } else {
-                  // Check for tone indicators
-                  const hasPositiveTone = text.includes('great') || text.includes('love') || text.includes('recommend') || 
-                                         text.includes('vouch') || text.includes('can\'t complain') || text.includes('no complaints');
-                  const hasNegativeTone = text.includes('scam') || text.includes('terrible') || text.includes('hate') || 
-                                         text.includes('worst') || text.includes('complaint');
-                  
-                  if (hasPositiveTone && !hasNegativeTone) {
-                    actualSentiment = 'positive';
-                  } else if (hasNegativeTone && !hasPositiveTone) {
-                    actualSentiment = 'negative';
-                  } else {
-                    actualSentiment = 'positive'; // Default to positive if unclear
-                  }
-                }
-                
                 return (
                   <div key={index} className="bg-[#181a20] border border-white/10 rounded-xl p-4">
                     <p className="text-white mb-3 leading-relaxed">{review.text}</p>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          actualSentiment === 'positive' ? 'bg-green-500/20 text-green-400' : 
-                          actualSentiment === 'negative' ? 'bg-red-500/20 text-red-400' : 
+                          review.sentiment === 'positive' ? 'bg-green-500/20 text-green-400' : 
+                          review.sentiment === 'negative' ? 'bg-red-500/20 text-red-400' : 
                           'bg-yellow-500/20 text-yellow-400'
                         }`}>
-                          {actualSentiment}
+                          {review.sentiment}
                         </span>
                         {review.source && (
                           <span className="text-xs text-gray-400">Source: {review.source}</span>
