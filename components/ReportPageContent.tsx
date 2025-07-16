@@ -1133,10 +1133,42 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                               const peakDay = volumeChartData.reduce((max: any, d: any) => d.volume > max.volume ? d : max);
                               const lowDay = volumeChartData.reduce((min: any, d: any) => d.volume < min.volume ? d : min);
                               
-                              let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.volume} reviews`;
+                              // Analyze what might have caused the peak
+                              const peakDate = new Date(peakDay.date);
+                              const peakDateStr = peakDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                               
-                              if (lowDay.volume < peakDay.volume * 0.5) {
-                                insight += `, and a dip on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${lowDay.volume} reviews due to reduced customer engagement`;
+                              // Check if peak was on a weekend (common for customer engagement)
+                              const isWeekend = peakDate.getDay() === 0 || peakDate.getDay() === 6;
+                              
+                              // Check if peak was significantly higher than average
+                              const avgVolume = volumeChartData.reduce((sum: number, d: any) => sum + d.volume, 0) / volumeChartData.length;
+                              const isSignificantPeak = peakDay.volume > avgVolume * 1.5;
+                              
+                              // Check if there were any patterns around the peak
+                              const peakIndex = volumeChartData.findIndex(d => d.date === peakDay.date);
+                              const beforePeak = peakIndex > 0 ? volumeChartData[peakIndex - 1].volume : 0;
+                              const afterPeak = peakIndex < volumeChartData.length - 1 ? volumeChartData[peakIndex + 1].volume : 0;
+                              const isIsolatedPeak = peakDay.volume > beforePeak * 2 && peakDay.volume > afterPeak * 2;
+                              
+                              // Generate context about the peak
+                              let insight = `Peak volume on ${peakDateStr} with ${peakDay.volume} reviews`;
+                              
+                              if (isSignificantPeak) {
+                                if (isIsolatedPeak) {
+                                  insight += ` - isolated spike suggests a specific event, campaign, or issue that drove immediate customer feedback.`;
+                                } else if (isWeekend) {
+                                  insight += ` - weekend peak likely due to increased customer activity or a weekend-specific event.`;
+                                } else {
+                                  insight += ` - significant increase suggests a specific event, campaign, or issue that drove customer feedback.`;
+                                }
+                              } else {
+                                insight += ` - normal customer engagement levels.`;
+                              }
+                              
+                              // Add context about the dip if significant
+                              if (lowDay.volume < avgVolume * 0.5) {
+                                const lowDateStr = new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                insight += ` Low engagement on ${lowDateStr} (${lowDay.volume} reviews) - may indicate reduced activity or fewer customer touchpoints.`;
                               }
                               
                               return insight;
