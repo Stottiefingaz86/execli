@@ -1644,8 +1644,42 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Left Column - Metrics */}
+              {/* Left Column - Key Insights and Summary */}
               <div className="space-y-6">
+                {/* Key Insights - Moved to top */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 0 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Key Insights</h4>
+                    <div className="space-y-3">
+                      {selectedTrendingTopic.keyInsights.map((insight: string, idx: number) => (
+                        <div key={idx} className="flex items-start space-x-3">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-sm text-[#B0B0C0]">{insight}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Summary of All Reviews */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Summary</h4>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">📋</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-400 font-semibold">Review Summary:</span>
+                      <span className="text-[#B0B0C0] ml-2">
+                        {selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 
+                          ? `Based on ${selectedTrendingTopic.specificExamples.length} customer reviews, ${selectedTrendingTopic.topic} is a ${selectedTrendingTopic.sentiment === 'positive' ? 'positive' : 'negative'} trending topic. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
+                          : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
                 {/* Growth Metrics */}
                 <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
                   <h4 className="text-lg font-semibold text-white mb-4">Growth Metrics</h4>
@@ -1685,46 +1719,15 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                     </div>
                   </div>
                 </div>
-                
-                {/* Context */}
-                {selectedTrendingTopic.context && (
-                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-white mb-4">Context</h4>
-                    <div className="flex items-start space-x-3">
-                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-bold text-xs">📊</span>
-                      </div>
-                      <div>
-                        <span className="text-blue-400 font-semibold">Context:</span>
-                        <span className="text-[#B0B0C0] ml-2">{selectedTrendingTopic.context}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               
-              {/* Right Column - Examples and Insights */}
+              {/* Right Column - Customer Examples */}
               <div className="space-y-6">
-                {/* Key Insights */}
-                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 0 && (
-                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-white mb-4">Key Insights</h4>
-                    <div className="space-y-3">
-                      {selectedTrendingTopic.keyInsights.map((insight: string, idx: number) => (
-                        <div key={idx} className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                          <p className="text-sm text-[#B0B0C0]">{insight}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Specific Examples */}
+                {/* Customer Examples - Scrollable */}
                 {selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 && (
                   <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
                     <h4 className="text-lg font-semibold text-white mb-4">Customer Examples</h4>
-                    <div className="space-y-4">
+                    <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
                       {selectedTrendingTopic.specificExamples.map((example: string, idx: number) => (
                         <div key={idx} className="p-4 bg-[#181a20]/60 rounded-lg border border-white/10">
                           <div className="flex items-start space-x-3">

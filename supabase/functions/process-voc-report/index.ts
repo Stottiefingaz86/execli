@@ -119,7 +119,7 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
       growth: `${Math.floor(Math.random() * 40) + 10}%`,
       sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
       volume: Math.floor(Math.random() * 20) + 5,
-      keyInsights: [`${topic} mentioned frequently in reviews`],
+      keyInsights: generateTopicKeyInsights(topic, allReviews),
       rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
       context: `${topic} is trending due to increased customer mentions and feedback.`,
       mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
@@ -1980,14 +1980,14 @@ Return ONLY valid JSON. NO additional text or explanations.`;
           growth: `${Math.floor(Math.random() * 40) + 10}%`,
           sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
           volume: Math.floor(Math.random() * 20) + 5,
-          keyInsights: [`${topic} mentioned frequently in reviews`],
-          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+          keyInsights: generateTopicKeyInsights(topic, allReviews),
+          rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
           context: `${topic} is trending due to increased customer mentions and feedback.`,
           mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
           businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
           peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
           trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+          specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
         })),
         mentionsByTopic: realMentionsByTopic.map(topic => ({
           ...topic,
@@ -2017,12 +2017,12 @@ Return ONLY valid JSON. NO additional text or explanations.`;
           mentions: Math.floor(Math.random() * 15) + 5,
           suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
           kpiImpact: 'High Impact',
-          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+          rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
           priority: 'high',
           context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
           opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
           customerImpact: `This gap affects customer retention and satisfaction scores.`,
-          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+          specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
         })) as any[],
         advancedMetrics: {
           ...realAdvancedMetrics,
@@ -2171,14 +2171,14 @@ Return ONLY valid JSON. NO additional text or explanations.`;
         growth: `${Math.floor(Math.random() * 40) + 10}%`,
         sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
         volume: Math.floor(Math.random() * 20) + 5,
-        keyInsights: [`${topic} mentioned frequently in reviews`],
-        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+        keyInsights: generateTopicKeyInsights(topic, allReviews),
+        rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
         context: `${topic} is trending due to increased customer mentions and feedback.`,
         mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
         businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
         peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
         trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+        specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
       })),
       mentionsByTopic: realMentionsByTopic.map(topic => ({
         ...topic,
@@ -2208,12 +2208,12 @@ Return ONLY valid JSON. NO additional text or explanations.`;
         mentions: Math.floor(Math.random() * 15) + 5,
         suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
         kpiImpact: 'High Impact',
-        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+        rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
         priority: 'high',
         context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
         opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
         customerImpact: `This gap affects customer retention and satisfaction scores.`,
-        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+        specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
       })) as any[],
       advancedMetrics: {
         ...realAdvancedMetrics,
@@ -2248,6 +2248,61 @@ Return ONLY valid JSON. NO additional text or explanations.`;
     
     return fallbackAnalysis;
   }
+}
+
+// Add this function after the existing generateTopicKeyInsight function
+function generateTopicKeyInsights(topic: string, reviews: Review[]): string[] {
+  const topicReviews = reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase()));
+  const insights: string[] = [];
+  
+  if (topicReviews.length === 0) {
+    return [`${topic} mentioned in customer feedback`];
+  }
+  
+  // Analyze sentiment for this topic
+  let positiveCount = 0;
+  let negativeCount = 0;
+  
+  topicReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    const hasPositiveWords = text.includes('good') || text.includes('great') || text.includes('love') || 
+                           text.includes('excellent') || text.includes('amazing') || text.includes('perfect');
+    const hasNegativeWords = text.includes('bad') || text.includes('terrible') || text.includes('hate') || 
+                           text.includes('problem') || text.includes('issue') || text.includes('waiting') ||
+                           text.includes('delay') || text.includes('locked') || text.includes('predatory') ||
+                           text.includes('unfair') || text.includes('dangerous') || text.includes('warn') ||
+                           text.includes('serious') || text.includes('no resolution') || text.includes('ridiculous');
+    
+    if (hasPositiveWords && !hasNegativeWords) {
+      positiveCount++;
+    } else if (hasNegativeWords && !hasPositiveWords) {
+      negativeCount++;
+    }
+  });
+  
+  const total = positiveCount + negativeCount;
+  if (total > 0) {
+    const positivePercentage = Math.round((positiveCount / total) * 100);
+    const negativePercentage = Math.round((negativeCount / total) * 100);
+    
+    insights.push(`${topic} mentioned in ${total} reviews with ${positivePercentage}% positive sentiment`);
+    
+    if (positiveCount > negativeCount) {
+      insights.push(`Customers are generally satisfied with ${topic} services`);
+    } else if (negativeCount > positiveCount) {
+      insights.push(`Customers are experiencing issues with ${topic} processes`);
+    }
+    
+    if (topic.toLowerCase().includes('deposit')) {
+      insights.push(`Deposit-related feedback focuses on fees, processing times, and payment methods`);
+    } else if (topic.toLowerCase().includes('withdrawal')) {
+      insights.push(`Withdrawal concerns include delays, verification processes, and payout reliability`);
+    } else if (topic.toLowerCase().includes('customer')) {
+      insights.push(`Customer service quality and response times are key factors in satisfaction`);
+    }
+  }
+  
+  return insights.length > 0 ? insights : [`${topic} is a trending topic in customer feedback`];
 }
 
 serve(async (req) => {
