@@ -1118,9 +1118,16 @@ function analyzeSentimentByTopic(reviews: Review[]): any {
         } else {
           // Rating of 3 is neutral, but let's check text content
           const hasPositiveWords = text.includes('good') || text.includes('great') || text.includes('love') || 
-                                 text.includes('recommend') || text.includes('satisfied') || text.includes('happy');
+                                 text.includes('recommend') || text.includes('satisfied') || text.includes('happy') ||
+                                 text.includes('excellent') || text.includes('amazing') || text.includes('perfect');
           const hasNegativeWords = text.includes('bad') || text.includes('terrible') || text.includes('hate') || 
-                                 text.includes('scam') || text.includes('complaint') || text.includes('disappointed');
+                                 text.includes('scam') || text.includes('complaint') || text.includes('disappointed') ||
+                                 text.includes('problem') || text.includes('issue') || text.includes('waiting') ||
+                                 text.includes('delay') || text.includes('locked') || text.includes('predatory') ||
+                                 text.includes('unfair') || text.includes('dangerous') || text.includes('warn') ||
+                                 text.includes('serious') || text.includes('no resolution') || text.includes('no explanation') ||
+                                 text.includes('ridiculous') || text.includes('forced') || text.includes('charge') ||
+                                 text.includes('payout') || text.includes('withdrawal') || text.includes('deposit');
           
           if (hasPositiveWords && !hasNegativeWords) {
             positive++;
@@ -1131,16 +1138,30 @@ function analyzeSentimentByTopic(reviews: Review[]): any {
           }
         }
       } else {
-        // No rating available, use text analysis
-        const positiveWords = ['good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome'];
-        const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam'];
+        // No rating available, use enhanced text analysis
+        const positiveWords = ['good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'satisfied', 'happy', 'recommend'];
+        const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'problem', 'issue', 'waiting', 'delay', 'locked', 'predatory', 'unfair', 'dangerous', 'warn', 'serious', 'no resolution', 'no explanation', 'ridiculous', 'forced', 'charge', 'payout', 'withdrawal', 'deposit', 'complaint'];
         
         const positiveCount = positiveWords.filter(word => text.includes(word)).length;
         const negativeCount = negativeWords.filter(word => text.includes(word)).length;
         
-        if (positiveCount > negativeCount) positive++;
-        else if (negativeCount > positiveCount) negative++;
-        else neutral++;
+        // Additional context analysis for gambling/casino reviews
+        const gamblingNegativeContext = text.includes('waiting') && text.includes('payout') ||
+                                      text.includes('locked') && text.includes('account') ||
+                                      text.includes('predatory') || text.includes('warn') ||
+                                      text.includes('serious issue') || text.includes('no resolution') ||
+                                      text.includes('$') && (text.includes('waiting') || text.includes('payout')) ||
+                                      text.includes('ridiculous') || text.includes('forced') ||
+                                      text.includes('charge') || text.includes('withdrawal') ||
+                                      text.includes('deposit') || text.includes('complaint');
+        
+        if (positiveCount > negativeCount && !gamblingNegativeContext) {
+          positive++;
+        } else if (negativeCount > positiveCount || gamblingNegativeContext) {
+          negative++;
+        } else {
+          neutral++;
+        }
       }
     });
     
@@ -1226,12 +1247,22 @@ function generateRealInsights(reviews: Review[], businessName: string): any[] {
         const hasPositiveWords = insight.positiveWords.some(word => text.includes(word));
         const hasNegativeWords = insight.negativeWords.some(word => text.includes(word));
         
-        if (hasPositiveWords && !hasNegativeWords) {
+        // Enhanced negative context detection for gambling/casino reviews
+        const gamblingNegativeContext = text.includes('waiting') && text.includes('payout') ||
+                                      text.includes('locked') && text.includes('account') ||
+                                      text.includes('predatory') || text.includes('warn') ||
+                                      text.includes('serious issue') || text.includes('no resolution') ||
+                                      text.includes('$') && (text.includes('waiting') || text.includes('payout')) ||
+                                      text.includes('ridiculous') || text.includes('forced') ||
+                                      text.includes('charge') || text.includes('withdrawal') ||
+                                      text.includes('deposit') || text.includes('complaint');
+        
+        if (hasPositiveWords && !hasNegativeWords && !gamblingNegativeContext) {
           positiveCount++;
           if (positiveExamples.length < 2) {
             positiveExamples.push(review.text);
           }
-        } else if (hasNegativeWords && !hasPositiveWords) {
+        } else if (hasNegativeWords && !hasPositiveWords || gamblingNegativeContext) {
           negativeCount++;
           if (negativeExamples.length < 2) {
             negativeExamples.push(review.text);
