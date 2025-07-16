@@ -229,56 +229,27 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const handleTopicClick = (topicName: string, rawMentions?: string[], topicData?: any) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Analyze actual review content for sentiment
-      const reviews = rawMentions.map((text) => {
-        const lowerText = text.toLowerCase();
+      // Use the backend sentiment data to ensure consistency
+      const totalReviews = rawMentions.length;
+      const positivePercentage = topicData?.positive || 0;
+      const negativePercentage = topicData?.negative || 0;
+      
+      // Calculate actual counts based on backend percentages
+      const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
+      const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
+      
+      // Create reviews with sentiment distribution matching the backend data
+      const reviews = rawMentions.map((text, index) => {
         let sentiment = 'positive'; // Default
         
-        // Enhanced negative keywords including gambling-specific terms
-        const negativeKeywords = [
-          'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointed', 'bad', 'poor', 'frustrated',
-          'ridiculous', 'charge', 'fee', 'problem', 'issue', 'complaint', 'scam', 'annoying', 'useless',
-          'waste', 'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges',
-          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
-          'forced', 'ridiculous charge', 'credit card charge', 'deposit charge', 'withdrawal fee',
-          'minimum deposit', 'high fees', 'expensive', 'costly', 'overpriced'
-        ];
-        
-        // Enhanced positive keywords
-        const positiveKeywords = [
-          'great', 'excellent', 'amazing', 'love', 'best', 'awesome', 'perfect', 'outstanding', 'fantastic',
-          'good', 'nice', 'helpful', 'satisfied', 'happy', 'pleased', 'recommend', 'vouch', 'smooth', 'easy',
-          'fast', 'quick', 'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'supportive', 'responsive',
-          'can\'t complain', 'no complaints', 'excellent service', 'great experience', 'love it', 'best ever'
-        ];
-        
-        // Count negative and positive keywords
-        const negativeCount = negativeKeywords.filter(keyword => lowerText.includes(keyword)).length;
-        const positiveCount = positiveKeywords.filter(keyword => lowerText.includes(keyword)).length;
-        
-        // Determine sentiment based on keyword analysis
-        if (negativeCount > positiveCount) {
+        // Distribute sentiment based on backend percentages
+        if (index < negativeCount) {
           sentiment = 'negative';
-        } else if (positiveCount > negativeCount) {
+        } else if (index < negativeCount + positiveCount) {
           sentiment = 'positive';
         } else {
-          // If equal, check for tone indicators
-          const hasNegativeTone = lowerText.includes('scam') || lowerText.includes('terrible') || 
-                                 lowerText.includes('hate') || lowerText.includes('worst') || 
-                                 lowerText.includes('complaint') || lowerText.includes('forced') ||
-                                 lowerText.includes('ridiculous charge');
-          const hasPositiveTone = lowerText.includes('great') || lowerText.includes('love') || 
-                                 lowerText.includes('recommend') || lowerText.includes('vouch') || 
-                                 lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
-          
-          if (hasNegativeTone && !hasPositiveTone) {
-            sentiment = 'negative';
-          } else if (hasPositiveTone && !hasNegativeTone) {
-            sentiment = 'positive';
-          } else {
-            // Default to negative if unclear (safer assumption)
-            sentiment = 'negative';
-          }
+          // For any remaining reviews, default to positive
+          sentiment = 'positive';
         }
         
         return { text, sentiment, topic: topicName };
