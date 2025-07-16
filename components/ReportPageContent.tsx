@@ -1145,7 +1145,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                               const isSignificantPeak = peakDay.volume > avgVolume * 1.5;
                               
                               // Check if there were any patterns around the peak
-                              const peakIndex = volumeChartData.findIndex(d => d.date === peakDay.date);
+                              const peakIndex = volumeChartData.findIndex((d: any) => d.date === peakDay.date);
                               const beforePeak = peakIndex > 0 ? volumeChartData[peakIndex - 1].volume : 0;
                               const afterPeak = peakIndex < volumeChartData.length - 1 ? volumeChartData[peakIndex + 1].volume : 0;
                               const isIsolatedPeak = peakDay.volume > beforePeak * 2 && peakDay.volume > afterPeak * 2;
@@ -1712,6 +1712,42 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                   </div>
                 )}
                 
+                {/* Why is this trending? */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 1 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Why is this trending?</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">📈</span>
+                      </div>
+                      <div>
+                        <span className="text-yellow-400 font-semibold">Trend Analysis:</span>
+                        <span className="text-[#B0B0C0] ml-2">
+                          {selectedTrendingTopic.keyInsights[1] || 'Recent increase in customer mentions and feedback.'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* What to do */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 2 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Recommended Action</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">⚡</span>
+                      </div>
+                      <div>
+                        <span className="text-green-400 font-semibold">Action Required:</span>
+                        <span className="text-[#B0B0C0] ml-2">
+                          {selectedTrendingTopic.keyInsights[2] || 'Address customer concerns and improve service quality.'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Summary of All Reviews */}
                 <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
                   <h4 className="text-lg font-semibold text-white mb-4">Summary</h4>
@@ -1727,46 +1763,6 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                           : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
                         }
                       </span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Growth Metrics */}
-                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
-                  <h4 className="text-lg font-semibold text-white mb-4">Growth Metrics</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/20">
-                      <div className="text-3xl font-bold text-green-400">{selectedTrendingTopic.growth || '+5%'}</div>
-                      <div className="text-sm text-green-300">Growth Rate</div>
-                    </div>
-                    <div className="text-center p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                      <div className="text-3xl font-bold text-blue-400">{selectedTrendingTopic.volume || '12'}</div>
-                      <div className="text-sm text-blue-300">Total Mentions</div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Sentiment Analysis */}
-                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
-                  <h4 className="text-lg font-semibold text-white mb-4">Sentiment Analysis</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-green-400 font-medium">Positive Sentiment</span>
-                        <span className="text-sm text-green-400 font-semibold">75%</span>
-                      </div>
-                      <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-                        <div className="bg-gradient-to-r from-green-500 to-green-400 h-3 rounded-full" style={{ width: '75%' }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-red-400 font-medium">Negative Sentiment</span>
-                        <span className="text-sm text-red-400 font-semibold">25%</span>
-                      </div>
-                      <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-                        <div className="bg-gradient-to-r from-red-500 to-red-400 h-3 rounded-full" style={{ width: '25%' }}></div>
-                      </div>
                     </div>
                   </div>
                 </div>
