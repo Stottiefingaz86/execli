@@ -1006,37 +1006,55 @@ function generateRealInsights(reviews: Review[], businessName: string): any[] {
   const topics = extractTopicsFromReviews(reviews);
   const sentimentByTopic = analyzeSentimentByTopic(reviews);
   
-  // Extract specific insights from actual review content
+  // Extract specific insights from actual review content - Generic for all industries
   const specificInsights = [
     {
-      topic: 'Withdrawals',
-      keywords: ['withdraw', 'withdrawal', 'payout', 'cashout', 'money', 'funds'],
-      positiveWords: ['fast', 'quick', 'smooth', 'easy', 'no problem', 'great'],
-      negativeWords: ['slow', 'delay', 'wait', 'problem', 'issue', 'frustrated', 'ridiculous']
-    },
-    {
-      topic: 'Deposits',
-      keywords: ['deposit', 'deposited', 'payment', 'card', 'bank'],
-      positiveWords: ['easy', 'smooth', 'fast', 'no problem', 'simple'],
-      negativeWords: ['fee', 'charge', 'cost', 'expensive', 'ridiculous', 'forced', 'hidden']
+      topic: 'Product Quality',
+      keywords: ['product', 'quality', 'item', 'goods', 'service', 'delivery'],
+      positiveWords: ['excellent', 'great', 'good', 'amazing', 'perfect', 'love', 'best', 'outstanding'],
+      negativeWords: ['poor', 'bad', 'terrible', 'awful', 'disappointed', 'worst', 'cheap', 'broken']
     },
     {
       topic: 'Customer Service',
-      keywords: ['service', 'support', 'help', 'contact', 'response'],
-      positiveWords: ['helpful', 'responsive', 'great', 'excellent', 'quick', 'friendly'],
-      negativeWords: ['slow', 'unhelpful', 'poor', 'bad', 'unresponsive', 'useless']
+      keywords: ['service', 'support', 'help', 'contact', 'response', 'staff', 'team'],
+      positiveWords: ['helpful', 'responsive', 'great', 'excellent', 'quick', 'friendly', 'professional'],
+      negativeWords: ['slow', 'unhelpful', 'poor', 'bad', 'unresponsive', 'useless', 'rude']
     },
     {
-      topic: 'Platform/App',
-      keywords: ['app', 'platform', 'website', 'site', 'interface', 'login'],
-      positiveWords: ['easy', 'smooth', 'great', 'good', 'simple', 'fast'],
-      negativeWords: ['bug', 'glitch', 'problem', 'issue', 'difficult', 'confusing']
+      topic: 'Pricing',
+      keywords: ['price', 'cost', 'expensive', 'cheap', 'value', 'money', 'fee', 'charge'],
+      positiveWords: ['reasonable', 'fair', 'good value', 'worth', 'affordable'],
+      negativeWords: ['expensive', 'overpriced', 'ridiculous', 'too much', 'costly', 'high']
     },
     {
-      topic: 'Verification',
-      keywords: ['verify', 'verification', 'kyc', 'identity', 'document'],
-      positiveWords: ['easy', 'smooth', 'quick', 'simple', 'no problem'],
+      topic: 'Delivery/Shipping',
+      keywords: ['delivery', 'shipping', 'arrived', 'fast', 'slow', 'package', 'order'],
+      positiveWords: ['fast', 'quick', 'on time', 'smooth', 'easy', 'great'],
+      negativeWords: ['slow', 'late', 'delayed', 'problem', 'issue', 'never arrived']
+    },
+    {
+      topic: 'Website/App',
+      keywords: ['website', 'app', 'site', 'online', 'platform', 'interface', 'login'],
+      positiveWords: ['easy', 'smooth', 'great', 'good', 'simple', 'fast', 'user-friendly'],
+      negativeWords: ['bug', 'glitch', 'problem', 'issue', 'difficult', 'confusing', 'broken']
+    },
+    {
+      topic: 'Communication',
+      keywords: ['communication', 'email', 'phone', 'message', 'contact', 'update'],
+      positiveWords: ['clear', 'helpful', 'responsive', 'good', 'professional'],
+      negativeWords: ['unclear', 'confusing', 'poor', 'bad', 'unresponsive', 'no response']
+    },
+    {
+      topic: 'Process/Procedure',
+      keywords: ['process', 'procedure', 'verification', 'kyc', 'identity', 'document', 'setup'],
+      positiveWords: ['easy', 'smooth', 'quick', 'simple', 'straightforward'],
       negativeWords: ['difficult', 'complicated', 'frustrated', 'problem', 'issue', 'slow']
+    },
+    {
+      topic: 'Overall Experience',
+      keywords: ['experience', 'overall', 'recommend', 'satisfied', 'happy', 'disappointed'],
+      positiveWords: ['great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'satisfied'],
+      negativeWords: ['terrible', 'awful', 'hate', 'worst', 'disappointed', 'never again']
     }
   ];
   
@@ -1269,47 +1287,63 @@ function generateAdvancedMetrics(reviews: Review[]): {trustScore: number, repeat
 function generateSuggestedActions(reviews: Review[], businessName: string): Array<{action: string, painPoint: string, recommendation: string, kpiImpact: string, rawMentions: string[]}> {
   const actions: Array<{action: string, painPoint: string, recommendation: string, kpiImpact: string, rawMentions: string[]}> = [];
   
-  // Analyze specific pain points from actual reviews
+  // Analyze specific pain points from actual reviews - Generic for all industries
   const painPoints = [
     {
-      topic: 'Withdrawal Delays',
-      keywords: ['withdraw', 'payout', 'cashout', 'money', 'funds'],
-      negativeWords: ['slow', 'delay', 'wait', 'problem', 'issue', 'frustrated', 'ridiculous'],
-      action: 'Optimize Withdrawal Process',
-      recommendation: 'Implement faster withdrawal processing to reduce customer wait times and improve satisfaction',
-      kpiImpact: 'Reduce customer churn by 15% and improve satisfaction scores'
+      topic: 'Product Quality Issues',
+      keywords: ['product', 'quality', 'item', 'goods', 'broken', 'defective', 'poor'],
+      negativeWords: ['poor', 'bad', 'terrible', 'awful', 'disappointed', 'worst', 'cheap', 'broken'],
+      action: 'Improve Product Quality Control',
+      recommendation: 'Implement stricter quality control measures and address product defects promptly',
+      kpiImpact: 'Reduce product returns by 20% and improve customer satisfaction scores'
     },
     {
-      topic: 'Deposit Fees',
-      keywords: ['deposit', 'payment', 'card', 'fee', 'charge'],
-      negativeWords: ['fee', 'charge', 'cost', 'expensive', 'ridiculous', 'forced', 'hidden'],
-      action: 'Review Deposit Fee Structure',
-      recommendation: 'Analyze and potentially reduce deposit fees to improve customer acquisition and retention',
-      kpiImpact: 'Increase deposit volume by 25% and improve customer acquisition'
+      topic: 'Customer Service Problems',
+      keywords: ['service', 'support', 'help', 'contact', 'response', 'staff'],
+      negativeWords: ['slow', 'unhelpful', 'poor', 'bad', 'unresponsive', 'useless', 'rude'],
+      action: 'Enhance Customer Service',
+      recommendation: 'Improve response times, train staff better, and implement better support systems',
+      kpiImpact: 'Improve customer satisfaction scores by 25% and reduce support tickets'
     },
     {
-      topic: 'Customer Service Response',
-      keywords: ['service', 'support', 'help', 'contact', 'response'],
-      negativeWords: ['slow', 'unhelpful', 'poor', 'bad', 'unresponsive', 'useless'],
-      action: 'Enhance Customer Support',
-      recommendation: 'Improve response times and support quality to address customer concerns more effectively',
-      kpiImpact: 'Improve customer satisfaction scores by 20% and reduce support tickets'
+      topic: 'Pricing Concerns',
+      keywords: ['price', 'cost', 'expensive', 'value', 'money', 'fee', 'charge'],
+      negativeWords: ['expensive', 'overpriced', 'ridiculous', 'too much', 'costly', 'high'],
+      action: 'Review Pricing Strategy',
+      recommendation: 'Analyze pricing competitiveness and consider value-based pricing adjustments',
+      kpiImpact: 'Increase customer acquisition by 15% and improve retention rates'
     },
     {
-      topic: 'Platform Usability',
-      keywords: ['app', 'platform', 'website', 'site', 'interface', 'login'],
-      negativeWords: ['bug', 'glitch', 'problem', 'issue', 'difficult', 'confusing'],
-      action: 'Improve Platform User Experience',
-      recommendation: 'Fix platform bugs and improve user interface to enhance customer experience',
-      kpiImpact: 'Increase user engagement by 30% and reduce abandonment rates'
+      topic: 'Delivery/Shipping Issues',
+      keywords: ['delivery', 'shipping', 'arrived', 'package', 'order', 'late'],
+      negativeWords: ['slow', 'late', 'delayed', 'problem', 'issue', 'never arrived'],
+      action: 'Optimize Delivery Process',
+      recommendation: 'Improve delivery speed, tracking, and communication with customers',
+      kpiImpact: 'Reduce delivery complaints by 30% and improve customer satisfaction'
     },
     {
-      topic: 'Verification Process',
-      keywords: ['verify', 'verification', 'kyc', 'identity', 'document'],
+      topic: 'Website/App Problems',
+      keywords: ['website', 'app', 'site', 'online', 'platform', 'interface'],
+      negativeWords: ['bug', 'glitch', 'problem', 'issue', 'difficult', 'confusing', 'broken'],
+      action: 'Fix Platform Issues',
+      recommendation: 'Address technical issues, improve user experience, and enhance functionality',
+      kpiImpact: 'Increase user engagement by 35% and reduce abandonment rates'
+    },
+    {
+      topic: 'Communication Issues',
+      keywords: ['communication', 'email', 'phone', 'message', 'contact', 'update'],
+      negativeWords: ['unclear', 'confusing', 'poor', 'bad', 'unresponsive', 'no response'],
+      action: 'Improve Communication',
+      recommendation: 'Enhance communication clarity, frequency, and response times',
+      kpiImpact: 'Improve customer trust by 20% and reduce misunderstandings'
+    },
+    {
+      topic: 'Process/Procedure Problems',
+      keywords: ['process', 'procedure', 'verification', 'setup', 'complicated'],
       negativeWords: ['difficult', 'complicated', 'frustrated', 'problem', 'issue', 'slow'],
-      action: 'Streamline Verification Process',
-      recommendation: 'Simplify the verification process to reduce customer friction and improve onboarding',
-      kpiImpact: 'Increase successful verifications by 40% and improve customer onboarding'
+      action: 'Streamline Processes',
+      recommendation: 'Simplify procedures, reduce friction, and improve user experience',
+      kpiImpact: 'Increase successful completions by 40% and improve customer onboarding'
     }
   ];
   
@@ -1349,6 +1383,22 @@ function generateSuggestedActions(reviews: Review[], businessName: string): Arra
         recommendation: 'Use positive customer service feedback in marketing and maintain high service standards',
         kpiImpact: 'Improve customer retention by 10% and increase positive word-of-mouth',
         rawMentions: serviceReviews.map(r => r.text)
+      });
+    }
+    
+    const qualityReviews = positiveReviews.filter(r => 
+      r.text.toLowerCase().includes('quality') || 
+      r.text.toLowerCase().includes('product') || 
+      r.text.toLowerCase().includes('excellent')
+    );
+    
+    if (qualityReviews.length > 0) {
+      actions.push({
+        action: 'Highlight Product Quality',
+        painPoint: 'Not emphasizing strong product quality in marketing',
+        recommendation: 'Use positive quality feedback in marketing materials and maintain high standards',
+        kpiImpact: 'Increase customer acquisition by 15% and improve brand perception',
+        rawMentions: qualityReviews.map(r => r.text)
       });
     }
   }
@@ -1405,13 +1455,16 @@ function generateDetailedExecutiveSummary(reviews: Review[], businessName: strin
   const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2).length;
   const neutralReviews = totalReviews - positiveReviews - negativeReviews;
   
-  // Extract specific topics and their sentiment
+  // Extract specific topics and their sentiment - Generic for all industries
   const topics: Record<string, { positive: number, negative: number, examples: string[] }> = {
-    withdrawals: { positive: 0, negative: 0, examples: [] },
-    deposits: { positive: 0, negative: 0, examples: [] },
+    productQuality: { positive: 0, negative: 0, examples: [] },
     customerService: { positive: 0, negative: 0, examples: [] },
-    platform: { positive: 0, negative: 0, examples: [] },
-    verification: { positive: 0, negative: 0, examples: [] }
+    pricing: { positive: 0, negative: 0, examples: [] },
+    delivery: { positive: 0, negative: 0, examples: [] },
+    website: { positive: 0, negative: 0, examples: [] },
+    communication: { positive: 0, negative: 0, examples: [] },
+    process: { positive: 0, negative: 0, examples: [] },
+    overallExperience: { positive: 0, negative: 0, examples: [] }
   };
   
   reviews.forEach(review => {
@@ -1419,41 +1472,59 @@ function generateDetailedExecutiveSummary(reviews: Review[], businessName: strin
     const isPositive = (review.rating || 0) >= 4;
     const isNegative = (review.rating || 0) <= 2;
     
-    // Categorize by topic
-    if (text.includes('withdraw') || text.includes('payout') || text.includes('cashout')) {
-      if (isPositive) topics.withdrawals.positive++;
-      if (isNegative) topics.withdrawals.negative++;
-      if (topics.withdrawals.examples.length < 3) topics.withdrawals.examples.push(review.text);
+    // Categorize by topic - Generic for all industries
+    if (text.includes('product') || text.includes('quality') || text.includes('item') || text.includes('goods')) {
+      if (isPositive) topics.productQuality.positive++;
+      if (isNegative) topics.productQuality.negative++;
+      if (topics.productQuality.examples.length < 3) topics.productQuality.examples.push(review.text);
     }
     
-    if (text.includes('deposit') || text.includes('payment') || text.includes('card')) {
-      if (isPositive) topics.deposits.positive++;
-      if (isNegative) topics.deposits.negative++;
-      if (topics.deposits.examples.length < 3) topics.deposits.examples.push(review.text);
-    }
-    
-    if (text.includes('service') || text.includes('support') || text.includes('help')) {
+    if (text.includes('service') || text.includes('support') || text.includes('help') || text.includes('staff')) {
       if (isPositive) topics.customerService.positive++;
       if (isNegative) topics.customerService.negative++;
       if (topics.customerService.examples.length < 3) topics.customerService.examples.push(review.text);
     }
     
-    if (text.includes('app') || text.includes('platform') || text.includes('website')) {
-      if (isPositive) topics.platform.positive++;
-      if (isNegative) topics.platform.negative++;
-      if (topics.platform.examples.length < 3) topics.platform.examples.push(review.text);
+    if (text.includes('price') || text.includes('cost') || text.includes('expensive') || text.includes('value')) {
+      if (isPositive) topics.pricing.positive++;
+      if (isNegative) topics.pricing.negative++;
+      if (topics.pricing.examples.length < 3) topics.pricing.examples.push(review.text);
     }
     
-    if (text.includes('verify') || text.includes('verification') || text.includes('kyc')) {
-      if (isPositive) topics.verification.positive++;
-      if (isNegative) topics.verification.negative++;
-      if (topics.verification.examples.length < 3) topics.verification.examples.push(review.text);
+    if (text.includes('delivery') || text.includes('shipping') || text.includes('arrived') || text.includes('package')) {
+      if (isPositive) topics.delivery.positive++;
+      if (isNegative) topics.delivery.negative++;
+      if (topics.delivery.examples.length < 3) topics.delivery.examples.push(review.text);
+    }
+    
+    if (text.includes('website') || text.includes('app') || text.includes('site') || text.includes('online')) {
+      if (isPositive) topics.website.positive++;
+      if (isNegative) topics.website.negative++;
+      if (topics.website.examples.length < 3) topics.website.examples.push(review.text);
+    }
+    
+    if (text.includes('communication') || text.includes('email') || text.includes('phone') || text.includes('message')) {
+      if (isPositive) topics.communication.positive++;
+      if (isNegative) topics.communication.negative++;
+      if (topics.communication.examples.length < 3) topics.communication.examples.push(review.text);
+    }
+    
+    if (text.includes('process') || text.includes('procedure') || text.includes('verification') || text.includes('setup')) {
+      if (isPositive) topics.process.positive++;
+      if (isNegative) topics.process.negative++;
+      if (topics.process.examples.length < 3) topics.process.examples.push(review.text);
+    }
+    
+    if (text.includes('experience') || text.includes('overall') || text.includes('recommend') || text.includes('satisfied')) {
+      if (isPositive) topics.overallExperience.positive++;
+      if (isNegative) topics.overallExperience.negative++;
+      if (topics.overallExperience.examples.length < 3) topics.overallExperience.examples.push(review.text);
     }
   });
   
   // Find the most praised and biggest complaint
   let mostPraised = 'Customer Service';
-  let topComplaint = 'Deposits';
+  let topComplaint = 'Product Quality';
   let mostPraisedScore = 0;
   let topComplaintScore = 0;
   
@@ -1465,12 +1536,12 @@ function generateDetailedExecutiveSummary(reviews: Review[], businessName: strin
       
       if (positivePercentage > mostPraisedScore) {
         mostPraisedScore = positivePercentage;
-        mostPraised = topic.charAt(0).toUpperCase() + topic.slice(1);
+        mostPraised = topic.charAt(0).toUpperCase() + topic.slice(1).replace(/([A-Z])/g, ' $1');
       }
       
       if (negativePercentage > topComplaintScore) {
         topComplaintScore = negativePercentage;
-        topComplaint = topic.charAt(0).toUpperCase() + topic.slice(1);
+        topComplaint = topic.charAt(0).toUpperCase() + topic.slice(1).replace(/([A-Z])/g, ' $1');
       }
     }
   });
@@ -1480,9 +1551,9 @@ function generateDetailedExecutiveSummary(reviews: Review[], businessName: strin
   
   return `Based on analysis of ${totalReviews} customer reviews for ${businessName}, the overall sentiment is ${overallSentiment} with ${sentimentPercentage}% of customers expressing satisfaction.
 
-The most praised aspect is ${mostPraised}, with customers highlighting ${topics[mostPraised.toLowerCase() as keyof typeof topics]?.examples[0]?.substring(0, 100) || 'positive experiences'}. This indicates that ${mostPraised.toLowerCase()} is working well and should be maintained as a competitive advantage.
+The most praised aspect is ${mostPraised}, with customers highlighting ${topics[mostPraised.toLowerCase().replace(/\s+/g, '') as keyof typeof topics]?.examples[0]?.substring(0, 100) || 'positive experiences'}. This indicates that ${mostPraised.toLowerCase()} is working well and should be maintained as a competitive advantage.
 
-However, the primary concern is ${topComplaint}, with ${topics[topComplaint.toLowerCase() as keyof typeof topics]?.examples[0]?.substring(0, 100) || 'customers expressing frustration'}. This issue requires immediate attention as it's affecting customer satisfaction and potentially causing churn.
+However, the primary concern is ${topComplaint}, with ${topics[topComplaint.toLowerCase().replace(/\s+/g, '') as keyof typeof topics]?.examples[0]?.substring(0, 100) || 'customers expressing frustration'}. This issue requires immediate attention as it's affecting customer satisfaction and potentially causing churn.
 
 Key trends indicate ${overallSentiment === 'positive' ? 'improving customer satisfaction' : 'declining satisfaction'}, with ${positiveReviews} positive reviews and ${negativeReviews} negative reviews. The data suggests opportunities for ${mostPraised.toLowerCase()} enhancement and ${topComplaint.toLowerCase()} improvement.
 
@@ -1610,11 +1681,11 @@ REQUIRED: Extract specific problems, solutions, and actionable insights from the
 - "Addressing X concerns could significantly improve"
 
 **REQUIRED: Use ONLY specific data from reviews:**
-- "5 reviews mention withdrawal delays of 3+ days"
-- "8 customers complained about deposit fees of $25"
-- "3 reviews mention switching to competitors for faster payouts"
-- "6 customers praised the mobile app speed"
-- "4 reviews mention login bugs in the new update"
+- "5 reviews mention slow delivery times of 3+ days"
+- "8 customers complained about high prices compared to competitors"
+- "3 reviews mention switching to competitors for better service"
+- "6 customers praised the product quality and durability"
+- "4 reviews mention website bugs in the checkout process"
 
 Provide a comprehensive JSON response with these detailed sections:
 
@@ -1756,7 +1827,7 @@ IMPORTANT INSTRUCTIONS:
 - Focus on patterns, trends, and actionable insights
 - Quantify everything with numbers and percentages
 - Ensure all insights are backed by actual review data
-- Extract ALL topics mentioned in reviews (VIP, BONUS, SPORTS, POKER, CASINO, WITHDRAW, DEPOSIT, etc.)
+- Extract ALL topics mentioned in reviews (product quality, customer service, pricing, delivery, etc.)
 - Include at least 10-15 key insights and trending topics
 - Make sure rawMentions arrays contain ALL review texts that mention each topic
 - For each section, explain WHAT the data means, WHY it matters, and WHAT actions to take
@@ -1778,7 +1849,7 @@ IMPORTANT INSTRUCTIONS:
 - **INSIGHTS MUST BE SPECIFIC AND ACTIONABLE:**
   - Extract the actual problem/opportunity from review content
   - Quantify with specific numbers (e.g., "5 reviews mention", "8 customers complained")
-  - Provide specific action items (e.g., "Reduce withdrawal time to <24h", "Add alternative payment options")
+  - Provide specific action items (e.g., "Reduce delivery time to <2 days", "Improve customer service response time")
   - Reference specific review quotes as evidence
   - Avoid generic statements like "mixed feedback" or "customers have concerns"
 - **CONTEXT SECTIONS MUST EXPLAIN THE BUSINESS IMPACT:**
@@ -1792,11 +1863,9 @@ IMPORTANT INSTRUCTIONS:
   - Provide specific solutions
   - Reference actual review quotes
 - **EXAMPLES of great insights:**
-  - "Customers are frustrated by the 3-day withdrawal delay, which is causing churn. 4 reviews mention switching to a competitor for faster payouts. Action: Reduce withdrawal time to <24h to retain high-value users."
-  - "The new mobile app update is praised for its speed and design, but 6 reviews mention login bugs. Action: Prioritize bug fix in next sprint."
-  - "Bonus offers are a major draw, but 3 reviews complain about unclear terms. Action: Clarify bonus terms in onboarding."
-  - "Deposit fees and charges - Not all users want to use crypto. 5 reviews mention ridiculous charges on credit card deposits. Action: Review deposit fee structure and provide alternative payment options."
-  - "Withdrawal verification process is too complex - 8 reviews mention frustration with document requirements. Action: Simplify verification process and add clear instructions."
+  - "Customers are frustrated by slow delivery times, which is causing churn. 4 reviews mention switching to competitors for faster shipping. Action: Reduce delivery time to <2 days to retain customers."
+  - "Product quality is highly praised with 6 reviews mentioning durability and reliability. Action: Use positive quality feedback in marketing to attract new customers."
+  - "Customer service response times are too slow, with 5 reviews mentioning 24+ hour wait times. Action: Implement faster response system to improve satisfaction."
 
 - **FOR MENTIONS BY TOPIC KEY INSIGHTS (BRIEF SUMMARIES):**
   - "Deposits: 3 customers praised instant deposits, 2 complained about $25 fees. Most users prefer credit card over crypto."
