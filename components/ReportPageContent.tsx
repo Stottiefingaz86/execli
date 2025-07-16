@@ -1003,8 +1003,8 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                           {sentimentChartData.length > 0 ? 
                             (() => {
                               const avgSentiment = Math.round(sentimentChartData.reduce((sum: number, d: any) => sum + d.sentiment, 0) / sentimentChartData.length);
-                              const peakDay = sentimentChartData.reduce((max, d) => d.sentiment > max.sentiment ? d : max);
-                              const lowDay = sentimentChartData.reduce((min, d) => d.sentiment < min.sentiment ? d : min);
+                              const peakDay = sentimentChartData.reduce((max: any, d: any) => d.sentiment > max.sentiment ? d : max);
+                              const lowDay = sentimentChartData.reduce((min: any, d: any) => d.sentiment < min.sentiment ? d : min);
                               
                               let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.sentiment}/100 sentiment`;
                               
@@ -1111,8 +1111,8 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                         <span className="text-[#B0B0C0] ml-2 text-base leading-relaxed">
                           {volumeChartData.length > 0 ? 
                             (() => {
-                              const peakDay = volumeChartData.reduce((max, d) => d.volume > max.volume ? d : max);
-                              const lowDay = volumeChartData.reduce((min, d) => d.volume < min.volume ? d : min);
+                              const peakDay = volumeChartData.reduce((max: any, d: any) => d.volume > max.volume ? d : max);
+                              const lowDay = volumeChartData.reduce((min: any, d: any) => d.volume < min.volume ? d : min);
                               
                               let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.volume} reviews`;
                               
