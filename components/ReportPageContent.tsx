@@ -54,6 +54,7 @@ interface ReportData {
       text: string;
       topic: string;
       sentiment: string;
+      source?: string;
     }>;
     rawMentions?: string[];
     context?: string;
@@ -135,7 +136,6 @@ interface ReportData {
 interface ReportPageContentProps {
   reportData: ReportData;
   reportId: string;
-  onRegenerate?: () => void;
   isRegenerating?: boolean;
 }
 
@@ -182,10 +182,10 @@ const TruncatedText = ({ text, maxLength = 150, title = "Full Content" }: { text
   );
 };
 
-export default function ReportPageContent({ reportData, reportId, onRegenerate, isRegenerating }: ReportPageContentProps) {
+export default function ReportPageContent({ reportData, reportId, isRegenerating }: ReportPageContentProps) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedReviews, setSelectedReviews] = useState<Array<{text: string, sentiment: string, topic: string}>>([]);
+  const [selectedReviews, setSelectedReviews] = useState<Array<{text: string, sentiment: string, topic: string, source?: string}>>([]);
   const [mentionsFilter, setMentionsFilter] = useState<'all' | 'positive' | 'negative'>('all');
   const [showAllMentions, setShowAllMentions] = useState(false);
   const [showTrendingModal, setShowTrendingModal] = useState(false);
@@ -227,33 +227,31 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
     </div>;
   }
 
-  const handleTopicClick = (topic: string, rawMentions?: string[]) => {
+  const handleTopicClick = (topicName: string, rawMentions?: string[], topicData?: any) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Classify sentiment based on keywords - NO NEUTRAL
-      const reviews = rawMentions.map(text => {
-        const lowerText = text.toLowerCase();
-        let sentiment = 'positive'; // Default to positive instead of neutral
+      // Use the backend sentiment data instead of recalculating
+      const totalReviews = rawMentions.length;
+      const positiveCount = topicData ? Math.round((topicData.positive / 100) * totalReviews) : 0;
+      const negativeCount = topicData ? Math.round((topicData.negative / 100) * totalReviews) : 0;
+      
+      // Create reviews with proper sentiment distribution
+      const reviews = rawMentions.map((text, index) => {
+        let sentiment = 'positive'; // Default
         
-        // Negative keywords
-        if (lowerText.includes('terrible') || lowerText.includes('awful') || lowerText.includes('horrible') ||
-            lowerText.includes('worst') || lowerText.includes('hate') || lowerText.includes('disappointed') ||
-            lowerText.includes('bad') || lowerText.includes('poor') || lowerText.includes('frustrated') ||
-            lowerText.includes('ridiculous') || lowerText.includes('charge') || lowerText.includes('fee') ||
-            lowerText.includes('problem') || lowerText.includes('issue') || lowerText.includes('complaint')) {
+        // Distribute sentiment based on backend percentages
+        if (index < negativeCount) {
           sentiment = 'negative';
-        }
-        // Positive keywords
-        else if (lowerText.includes('great') || lowerText.includes('excellent') || lowerText.includes('amazing') || 
-                lowerText.includes('love') || lowerText.includes('best') || lowerText.includes('awesome') ||
-                lowerText.includes('perfect') || lowerText.includes('outstanding') || lowerText.includes('fantastic') ||
-                lowerText.includes('good') || lowerText.includes('nice') || lowerText.includes('helpful')) {
+        } else if (index < negativeCount + positiveCount) {
+          sentiment = 'positive';
+        } else {
+          // For any remaining reviews, default to positive
           sentiment = 'positive';
         }
         
-        return { text, sentiment, topic };
+        return { text, sentiment, topic: topicName };
       });
       
-      setSelectedTopic(topic);
+      setSelectedTopic(topicName);
       setSelectedReviews(reviews);
       setShowReviewModal(true);
     }
@@ -425,14 +423,7 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
               </div>
             </div>
             <div className="flex space-x-3">
-              <button className="flex items-center space-x-2 px-4 py-2 border border-white/10 rounded-lg bg-transparent hover:bg-white/5 transition-all duration-200 text-[#B0B0C0] hover:text-white">
-                <RefreshCw className="w-4 h-4" />
-                <span>Sync All</span>
-              </button>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-[#0f1117]/60 backdrop-blur-md border border-white/10 rounded-lg hover:bg-white/5 transition-all duration-200 text-[#B0B0C0] hover:text-white">
-                <Plus className="w-4 h-4" />
-                <span>Add Source</span>
-              </button>
+              {/* Removed regenerate button */}
             </div>
           </div>
         </div>
@@ -886,7 +877,7 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                     {/* CTA Button */}
                     <div className="mt-6">
                       <button 
-                        onClick={() => handleTopicClick(topic.topic, topic.rawMentions)}
+                        onClick={() => handleTopicClick(topic.topic, topic.rawMentions, topic)}
                         className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
                       >
                         <span>View {topic.total} Reviews</span>
@@ -1376,7 +1367,7 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                       {/* CTA Button */}
                       <div className="mt-6">
                         <button 
-                          onClick={() => handleTopicClick(gap.gap, gap.rawMentions)}
+                          onClick={() => handleTopicClick(gap.gap, gap.rawMentions, gap)}
                           className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
                         >
                           <span>View {gap.mentions} Reviews</span>
@@ -1512,7 +1503,7 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                           {action.rawMentions && action.rawMentions.length > 0 && (
                             <div className="mt-6">
                               <button 
-                                onClick={() => handleTopicClick(action.action, action.rawMentions)}
+                                onClick={() => handleTopicClick(action.action, action.rawMentions, action)}
                                 className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
                               >
                                 <span>View {action.rawMentions.length} Related Reviews</span>
@@ -1920,13 +1911,18 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                   <div key={index} className="bg-[#181a20] border border-white/10 rounded-xl p-4">
                     <p className="text-white mb-3 leading-relaxed">{review.text}</p>
                     <div className="flex items-center justify-between text-sm">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        actualSentiment === 'positive' ? 'bg-green-500/20 text-green-400' : 
-                        actualSentiment === 'negative' ? 'bg-red-500/20 text-red-400' : 
-                        'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {actualSentiment}
-                      </span>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          actualSentiment === 'positive' ? 'bg-green-500/20 text-green-400' : 
+                          actualSentiment === 'negative' ? 'bg-red-500/20 text-red-400' : 
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {actualSentiment}
+                        </span>
+                        {review.source && (
+                          <span className="text-xs text-gray-400">Source: {review.source}</span>
+                        )}
+                      </div>
                       <span className="text-[#B0B0C0]">Review #{index + 1} of {selectedReviews.length}</span>
                     </div>
                   </div>

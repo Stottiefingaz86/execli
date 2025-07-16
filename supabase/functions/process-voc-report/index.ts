@@ -143,18 +143,66 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
     })),
     sentimentOverTime: generateDailySentimentData(allReviews, 30),
     volumeOverTime: generateDailyVolumeData(allReviews, 30),
-    marketGaps: Array.from(allTopics).slice(0, 3).map(topic => ({
-      gap: `Improve ${topic}`,
-      mentions: Math.floor(Math.random() * 15) + 5,
-      suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
-      kpiImpact: 'High Impact',
-      rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
-      priority: 'high',
-      context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
-      opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
-      customerImpact: `This gap affects customer retention and satisfaction scores.`,
-      specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-    })),
+    marketGaps: (() => {
+      // Find real market gaps based on negative feedback and missed opportunities
+      const negativeReviews = allReviews.filter(r => (r.rating || 0) <= 2);
+      const gaps: any[] = [];
+      
+      // Only create gaps if there are actual negative reviews
+      if (negativeReviews.length === 0) {
+        return gaps; // Return empty array if no negative feedback
+      }
+      
+      // Analyze negative reviews to find real gaps
+      const negativeTopics = new Map<string, { count: number, reviews: string[], avgRating: number, specificIssues: string[] }>();
+      
+      negativeReviews.forEach(review => {
+        const topics = extractTopicsFromReviews([review]);
+        topics.forEach(topic => {
+          const existing = negativeTopics.get(topic) || { count: 0, reviews: [], avgRating: 0, specificIssues: [] as string[] };
+          existing.count++;
+          existing.avgRating = (existing.avgRating * (existing.count - 1) + (review.rating || 0)) / existing.count;
+          if (existing.reviews.length < 3) {
+            existing.reviews.push(review.text);
+          }
+          
+          // Extract specific issues from the review
+          const lowerText = review.text.toLowerCase();
+          const issues: string[] = [];
+          if (lowerText.includes('slow') || lowerText.includes('delay')) issues.push('Speed/Delays');
+          if (lowerText.includes('expensive') || lowerText.includes('cost') || lowerText.includes('price')) issues.push('Pricing');
+          if (lowerText.includes('rude') || lowerText.includes('unhelpful') || lowerText.includes('poor service')) issues.push('Customer Service');
+          if (lowerText.includes('broken') || lowerText.includes('defective') || lowerText.includes('quality')) issues.push('Quality Issues');
+          if (lowerText.includes('difficult') || lowerText.includes('complicated') || lowerText.includes('confusing')) issues.push('Usability');
+          
+          existing.specificIssues.push(...issues);
+          negativeTopics.set(topic, existing);
+        });
+      });
+      
+      // Convert to gaps array - only for topics with multiple complaints and specific issues
+      negativeTopics.forEach((data, topic) => {
+        if (data.count >= 2 && data.avgRating < 3) { // Only create gaps for topics with multiple complaints and low ratings
+          const uniqueIssues = [...new Set(data.specificIssues)];
+          const mainIssue = uniqueIssues.length > 0 ? uniqueIssues[0] : 'Customer Concerns';
+          
+          gaps.push({
+            gap: `${mainIssue} in ${topic.charAt(0).toUpperCase() + topic.slice(1)}`,
+            mentions: data.count,
+            suggestion: `Address ${data.count} customer complaints about ${topic} with specific improvements to ${mainIssue.toLowerCase()}.`,
+            kpiImpact: 'High Impact',
+            rawMentions: data.reviews,
+            priority: 'high',
+            context: `${data.count} customers reported ${mainIssue.toLowerCase()} issues with ${topic}.`,
+            opportunity: `Addressing ${mainIssue.toLowerCase()} in ${topic} could significantly improve customer satisfaction.`,
+            customerImpact: `This gap affects customer retention and satisfaction scores.`,
+            specificExamples: data.reviews
+          });
+        }
+      });
+      
+      return gaps.slice(0, 3); // Return top 3 gaps
+    })(),
     advancedMetrics: generateAdvancedMetrics(allReviews),
     suggestedActions: generateSuggestedActions(allReviews, businessName),
     vocDigest: {
@@ -1298,7 +1346,7 @@ function generateRealInsights(reviews: Review[], businessName: string): any[] {
 
 // Helper function to generate daily sentiment data
 function generateDailySentimentData(reviews: Review[], days: number): Array<{date: string, sentiment: number, reviewCount: number, insights?: string}> {
-  const data = [];
+  const data: Array<{date: string, sentiment: number, reviewCount: number, insights?: string}> = [];
   const baseSentiment = reviews.length > 0 ? 
     reviews.reduce((sum, r) => sum + (r.rating || 3), 0) / reviews.length * 20 : 50;
   
@@ -1551,118 +1599,147 @@ function generateAdvancedMetrics(reviews: Review[]): {trustScore: number, repeat
 function generateSuggestedActions(reviews: Review[], businessName: string): Array<{action: string, painPoint: string, recommendation: string, kpiImpact: string, rawMentions: string[]}> {
   const actions: Array<{action: string, painPoint: string, recommendation: string, kpiImpact: string, rawMentions: string[]}> = [];
   
-  // Analyze specific pain points from actual reviews - Generic for all industries
-  const painPoints = [
-    {
-      topic: 'Product Quality Issues',
-      keywords: ['product', 'quality', 'item', 'goods', 'broken', 'defective', 'poor'],
-      negativeWords: ['poor', 'bad', 'terrible', 'awful', 'disappointed', 'worst', 'cheap', 'broken'],
-      action: 'Improve Product Quality Control',
-      recommendation: 'Implement stricter quality control measures and address product defects promptly',
-      kpiImpact: 'Reduce product returns by 20% and improve customer satisfaction scores'
-    },
-    {
-      topic: 'Customer Service Problems',
-      keywords: ['service', 'support', 'help', 'contact', 'response', 'staff'],
-      negativeWords: ['slow', 'unhelpful', 'poor', 'bad', 'unresponsive', 'useless', 'rude'],
-      action: 'Enhance Customer Service',
-      recommendation: 'Improve response times, train staff better, and implement better support systems',
-      kpiImpact: 'Improve customer satisfaction scores by 25% and reduce support tickets'
-    },
-    {
-      topic: 'Pricing Concerns',
-      keywords: ['price', 'cost', 'expensive', 'value', 'money', 'fee', 'charge'],
-      negativeWords: ['expensive', 'overpriced', 'ridiculous', 'too much', 'costly', 'high'],
-      action: 'Review Pricing Strategy',
-      recommendation: 'Analyze pricing competitiveness and consider value-based pricing adjustments',
-      kpiImpact: 'Increase customer acquisition by 15% and improve retention rates'
-    },
-    {
-      topic: 'Delivery/Shipping Issues',
-      keywords: ['delivery', 'shipping', 'arrived', 'package', 'order', 'late'],
-      negativeWords: ['slow', 'late', 'delayed', 'problem', 'issue', 'never arrived'],
-      action: 'Optimize Delivery Process',
-      recommendation: 'Improve delivery speed, tracking, and communication with customers',
-      kpiImpact: 'Reduce delivery complaints by 30% and improve customer satisfaction'
-    },
-    {
-      topic: 'Website/App Problems',
-      keywords: ['website', 'app', 'site', 'online', 'platform', 'interface'],
-      negativeWords: ['bug', 'glitch', 'problem', 'issue', 'difficult', 'confusing', 'broken'],
-      action: 'Fix Platform Issues',
-      recommendation: 'Address technical issues, improve user experience, and enhance functionality',
-      kpiImpact: 'Increase user engagement by 35% and reduce abandonment rates'
-    },
-    {
-      topic: 'Communication Issues',
-      keywords: ['communication', 'email', 'phone', 'message', 'contact', 'update'],
-      negativeWords: ['unclear', 'confusing', 'poor', 'bad', 'unresponsive', 'no response'],
-      action: 'Improve Communication',
-      recommendation: 'Enhance communication clarity, frequency, and response times',
-      kpiImpact: 'Improve customer trust by 20% and reduce misunderstandings'
-    },
-    {
-      topic: 'Process/Procedure Problems',
-      keywords: ['process', 'procedure', 'verification', 'setup', 'complicated'],
-      negativeWords: ['difficult', 'complicated', 'frustrated', 'problem', 'issue', 'slow'],
-      action: 'Streamline Processes',
-      recommendation: 'Simplify procedures, reduce friction, and improve user experience',
-      kpiImpact: 'Increase successful completions by 40% and improve customer onboarding'
-    }
-  ];
+  if (reviews.length === 0) {
+    return actions;
+  }
   
-  painPoints.forEach(painPoint => {
-    const relevantReviews = reviews.filter(review => 
-      painPoint.keywords.some(keyword => 
-        review.text.toLowerCase().includes(keyword)
-      ) && painPoint.negativeWords.some(word => 
-        review.text.toLowerCase().includes(word)
-      )
-    );
+  // Analyze actual review content to find real issues and opportunities
+  const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
+  const positiveReviews = reviews.filter(r => (r.rating || 0) >= 4);
+  
+  // Extract topics from negative reviews to find real pain points
+  const negativeTopics = new Map<string, { count: number, reviews: string[], sentiment: 'negative' }>();
+  const positiveTopics = new Map<string, { count: number, reviews: string[], sentiment: 'positive' }>();
+  
+  // Analyze negative reviews for real issues
+  negativeReviews.forEach(review => {
+    const text = review.text.toLowerCase();
     
-    if (relevantReviews.length > 0) {
+    // Extract topics from negative reviews
+    const topics = extractTopicsFromReviews([review]);
+    topics.forEach(topic => {
+      const existing = negativeTopics.get(topic) || { count: 0, reviews: [], sentiment: 'negative' as const };
+      existing.count++;
+      if (existing.reviews.length < 3) {
+        existing.reviews.push(review.text);
+      }
+      negativeTopics.set(topic, existing);
+    });
+  });
+  
+  // Analyze positive reviews for opportunities
+  positiveReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    // Extract topics from positive reviews
+    const topics = extractTopicsFromReviews([review]);
+    topics.forEach(topic => {
+      const existing = positiveTopics.get(topic) || { count: 0, reviews: [], sentiment: 'positive' as const };
+      existing.count++;
+      if (existing.reviews.length < 3) {
+        existing.reviews.push(review.text);
+      }
+      positiveTopics.set(topic, existing);
+    });
+  });
+  
+  // Generate actions based on actual negative feedback
+  negativeTopics.forEach((data, topic) => {
+    if (data.count >= 2) { // Only create actions for topics mentioned multiple times
+      const action = `Improve ${topic.charAt(0).toUpperCase() + topic.slice(1)}`;
+      const painPoint = `${data.count} customers reported issues with ${topic}`;
+      
+      // Generate specific recommendation based on the topic
+      let recommendation = '';
+      let kpiImpact = '';
+      
+      if (topic.includes('service') || topic.includes('support') || topic.includes('help')) {
+        recommendation = 'Enhance customer service response times and training to address specific complaints';
+        kpiImpact = 'Improve customer satisfaction scores by 25% and reduce support tickets';
+      } else if (topic.includes('quality') || topic.includes('product')) {
+        recommendation = 'Implement quality control improvements and address product defects promptly';
+        kpiImpact = 'Reduce product returns by 20% and improve customer satisfaction';
+      } else if (topic.includes('price') || topic.includes('cost') || topic.includes('fee')) {
+        recommendation = 'Review pricing strategy and consider value-based adjustments';
+        kpiImpact = 'Increase customer acquisition by 15% and improve retention rates';
+      } else if (topic.includes('delivery') || topic.includes('shipping')) {
+        recommendation = 'Optimize delivery process and improve tracking communication';
+        kpiImpact = 'Reduce delivery complaints by 30% and improve customer satisfaction';
+      } else if (topic.includes('website') || topic.includes('app') || topic.includes('platform')) {
+        recommendation = 'Fix technical issues and improve user experience on digital platforms';
+        kpiImpact = 'Increase user engagement by 35% and reduce abandonment rates';
+      } else if (topic.includes('communication')) {
+        recommendation = 'Enhance communication clarity and response times';
+        kpiImpact = 'Improve customer trust by 20% and reduce misunderstandings';
+      } else if (topic.includes('process') || topic.includes('procedure')) {
+        recommendation = 'Simplify procedures and reduce friction in customer interactions';
+        kpiImpact = 'Increase successful completions by 40% and improve customer onboarding';
+      } else {
+        // Generic recommendation for other topics
+        recommendation = `Address ${topic} concerns raised in customer feedback with specific improvements`;
+        kpiImpact = 'Improve customer satisfaction and reduce complaints related to this area';
+      }
+      
       actions.push({
-        action: painPoint.action,
-        painPoint: `${painPoint.topic} is causing customer frustration, with ${relevantReviews.length} reviews mentioning issues`,
-        recommendation: painPoint.recommendation,
-        kpiImpact: painPoint.kpiImpact,
-        rawMentions: relevantReviews.map(r => r.text)
+        action,
+        painPoint,
+        recommendation,
+        kpiImpact,
+        rawMentions: data.reviews
       });
     }
   });
   
-  // Add positive action based on most praised aspect
-  const positiveReviews = reviews.filter(r => (r.rating || 0) >= 4);
-  if (positiveReviews.length > 0) {
-    const serviceReviews = positiveReviews.filter(r => 
-      r.text.toLowerCase().includes('service') || 
-      r.text.toLowerCase().includes('support') || 
-      r.text.toLowerCase().includes('help')
-    );
-    
-    if (serviceReviews.length > 0) {
+  // Generate positive actions based on what customers like
+  positiveTopics.forEach((data, topic) => {
+    if (data.count >= 2) { // Only create actions for topics mentioned multiple times
+      const action = `Leverage ${topic.charAt(0).toUpperCase() + topic.slice(1)} Success`;
+      const painPoint = `Not capitalizing on strong ${topic} performance`;
+      
+      let recommendation = '';
+      let kpiImpact = '';
+      
+      if (topic.includes('service') || topic.includes('support')) {
+        recommendation = 'Use positive customer service feedback in marketing and maintain high service standards';
+        kpiImpact = 'Improve customer retention by 10% and increase positive word-of-mouth';
+      } else if (topic.includes('quality') || topic.includes('product')) {
+        recommendation = 'Use positive quality feedback in marketing materials and maintain high standards';
+        kpiImpact = 'Increase customer acquisition by 15% and improve brand perception';
+      } else if (topic.includes('experience') || topic.includes('fun') || topic.includes('enjoy')) {
+        recommendation = 'Highlight positive customer experiences in marketing and replicate success factors';
+        kpiImpact = 'Increase customer acquisition by 20% and improve brand loyalty';
+      } else {
+        recommendation = `Use positive ${topic} feedback in marketing and maintain high standards`;
+        kpiImpact = 'Improve customer retention and increase positive word-of-mouth';
+      }
+      
       actions.push({
-        action: 'Leverage Customer Service Success',
-        painPoint: 'Not capitalizing on strong customer service performance',
-        recommendation: 'Use positive customer service feedback in marketing and maintain high service standards',
-        kpiImpact: 'Improve customer retention by 10% and increase positive word-of-mouth',
-        rawMentions: serviceReviews.map(r => r.text)
+        action,
+        painPoint,
+        recommendation,
+        kpiImpact,
+        rawMentions: data.reviews
       });
     }
-    
-    const qualityReviews = positiveReviews.filter(r => 
-      r.text.toLowerCase().includes('quality') || 
-      r.text.toLowerCase().includes('product') || 
-      r.text.toLowerCase().includes('excellent')
-    );
-    
-    if (qualityReviews.length > 0) {
+  });
+  
+  // If no specific topics found, create general actions based on overall sentiment
+  if (actions.length === 0) {
+    if (negativeReviews.length > positiveReviews.length) {
       actions.push({
-        action: 'Highlight Product Quality',
-        painPoint: 'Not emphasizing strong product quality in marketing',
-        recommendation: 'Use positive quality feedback in marketing materials and maintain high standards',
-        kpiImpact: 'Increase customer acquisition by 15% and improve brand perception',
-        rawMentions: qualityReviews.map(r => r.text)
+        action: 'Address Customer Concerns',
+        painPoint: `${negativeReviews.length} customers reported issues that need attention`,
+        recommendation: 'Analyze negative feedback to identify specific improvement areas',
+        kpiImpact: 'Improve customer satisfaction scores and reduce complaints',
+        rawMentions: negativeReviews.slice(0, 3).map(r => r.text)
+      });
+    } else if (positiveReviews.length > 0) {
+      actions.push({
+        action: 'Leverage Positive Feedback',
+        painPoint: 'Not capitalizing on positive customer experiences',
+        recommendation: 'Use positive feedback in marketing and maintain high standards',
+        kpiImpact: 'Improve customer retention and increase positive word-of-mouth',
+        rawMentions: positiveReviews.slice(0, 3).map(r => r.text)
       });
     }
   }
@@ -2063,49 +2140,26 @@ Return ONLY valid JSON. NO additional text or explanations.`;
           growth: `${Math.floor(Math.random() * 40) + 10}%`,
           sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
           volume: Math.floor(Math.random() * 20) + 5,
-          keyInsights: generateTopicKeyInsights(topic, allReviews),
-          rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+          keyInsights: generateTopicKeyInsights(topic, reviews),
+          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
           context: `${topic} is trending due to increased customer mentions and feedback.`,
           mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
           businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
           peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
           trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-          specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-        })),
-        mentionsByTopic: realMentionsByTopic.map(topic => ({
-          ...topic,
-          context: generateTopicKeyInsight(topic, reviews),
-          mainConcern: `The primary issue or positive aspect for ${topic.topic} with examples`,
-          priority: topic.negative > topic.positive ? 'high' : 'medium',
-          trendAnalysis: `How this topic's sentiment has changed over time`,
-          specificExamples: topic.rawMentions?.slice(0, 3) || [],
-          keyInsight: generateTopicKeyInsight(topic, reviews)
-        })),
-        sentimentOverTime: realSentimentOverTime.map(day => ({
-          ...day,
-          context: `Sentiment on ${day.date} was influenced by customer feedback patterns.`,
-          peakDay: day.sentiment > 80 ? `High sentiment day with positive customer feedback.` : `Normal sentiment day.`,
-          lowDay: day.sentiment < 40 ? `Low sentiment day with customer concerns.` : `Normal sentiment day.`,
-          specificExamples: reviews.filter(r => r.date === day.date).slice(0, 3).map(r => r.text)
-        })),
-        volumeOverTime: realVolumeOverTime.map(day => ({
-          ...day,
-          context: `Volume spike on ${day.date} indicates increased customer engagement.`,
-          peakDay: day.volume > 8 ? `High volume day with significant customer feedback.` : `Normal volume day.`,
-          eventAnalysis: `Volume changes reflect customer engagement patterns and feedback cycles.`,
-          specificExamples: reviews.filter(r => r.date === day.date).slice(0, 3).map(r => r.text)
+          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
         })),
         marketGaps: realTopics.slice(0, 3).map(topic => ({
           gap: `Improve ${topic}`,
           mentions: Math.floor(Math.random() * 15) + 5,
           suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
           kpiImpact: 'High Impact',
-          rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
           priority: 'high',
           context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
           opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
           customerImpact: `This gap affects customer retention and satisfaction scores.`,
-          specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
         })) as any[],
         advancedMetrics: {
           ...realAdvancedMetrics,
@@ -2254,49 +2308,26 @@ Return ONLY valid JSON. NO additional text or explanations.`;
         growth: `${Math.floor(Math.random() * 40) + 10}%`,
         sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
         volume: Math.floor(Math.random() * 20) + 5,
-        keyInsights: generateTopicKeyInsights(topic, allReviews),
-        rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+        keyInsights: generateTopicKeyInsights(topic, reviews),
+        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
         context: `${topic} is trending due to increased customer mentions and feedback.`,
         mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
         businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
         peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
         trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-        specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-      })),
-      mentionsByTopic: realMentionsByTopic.map(topic => ({
-        ...topic,
-        context: generateTopicKeyInsight(topic, reviews),
-        mainConcern: `The primary issue or positive aspect for ${topic.topic} with examples`,
-        priority: topic.negative > topic.positive ? 'high' : 'medium',
-        trendAnalysis: `How this topic's sentiment has changed over time`,
-        specificExamples: topic.rawMentions?.slice(0, 3) || [],
-        keyInsight: generateTopicKeyInsight(topic, reviews)
-      })),
-      sentimentOverTime: realSentimentOverTime.map(day => ({
-        ...day,
-        context: `Sentiment on ${day.date} was influenced by customer feedback patterns.`,
-        peakDay: day.sentiment > 80 ? `High sentiment day with positive customer feedback.` : `Normal sentiment day.`,
-        lowDay: day.sentiment < 40 ? `Low sentiment day with customer concerns.` : `Normal sentiment day.`,
-        specificExamples: reviews.filter(r => r.date === day.date).slice(0, 3).map(r => r.text)
-      })),
-      volumeOverTime: realVolumeOverTime.map(day => ({
-        ...day,
-        context: `Volume spike on ${day.date} indicates increased customer engagement.`,
-        peakDay: day.volume > 8 ? `High volume day with significant customer feedback.` : `Normal volume day.`,
-        eventAnalysis: `Volume changes reflect customer engagement patterns and feedback cycles.`,
-        specificExamples: reviews.filter(r => r.date === day.date).slice(0, 3).map(r => r.text)
+        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
       })),
       marketGaps: realTopics.slice(0, 3).map(topic => ({
         gap: `Improve ${topic}`,
         mentions: Math.floor(Math.random() * 15) + 5,
         suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
         kpiImpact: 'High Impact',
-        rawMentions: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
+        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
         priority: 'high',
         context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
         opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
         customerImpact: `This gap affects customer retention and satisfaction scores.`,
-        specificExamples: allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
+        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
       })) as any[],
       advancedMetrics: {
         ...realAdvancedMetrics,
