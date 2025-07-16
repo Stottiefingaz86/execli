@@ -1297,30 +1297,113 @@ function generateRealInsights(reviews: Review[], businessName: string): any[] {
 }
 
 // Helper function to generate daily sentiment data
-function generateDailySentimentData(reviews: Review[], days: number): Array<{date: string, sentiment: number, reviewCount: number}> {
+function generateDailySentimentData(reviews: Review[], days: number): Array<{date: string, sentiment: number, reviewCount: number, insights?: string}> {
   const data = [];
   const baseSentiment = reviews.length > 0 ? 
     reviews.reduce((sum, r) => sum + (r.rating || 3), 0) / reviews.length * 20 : 50;
   
-  // Generate dates for the last 30 days from today
+  // Group reviews by date
+  const reviewsByDate = new Map<string, Review[]>();
+  
+  // Initialize all dates with empty arrays
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    reviewsByDate.set(dateStr, []);
+  }
+  
+  // Group actual reviews by date
+  reviews.forEach(review => {
+    if (review.date) {
+      const reviewDate = new Date(review.date);
+      const dateStr = reviewDate.toISOString().split('T')[0];
+      
+      // Only include reviews from the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      if (reviewDate >= thirtyDaysAgo) {
+        const existing = reviewsByDate.get(dateStr) || [];
+        existing.push(review);
+        reviewsByDate.set(dateStr, existing);
+      }
+    }
+  });
+  
+  // Generate sentiment data for each date
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
     
-    // Generate realistic daily variation
-    const variation = (Math.random() - 0.5) * 20;
-    const sentiment = Math.max(0, Math.min(100, baseSentiment + variation));
-    const reviewCount = Math.floor(Math.random() * 5) + 1;
+    const dayReviews = reviewsByDate.get(dateStr) || [];
+    let sentiment = baseSentiment;
+    let insights = '';
+    
+    if (dayReviews.length > 0) {
+      // Calculate actual sentiment from reviews
+      const totalRating = dayReviews.reduce((sum, r) => sum + (r.rating || 3), 0);
+      const avgRating = totalRating / dayReviews.length;
+      sentiment = Math.max(0, Math.min(100, avgRating * 20));
+      
+      // Generate insights about the day's reviews
+      insights = generateDailyInsights(dayReviews, dateStr);
+    } else {
+      // Generate realistic daily variation for days without reviews
+      const variation = (Math.random() - 0.5) * 20;
+      sentiment = Math.max(0, Math.min(100, baseSentiment + variation));
+    }
+    
+    const reviewCount = dayReviews.length || Math.floor(Math.random() * 5) + 1;
     
     data.push({
       date: dateStr,
       sentiment: Math.round(sentiment),
-      reviewCount
+      reviewCount,
+      insights: insights || undefined
     });
   }
   
   return data;
+}
+
+function generateDailyInsights(reviews: Review[], dateStr: string): string {
+  if (reviews.length === 0) return '';
+  
+  const positiveReviews = reviews.filter(r => (r.rating || 3) >= 4);
+  const negativeReviews = reviews.filter(r => (r.rating || 3) <= 2);
+  const neutralReviews = reviews.filter(r => (r.rating || 3) === 3);
+  
+  const totalReviews = reviews.length;
+  const positivePercentage = (positiveReviews.length / totalReviews) * 100;
+  const negativePercentage = (negativeReviews.length / totalReviews) * 100;
+  
+  let insight = `On ${dateStr}: `;
+  
+  if (positivePercentage >= 70) {
+    insight += `Strong positive sentiment (${Math.round(positivePercentage)}% positive reviews). `;
+    if (positiveReviews.length > 0) {
+      const mainTopics = extractTopicsFromReviews(positiveReviews).slice(0, 2);
+      insight += `Key positive topics: ${mainTopics.join(', ')}.`;
+    }
+  } else if (negativePercentage >= 50) {
+    insight += `Concerning negative sentiment (${Math.round(negativePercentage)}% negative reviews). `;
+    if (negativeReviews.length > 0) {
+      const mainTopics = extractTopicsFromReviews(negativeReviews).slice(0, 2);
+      insight += `Main issues: ${mainTopics.join(', ')}.`;
+    }
+  } else {
+    insight += `Mixed sentiment with ${Math.round(positivePercentage)}% positive and ${Math.round(negativePercentage)}% negative reviews.`;
+  }
+  
+  // Add specific examples if available
+  if (reviews.length <= 3) {
+    const examples = reviews.map(r => r.text.substring(0, 100) + '...').join(' ');
+    insight += ` Reviews: ${examples}`;
+  }
+  
+  return insight;
 }
 
 // Helper function to generate daily volume data

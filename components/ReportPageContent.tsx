@@ -65,6 +65,7 @@ interface ReportData {
     date: string;
     sentiment: number;
     reviewCount: number;
+    insights?: string;
   }>;
   volumeOverTime?: Array<{
     date: string;
@@ -189,6 +190,8 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
   const [showAllMentions, setShowAllMentions] = useState(false);
   const [showTrendingModal, setShowTrendingModal] = useState(false);
   const [selectedTrendingTopic, setSelectedTrendingTopic] = useState<any>(null);
+  const [showSentimentInsights, setShowSentimentInsights] = useState(false);
+  const [selectedSentimentData, setSelectedSentimentData] = useState<any>(null);
 
   console.log('ReportPageContent received data:', reportData);
 
@@ -397,6 +400,13 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
   const handleTrendingTopicClick = (topic: any) => {
     setSelectedTrendingTopic(topic);
     setShowTrendingModal(true);
+  };
+
+  const handleSentimentDataClick = (data: any) => {
+    if (data && data.insights) {
+      setSelectedSentimentData(data);
+      setShowSentimentInsights(true);
+    }
   };
 
   return (
@@ -970,16 +980,19 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                             fill: '#10B981', 
                             strokeWidth: 2, 
                             r: 4,
-                            filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))'
+                            filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))',
+                            cursor: 'pointer'
                           }}
                           activeDot={{ 
                             r: 6, 
                             stroke: '#10B981', 
                             strokeWidth: 2,
                             fill: '#10B981',
-                            filter: 'drop-shadow(0 4px 8px rgba(16, 185, 129, 0.5))'
+                            filter: 'drop-shadow(0 4px 8px rgba(16, 185, 129, 0.5))',
+                            cursor: 'pointer'
                           }}
                           fill="url(#sentimentGradient)"
+                          onClick={(data) => handleSentimentDataClick(data)}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -1926,6 +1939,192 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                 <p className="text-[#B0B0C0]">No reviews found for this topic.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Sentiment Insights Modal */}
+      {showSentimentInsights && selectedSentimentData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1c1e26]/95 backdrop-blur-xl rounded-xl border border-white/10 p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-semibold text-white">
+                  Sentiment Analysis: {new Date(selectedSentimentData.date).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </h3>
+                <p className="text-sm text-[#B0B0C0] mt-1">
+                  Detailed analysis of customer sentiment and reviews for this date
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowSentimentInsights(false)}
+                className="w-8 h-8 bg-[#0f1117]/60 backdrop-blur-md border border-white/10 rounded-lg hover:bg-white/5 transition-all duration-200 flex items-center justify-center text-[#B0B0C0] hover:text-white"
+              >
+                <span className="text-lg">×</span>
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Sentiment Analysis */}
+              <div className="space-y-6">
+                {/* Sentiment Score */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Sentiment Score</h4>
+                  <div className="text-center">
+                    <div className={`text-4xl font-bold mb-2 ${
+                      selectedSentimentData.sentiment >= 70 ? 'text-green-400' : 
+                      selectedSentimentData.sentiment >= 50 ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {selectedSentimentData.sentiment}/100
+                    </div>
+                    <div className={`text-sm ${
+                      selectedSentimentData.sentiment >= 70 ? 'text-green-300' : 
+                      selectedSentimentData.sentiment >= 50 ? 'text-yellow-300' : 'text-red-300'
+                    }`}>
+                      {selectedSentimentData.sentiment >= 70 ? 'Excellent' : 
+                       selectedSentimentData.sentiment >= 50 ? 'Good' : 'Needs Attention'}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Review Count */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Review Activity</h4>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-400 mb-2">
+                      {selectedSentimentData.reviewCount}
+                    </div>
+                    <div className="text-sm text-blue-300">
+                      {selectedSentimentData.reviewCount === 1 ? 'Review' : 'Reviews'} on this date
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Sentiment Trend */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Sentiment Trend</h4>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">📊</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-400 font-semibold">Trend Analysis:</span>
+                      <span className="text-[#B0B0C0] ml-2">
+                        {selectedSentimentData.sentiment >= 70 ? 'Strong positive sentiment indicates high customer satisfaction.' :
+                         selectedSentimentData.sentiment >= 50 ? 'Moderate sentiment suggests mixed customer feedback.' :
+                         'Low sentiment indicates customer concerns that need immediate attention.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Right Column - Detailed Insights */}
+              <div className="space-y-6">
+                {/* Detailed Insights */}
+                {selectedSentimentData.insights && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Detailed Analysis</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">🔍</span>
+                      </div>
+                      <div>
+                        <span className="text-green-400 font-semibold">Analysis:</span>
+                        <span className="text-[#B0B0C0] ml-2 leading-relaxed">
+                          {selectedSentimentData.insights}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Key Factors */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Key Factors</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
+                      <span className="text-sm text-[#B0B0C0]">
+                        {selectedSentimentData.sentiment >= 70 ? 'High customer satisfaction scores' :
+                         selectedSentimentData.sentiment >= 50 ? 'Mixed customer feedback patterns' :
+                         'Customer concerns and complaints'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></div>
+                      <span className="text-sm text-[#B0B0C0]">
+                        {selectedSentimentData.reviewCount > 5 ? 'High review volume indicates significant customer engagement' :
+                         selectedSentimentData.reviewCount > 2 ? 'Moderate review activity' :
+                         'Low review volume - may need more customer feedback'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full flex-shrink-0"></div>
+                      <span className="text-sm text-[#B0B0C0]">
+                        {selectedSentimentData.sentiment >= 70 ? 'Positive trends suggest successful customer experience initiatives' :
+                         selectedSentimentData.sentiment >= 50 ? 'Opportunities for improvement identified' :
+                         'Immediate action required to address customer concerns'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Recommendations */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Recommendations</h4>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">💡</span>
+                    </div>
+                    <div>
+                      <span className="text-yellow-400 font-semibold">Actions:</span>
+                      <span className="text-[#B0B0C0] ml-2">
+                        {selectedSentimentData.sentiment >= 70 ? 'Continue current practices and replicate success factors across the business.' :
+                         selectedSentimentData.sentiment >= 50 ? 'Investigate specific customer feedback to identify improvement opportunities.' :
+                         'Implement immediate customer service improvements and address specific complaints.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Items */}
+            <div className="mt-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-6">
+              <h4 className="text-lg font-semibold text-white mb-4">Next Steps</h4>
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xs">⚡</span>
+                </div>
+                <div>
+                  <span className="text-purple-400 font-semibold">Priority Actions:</span>
+                  <span className="text-[#B0B0C0] ml-2">
+                    {selectedSentimentData.sentiment >= 70 ? 'Monitor trends and maintain high standards. Consider expanding successful initiatives.' :
+                     selectedSentimentData.sentiment >= 50 ? 'Review customer feedback in detail and implement targeted improvements.' :
+                     'Address customer concerns immediately and develop a comprehensive improvement plan.'}
+                  </span>
+                  <div className="flex items-center space-x-2 mt-3">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      Sentiment Analysis
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                      selectedSentimentData.sentiment >= 70 ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                      selectedSentimentData.sentiment >= 50 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                      'bg-red-500/20 text-red-400 border-red-500/30'
+                    }`}>
+                      {selectedSentimentData.sentiment >= 70 ? 'High Priority' :
+                       selectedSentimentData.sentiment >= 50 ? 'Medium Priority' : 'Critical Priority'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
