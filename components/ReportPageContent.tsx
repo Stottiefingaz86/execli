@@ -987,42 +987,38 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                 </div>
                 
                 {/* Sentiment Insight Card */}
-                <div className="mt-6 bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden">
+                <div className="mt-6 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border border-purple-500/20 rounded-2xl shadow-[0_8px_32px_0_rgba(139,92,246,0.15)] backdrop-blur-2xl p-6 relative overflow-hidden">
                   {/* Glassmorphic overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-2xl pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 via-transparent to-indigo-400/5 rounded-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
                   
                   <div className="relative z-10">
                     <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <span className="text-white font-bold text-sm">📊</span>
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <span className="text-white font-bold text-sm">⚡</span>
                       </div>
                       <div className="flex-1">
-                        <span className="text-green-400 font-semibold text-lg">Sentiment Insight:</span>
+                        <span className="text-purple-300 font-semibold text-lg">Insight:</span>
                         <span className="text-[#B0B0C0] ml-2 text-base leading-relaxed">
                           {sentimentChartData.length > 0 ? 
-                            `Average sentiment is ${Math.round(sentimentChartData.reduce((sum: number, d: any) => sum + d.sentiment, 0) / sentimentChartData.length)}/100. ` +
-                            (sentimentChartData[sentimentChartData.length - 1]?.sentiment > 70 ? 'Overall positive trend.' : 
-                             sentimentChartData[sentimentChartData.length - 1]?.sentiment < 30 ? 'Overall negative trend.' : 'Mixed sentiment pattern.') +
-                            ' This indicates customers are generally satisfied with the service quality and user experience.' :
+                            (() => {
+                              const avgSentiment = Math.round(sentimentChartData.reduce((sum: number, d: any) => sum + d.sentiment, 0) / sentimentChartData.length);
+                              const peakDay = sentimentChartData.reduce((max, d) => d.sentiment > max.sentiment ? d : max);
+                              const lowDay = sentimentChartData.reduce((min, d) => d.sentiment < min.sentiment ? d : min);
+                              
+                              let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.sentiment}/100 sentiment`;
+                              
+                              if (lowDay.sentiment < 50) {
+                                insight += `, and a dip on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${lowDay.sentiment}/100 sentiment due to customer concerns`;
+                              }
+                              
+                              return insight;
+                            })() :
                             'No sentiment data available.'
                           }
                         </span>
                       </div>
                     </div>
-                    {sentimentChartData.length > 0 && (
-                      <div className="mt-4 flex items-start space-x-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                          <span className="text-white font-bold text-xs">💡</span>
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-blue-400 font-semibold text-sm">Why sentiment is positive:</span>
-                          <span className="text-[#B0B0C0] ml-2 text-sm leading-relaxed">
-                            Customers frequently mention fast withdrawals, excellent customer service, and reliable platform performance in their reviews.
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </>
@@ -1100,40 +1096,37 @@ export default function ReportPageContent({ reportData, reportId, onRegenerate, 
                 </div>
                 
                 {/* Volume Insight Card */}
-                <div className="mt-6 bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden">
+                <div className="mt-6 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border border-purple-500/20 rounded-2xl shadow-[0_8px_32px_0_rgba(139,92,246,0.15)] backdrop-blur-2xl p-6 relative overflow-hidden">
                   {/* Glassmorphic overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-2xl pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 via-transparent to-indigo-400/5 rounded-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
                   
                   <div className="relative z-10">
                     <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <span className="text-white font-bold text-sm">📈</span>
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <span className="text-white font-bold text-sm">⚡</span>
                       </div>
                       <div className="flex-1">
-                        <span className="text-blue-400 font-semibold text-lg">Volume Insight:</span>
+                        <span className="text-purple-300 font-semibold text-lg">Insight:</span>
                         <span className="text-[#B0B0C0] ml-2 text-base leading-relaxed">
                           {volumeChartData.length > 0 ? 
-                            `Peak volume was ${Math.max(...volumeChartData.map((d: any) => d.volume))} reviews on ${volumeChartData.find((d: any) => d.volume === Math.max(...volumeChartData.map((d: any) => d.volume)))?.date ? new Date(volumeChartData.find((d: any) => d.volume === Math.max(...volumeChartData.map((d: any) => d.volume)))?.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'unknown date'}. ` +
-                            'This spike was likely caused by a major platform update or promotional campaign that drove increased customer engagement.' :
+                            (() => {
+                              const peakDay = volumeChartData.reduce((max, d) => d.volume > max.volume ? d : max);
+                              const lowDay = volumeChartData.reduce((min, d) => d.volume < min.volume ? d : min);
+                              
+                              let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.volume} reviews`;
+                              
+                              if (lowDay.volume < peakDay.volume * 0.5) {
+                                insight += `, and a dip on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${lowDay.volume} reviews due to reduced customer engagement`;
+                              }
+                              
+                              return insight;
+                            })() :
                             'No volume data available.'
                           }
                         </span>
                       </div>
                     </div>
-                    {volumeChartData.length > 0 && (
-                      <div className="mt-4 flex items-start space-x-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                          <span className="text-white font-bold text-xs">💡</span>
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-blue-400 font-semibold text-sm">What customers were saying on peak days:</span>
-                          <span className="text-[#B0B0C0] ml-2 text-sm leading-relaxed">
-                            "Great new features!", "Love the improved interface", "Withdrawals are much faster now"
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </>
