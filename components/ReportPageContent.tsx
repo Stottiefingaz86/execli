@@ -1014,10 +1014,21 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                               const peakDay = sentimentChartData.reduce((max: any, d: any) => d.sentiment > max.sentiment ? d : max);
                               const lowDay = sentimentChartData.reduce((min: any, d: any) => d.sentiment < min.sentiment ? d : min);
                               
-                              let insight = `You can see a peak at ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${peakDay.sentiment}/100 sentiment`;
+                              // Calculate trend direction
+                              const recentDays = sentimentChartData.slice(-7);
+                              const earlyAvg = recentDays.slice(0, 3).reduce((sum: number, d: any) => sum + d.sentiment, 0) / 3;
+                              const lateAvg = recentDays.slice(-3).reduce((sum: number, d: any) => sum + d.sentiment, 0) / 3;
+                              const trendDirection = lateAvg > earlyAvg ? 'improving' : lateAvg < earlyAvg ? 'declining' : 'stable';
                               
-                              if (lowDay.sentiment < 50) {
-                                insight += `, and a dip on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} with ${lowDay.sentiment}/100 sentiment due to customer concerns`;
+                              // Generate actionable insight
+                              let insight = '';
+                              
+                              if (trendDirection === 'improving') {
+                                insight = `Sentiment is trending upward with ${Math.round(lateAvg - earlyAvg)}% improvement. Peak performance on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Customer satisfaction is improving.`;
+                              } else if (trendDirection === 'declining') {
+                                insight = `Sentiment is declining by ${Math.round(earlyAvg - lateAvg)}%. Lowest point on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${lowDay.sentiment}/100). Immediate attention needed.`;
+                              } else {
+                                insight = `Sentiment is stable with ${avgSentiment}/100 average. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Consistent customer experience.`;
                               }
                               
                               return insight;
