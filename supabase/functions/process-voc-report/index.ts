@@ -1755,31 +1755,35 @@ function generateTopicKeyInsight(topic: any, reviews: Review[]): string {
     return `${topic.topic}: No specific mentions found in reviews.`;
   }
   
-  const positiveReviews = topicReviews.filter(r => {
-    const text = r.text.toLowerCase();
-    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fast', 'easy', 'smooth'];
-    return positiveWords.some(word => text.includes(word));
-  });
+  // Use the actual sentiment data from the topic object
+  const positivePercentage = topic.positive || 0;
+  const negativePercentage = topic.negative || 0;
+  const totalMentions = topic.total || topicReviews.length;
   
-  const negativeReviews = topicReviews.filter(r => {
-    const text = r.text.toLowerCase();
-    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'slow', 'difficult', 'frustrated'];
-    return negativeWords.some(word => text.includes(word));
-  });
+  // Calculate actual counts based on percentages
+  const positiveCount = Math.round((positivePercentage / 100) * totalMentions);
+  const negativeCount = Math.round((negativePercentage / 100) * totalMentions);
   
-  const positiveCount = positiveReviews.length;
-  const negativeCount = negativeReviews.length;
-  const totalCount = topicReviews.length;
+  // Get specific examples from the topic's raw mentions
+  const rawMentions = topic.rawMentions || topicReviews.map(r => r.text);
+  const positiveExamples = rawMentions.slice(0, Math.min(positiveCount, 2));
+  const negativeExamples = rawMentions.slice(positiveCount, positiveCount + Math.min(negativeCount, 2));
   
-  // Extract specific examples
-  const positiveExamples = positiveReviews.slice(0, 2).map(r => r.text.substring(0, 100)).join(' ');
-  const negativeExamples = negativeReviews.slice(0, 2).map(r => r.text.substring(0, 100)).join(' ');
-  
+  // Generate accurate insight based on actual sentiment data
   if (positiveCount > negativeCount) {
-    return `${topic.topic}: ${positiveCount} customers praised ${positiveCount > 1 ? 'various aspects' : 'the service'}, ${negativeCount > 0 ? `${negativeCount} mentioned issues.` : 'no complaints found.'}`;
+    if (negativeCount === 0) {
+      return `${topic.topic}: ${positiveCount} customer${positiveCount > 1 ? 's' : ''} praised the service, no complaints found.`;
+    } else {
+      return `${topic.topic}: ${positiveCount} customer${positiveCount > 1 ? 's' : ''} praised the service, ${negativeCount} mentioned issues.`;
+    }
   } else if (negativeCount > positiveCount) {
-    return `${topic.topic}: ${negativeCount} customers reported issues, ${positiveCount > 0 ? `${positiveCount} had positive experiences.` : 'no positive feedback found.'}`;
+    if (positiveCount === 0) {
+      return `${topic.topic}: ${negativeCount} customer${negativeCount > 1 ? 's' : ''} reported issues, no positive feedback found.`;
+    } else {
+      return `${topic.topic}: ${negativeCount} customer${negativeCount > 1 ? 's' : ''} reported issues, ${positiveCount} had positive experiences.`;
+    }
   } else {
+    // Equal counts
     return `${topic.topic}: Mixed feedback with ${positiveCount} positive and ${negativeCount} negative mentions.`;
   }
 }
