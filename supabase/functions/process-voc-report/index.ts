@@ -1429,25 +1429,106 @@ function generateDailyInsights(reviews: Review[], dateStr: string): string {
   
   let insight = `On ${dateStr}: `;
   
+  // Analyze specific issues and improvements mentioned
+  const specificIssues = new Set<string>();
+  const specificImprovements = new Set<string>();
+  
+  // Extract specific issues from negative reviews
+  negativeReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    // Check for specific gambling/betting issues
+    if (text.includes('bot') || text.includes('cheat') || text.includes('rigged')) {
+      specificIssues.add('Bot/Cheating Concerns');
+    }
+    if (text.includes('ui') || text.includes('interface') || text.includes('website') || text.includes('app')) {
+      specificIssues.add('Poor UI/Interface');
+    }
+    if (text.includes('slow') || text.includes('lag') || text.includes('freeze') || text.includes('crash')) {
+      specificIssues.add('Performance Issues');
+    }
+    if (text.includes('charge') || text.includes('fee') || text.includes('cost') || text.includes('expensive')) {
+      specificIssues.add('High Fees/Charges');
+    }
+    if (text.includes('withdrawal') || text.includes('cashout') || text.includes('payout')) {
+      specificIssues.add('Withdrawal Problems');
+    }
+    if (text.includes('support') || text.includes('help') || text.includes('service')) {
+      specificIssues.add('Poor Customer Service');
+    }
+    if (text.includes('verification') || text.includes('kyc') || text.includes('document')) {
+      specificIssues.add('Verification Issues');
+    }
+    if (text.includes('bonus') || text.includes('promotion') || text.includes('offer')) {
+      specificIssues.add('Bonus/Promotion Issues');
+    }
+    if (text.includes('deposit') || text.includes('fund')) {
+      specificIssues.add('Deposit Problems');
+    }
+    if (text.includes('poker') || text.includes('game') || text.includes('tournament')) {
+      specificIssues.add('Game/Tournament Issues');
+    }
+  });
+  
+  // Extract specific improvements from positive reviews
+  positiveReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    if (text.includes('fast') || text.includes('quick') || text.includes('smooth')) {
+      specificImprovements.add('Fast Processing');
+    }
+    if (text.includes('easy') || text.includes('simple') || text.includes('user-friendly')) {
+      specificImprovements.add('Easy to Use');
+    }
+    if (text.includes('bonus') || text.includes('promotion') || text.includes('offer')) {
+      specificImprovements.add('Good Bonuses');
+    }
+    if (text.includes('support') || text.includes('help') || text.includes('service')) {
+      specificImprovements.add('Good Customer Service');
+    }
+    if (text.includes('payout') || text.includes('withdrawal') || text.includes('cashout')) {
+      specificImprovements.add('Fast Payouts');
+    }
+    if (text.includes('variety') || text.includes('selection') || text.includes('games')) {
+      specificImprovements.add('Game Variety');
+    }
+    if (text.includes('security') || text.includes('safe') || text.includes('trust')) {
+      specificImprovements.add('Security/Trust');
+    }
+  });
+  
   if (positivePercentage >= 70) {
     insight += `Strong positive sentiment (${Math.round(positivePercentage)}% positive reviews). `;
-    if (positiveReviews.length > 0) {
+    if (specificImprovements.size > 0) {
+      insight += `Customers praised: ${Array.from(specificImprovements).join(', ')}.`;
+    } else {
       const mainTopics = extractTopicsFromReviews(positiveReviews).slice(0, 2);
       insight += `Key positive topics: ${mainTopics.join(', ')}.`;
     }
   } else if (negativePercentage >= 50) {
     insight += `Concerning negative sentiment (${Math.round(negativePercentage)}% negative reviews). `;
-    if (negativeReviews.length > 0) {
+    if (specificIssues.size > 0) {
+      insight += `Main issues: ${Array.from(specificIssues).join(', ')}.`;
+    } else {
       const mainTopics = extractTopicsFromReviews(negativeReviews).slice(0, 2);
       insight += `Main issues: ${mainTopics.join(', ')}.`;
     }
   } else {
     insight += `Mixed sentiment with ${Math.round(positivePercentage)}% positive and ${Math.round(negativePercentage)}% negative reviews.`;
+    if (specificIssues.size > 0) {
+      insight += ` Issues: ${Array.from(specificIssues).join(', ')}.`;
+    }
+    if (specificImprovements.size > 0) {
+      insight += ` Positives: ${Array.from(specificImprovements).join(', ')}.`;
+    }
   }
   
-  // Add specific examples if available
+  // Add specific review examples for context
   if (reviews.length <= 3) {
-    const examples = reviews.map(r => r.text.substring(0, 100) + '...').join(' ');
+    const examples = reviews.map(r => {
+      const truncated = r.text.length > 80 ? r.text.substring(0, 80) + '...' : r.text;
+      return `"${truncated}"`;
+    }).join(' ');
     insight += ` Reviews: ${examples}`;
   }
   
@@ -1659,21 +1740,36 @@ function generateSuggestedActions(reviews: Review[], businessName: string): Arra
       } else if (topic.includes('quality') || topic.includes('product')) {
         recommendation = 'Implement quality control improvements and address product defects promptly';
         kpiImpact = 'Reduce product returns by 20% and improve customer satisfaction';
-      } else if (topic.includes('price') || topic.includes('cost') || topic.includes('fee')) {
-        recommendation = 'Review pricing strategy and consider value-based adjustments';
+      } else if (topic.includes('price') || topic.includes('cost') || topic.includes('fee') || topic.includes('charge')) {
+        recommendation = 'Review and reduce deposit/withdrawal fees, consider fee-free options for loyal customers';
         kpiImpact = 'Increase customer acquisition by 15% and improve retention rates';
       } else if (topic.includes('delivery') || topic.includes('shipping')) {
         recommendation = 'Optimize delivery process and improve tracking communication';
         kpiImpact = 'Reduce delivery complaints by 30% and improve customer satisfaction';
-      } else if (topic.includes('website') || topic.includes('app') || topic.includes('platform')) {
-        recommendation = 'Fix technical issues and improve user experience on digital platforms';
+      } else if (topic.includes('website') || topic.includes('app') || topic.includes('platform') || topic.includes('ui') || topic.includes('interface')) {
+        recommendation = 'Fix technical issues, improve user interface, and optimize mobile experience';
         kpiImpact = 'Increase user engagement by 35% and reduce abandonment rates';
       } else if (topic.includes('communication')) {
         recommendation = 'Enhance communication clarity and response times';
         kpiImpact = 'Improve customer trust by 20% and reduce misunderstandings';
-      } else if (topic.includes('process') || topic.includes('procedure')) {
-        recommendation = 'Simplify procedures and reduce friction in customer interactions';
+      } else if (topic.includes('process') || topic.includes('procedure') || topic.includes('verification')) {
+        recommendation = 'Simplify KYC/verification procedures and reduce friction in customer onboarding';
         kpiImpact = 'Increase successful completions by 40% and improve customer onboarding';
+      } else if (topic.includes('poker') || topic.includes('game') || topic.includes('tournament')) {
+        recommendation = 'Address bot concerns, improve game fairness, and enhance tournament structure';
+        kpiImpact = 'Increase player retention by 30% and improve game satisfaction';
+      } else if (topic.includes('deposit') || topic.includes('fund')) {
+        recommendation = 'Reduce deposit fees, add more payment options, and improve deposit speed';
+        kpiImpact = 'Increase deposit success rate by 25% and improve customer satisfaction';
+      } else if (topic.includes('withdrawal') || topic.includes('payout') || topic.includes('cashout')) {
+        recommendation = 'Speed up withdrawal processing, reduce fees, and improve payout reliability';
+        kpiImpact = 'Improve customer trust by 35% and reduce withdrawal complaints';
+      } else if (topic.includes('bonus') || topic.includes('promotion')) {
+        recommendation = 'Improve bonus terms, reduce wagering requirements, and enhance bonus transparency';
+        kpiImpact = 'Increase bonus activation by 40% and improve customer satisfaction';
+      } else if (topic.includes('bot') || topic.includes('cheat') || topic.includes('rigged')) {
+        recommendation = 'Implement stronger anti-bot measures, improve game fairness, and enhance security';
+        kpiImpact = 'Increase player trust by 50% and improve game integrity';
       } else {
         // Generic recommendation for other topics
         recommendation = `Address ${topic} concerns raised in customer feedback with specific improvements`;
