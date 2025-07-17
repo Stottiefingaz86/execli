@@ -72,6 +72,9 @@ interface ReportData {
     date: string;
     volume: number;
     platform: string;
+    context?: string;
+    trendingTopics?: string[];
+    peakInsight?: string;
   }>;
   mentionsByTopic?: Array<{
     topic: string;
@@ -95,6 +98,9 @@ interface ReportData {
     context?: string;
     mainIssue?: string;
     businessImpact?: string;
+    positiveCount?: number;
+    negativeCount?: number;
+    totalCount?: number;
   }>;
   marketGaps?: Array<{
     gap: string;
@@ -105,6 +111,10 @@ interface ReportData {
     context?: string;
     opportunity?: string;
     specificExamples?: string[];
+    priority?: string;
+    customerImpact?: string;
+    businessCase?: string;
+    implementation?: string;
   }>;
   advancedMetrics?: {
     trustScore: number;
@@ -186,12 +196,18 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedReviews, setSelectedReviews] = useState<Array<{text: string, sentiment: string, topic: string, source?: string}>>([]);
-  const [mentionsFilter, setMentionsFilter] = useState<'all' | 'positive' | 'negative'>('all');
-  const [showAllMentions, setShowAllMentions] = useState(false);
+
   const [showTrendingModal, setShowTrendingModal] = useState(false);
   const [selectedTrendingTopic, setSelectedTrendingTopic] = useState<any>(null);
   const [showSentimentInsights, setShowSentimentInsights] = useState(false);
   const [selectedSentimentData, setSelectedSentimentData] = useState<any>(null);
+
+  // Lazy loading state for mentions by topic
+  const [visibleTopics, setVisibleTopics] = useState(10);
+  const [showLoadMore, setShowLoadMore] = useState(() => {
+    const totalTopics = reportData.mentionsByTopic?.length || reportData.analysis?.mentionsByTopic?.length || 0;
+    return totalTopics > 10;
+  });
 
   console.log('ReportPageContent received data:', reportData);
 
@@ -238,18 +254,53 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
       const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
       const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
       
-      // Create reviews with sentiment distribution matching the backend data
+      // Create reviews with sentiment analysis based on actual content
       const reviews = rawMentions.map((text, index) => {
-        let sentiment = 'positive'; // Default
+        const lowerText = text.toLowerCase();
+        let sentiment = 'neutral'; // Default to neutral
         
-        // Distribute sentiment based on backend percentages
-        if (index < negativeCount) {
+        // Analyze actual review content for sentiment
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
+          'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'bot', 'cheat', 'rigged', 'suspect',
+          'predatory', 'dangerous', 'warn', 'serious', 'no resolution', 'no explanation', 'ignoring', 'no response'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        if (positiveCount > negativeCount) {
+          sentiment = 'positive';
+        } else if (negativeCount > positiveCount) {
           sentiment = 'negative';
-        } else if (index < negativeCount + positiveCount) {
-          sentiment = 'positive';
         } else {
-          // For any remaining reviews, default to positive
-          sentiment = 'positive';
+          // If equal, check for stronger indicators
+          const hasStrongPositive = lowerText.includes('great') || lowerText.includes('love') || lowerText.includes('recommend') || 
+                                   lowerText.includes('vouch') || lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
+          const hasStrongNegative = lowerText.includes('scam') || lowerText.includes('terrible') || lowerText.includes('hate') || 
+                                   lowerText.includes('worst') || lowerText.includes('complaint') || lowerText.includes('ridiculous') ||
+                                   lowerText.includes('charge') || lowerText.includes('fee') || lowerText.includes('problem') ||
+                                   lowerText.includes('issue') || lowerText.includes('forced') || lowerText.includes('bot') ||
+                                   lowerText.includes('cheat') || lowerText.includes('rigged') || lowerText.includes('suspect');
+          
+          if (hasStrongPositive && !hasStrongNegative) {
+            sentiment = 'positive';
+          } else if (hasStrongNegative && !hasStrongPositive) {
+            sentiment = 'negative';
+          } else {
+            // Default to negative for unclear cases (better to show potential issues)
+            sentiment = 'negative';
+          }
         }
         
         return { text, sentiment, topic: topicName };
@@ -265,18 +316,50 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
     if (insight.rawMentions && insight.rawMentions.length > 0) {
       const reviews = insight.rawMentions.map((text: string) => {
         const lowerText = text.toLowerCase();
-        let sentiment = 'positive'; // Default to positive instead of neutral
+        let sentiment = 'neutral'; // Default to neutral
         
-        // Classify sentiment based on direction and keywords
-        if (insight.direction === 'up' || lowerText.includes('great') || lowerText.includes('excellent') || 
-            lowerText.includes('love') || lowerText.includes('best') || lowerText.includes('awesome') ||
-            lowerText.includes('good') || lowerText.includes('nice') || lowerText.includes('helpful')) {
+        // Analyze actual review content for sentiment
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
+          'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'bot', 'cheat', 'rigged', 'suspect',
+          'predatory', 'dangerous', 'warn', 'serious', 'no resolution', 'no explanation', 'ignoring', 'no response'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        if (positiveCount > negativeCount) {
           sentiment = 'positive';
-        } else if (insight.direction === 'down' || lowerText.includes('terrible') || lowerText.includes('awful') ||
-                   lowerText.includes('worst') || lowerText.includes('hate') || lowerText.includes('disappointed') ||
-                   lowerText.includes('ridiculous') || lowerText.includes('charge') || lowerText.includes('fee') ||
-                   lowerText.includes('problem') || lowerText.includes('issue') || lowerText.includes('complaint')) {
+        } else if (negativeCount > positiveCount) {
           sentiment = 'negative';
+        } else {
+          // If equal, check for stronger indicators
+          const hasStrongPositive = lowerText.includes('great') || lowerText.includes('love') || lowerText.includes('recommend') || 
+                                   lowerText.includes('vouch') || lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
+          const hasStrongNegative = lowerText.includes('scam') || lowerText.includes('terrible') || lowerText.includes('hate') || 
+                                   lowerText.includes('worst') || lowerText.includes('complaint') || lowerText.includes('ridiculous') ||
+                                   lowerText.includes('charge') || lowerText.includes('fee') || lowerText.includes('problem') ||
+                                   lowerText.includes('issue') || lowerText.includes('forced') || lowerText.includes('bot') ||
+                                   lowerText.includes('cheat') || lowerText.includes('rigged') || lowerText.includes('suspect');
+          
+          if (hasStrongPositive && !hasStrongNegative) {
+            sentiment = 'positive';
+          } else if (hasStrongNegative && !hasStrongPositive) {
+            sentiment = 'negative';
+          } else {
+            // Default to negative for unclear cases (better to show potential issues)
+            sentiment = 'negative';
+          }
         }
         
         return { text, sentiment, topic: insight.insight };
@@ -378,16 +461,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const insights = generateInsights();
 
-  // Filter mentions by topic based on sentiment (removed neutral)
-  const filteredMentionsByTopic = processedData.mentionsByTopic?.filter((topic: any) => {
-    if (mentionsFilter === 'all') return true;
-    if (mentionsFilter === 'positive') return topic.positive > 0;
-    if (mentionsFilter === 'negative') return topic.negative > 0;
-    return true;
-  }) || [];
 
-  // Show only first 10 unless showAllMentions is true
-  const displayedMentionsByTopic = showAllMentions ? filteredMentionsByTopic : filteredMentionsByTopic.slice(0, 10);
 
   // Generate chart data for sentiment over time
   const sentimentChartData = processedData.sentimentOverTime?.length > 0 
@@ -408,6 +482,19 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
     if (data && data.insights) {
       setSelectedSentimentData(data);
       setShowSentimentInsights(true);
+    }
+  };
+
+  // Load more topics function
+  const handleLoadMoreTopics = () => {
+    const nextBatch = visibleTopics + 10;
+    const totalTopics = processedData.mentionsByTopic?.length || 0;
+    
+    if (nextBatch >= totalTopics) {
+      setVisibleTopics(totalTopics);
+      setShowLoadMore(false);
+    } else {
+      setVisibleTopics(nextBatch);
     }
   };
 
@@ -555,7 +642,15 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <TrendingUp className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-white font-semibold text-lg">Sentiment Trend</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-white font-semibold text-lg">Sentiment Trend</span>
+                      <div className="relative group ml-1">
+                        <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                          Sentiment Trend is calculated as the percentage change in average customer sentiment over the last 30 days compared to the previous period. Derived from review ratings and text sentiment analysis.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="text-3xl font-bold text-green-400 mb-2 group-hover:text-green-300 transition-colors">
                     {processedData.executiveSummary?.sentimentChange || '+5%'}
@@ -580,7 +675,15 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <BarChart3 className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-white font-semibold text-lg">Review Volume</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-white font-semibold text-lg">Review Volume</span>
+                      <div className="relative group ml-1">
+                        <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                          Review Volume is the percentage change in the number of reviews received over the last 30 days compared to the previous period. Calculated from all review sources.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="text-3xl font-bold text-blue-400 mb-2 group-hover:text-blue-300 transition-colors">
                     {processedData.executiveSummary?.volumeChange || '+25%'}
@@ -605,7 +708,15 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <Shield className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-white font-semibold text-lg">Trust Score</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-white font-semibold text-lg">Trust Score</span>
+                      <div className="relative group ml-1">
+                        <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                          Trust Score is calculated based on the average rating and sentiment of all customer reviews over the last 30 days. Higher scores indicate greater customer confidence.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="text-3xl font-bold text-purple-400 mb-2 group-hover:text-purple-300 transition-colors">
                     {processedData.advancedMetrics?.trustScore || 85}/100
@@ -786,126 +897,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
         {/* Key Insights - REMOVED - Covered in Executive Summary */}
 
-        {/* Mentions by Topic */}
-        {processedData.mentionsByTopic && Array.isArray(processedData.mentionsByTopic) && processedData.mentionsByTopic.length > 0 && (
-          <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
-            
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-bold text-white">Mentions by Topic</h3>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2 text-sm text-[#B0B0C0]">
-                    <Info className="w-4 h-4" />
-                    <span>Context: Breakdown of customer feedback by topic area with sentiment distribution.</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Filter className="w-4 h-4 text-[#B0B0C0]" />
-                    <select 
-                      value={mentionsFilter} 
-                      onChange={(e) => setMentionsFilter(e.target.value as any)}
-                      className="bg-[#181a20] border border-white/10 rounded-lg px-3 py-1 text-sm text-white"
-                    >
-                      <option value="all">All Sentiments</option>
-                      <option value="positive">Positive</option>
-                      <option value="negative">Negative</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedMentionsByTopic.map((topic: any, index: number) => (
-                  <div key={index} className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 hover:border-white/20 transition-all group">
-                    {/* Header */}
-                    <div className="flex items-start space-x-4 mb-6">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <MessageSquare className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-white text-xl mb-2">{topic.topic}</h4>
-                        <div className="flex items-center space-x-4 text-sm">
-                          <span className="text-[#B0B0C0]">{topic.total} total mentions</span>
-                          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            topic.negative > topic.positive ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                          }`}>
-                            {topic.negative > topic.positive ? 'Negative' : 'Positive'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Sentiment Breakdown */}
-                    <div className="mb-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/20">
-                          <div className="text-2xl font-bold text-green-400">{topic.positive}%</div>
-                          <div className="text-xs text-green-300">Positive</div>
-                        </div>
-                        <div className="text-center p-4 bg-red-500/10 rounded-xl border border-red-500/20">
-                          <div className="text-2xl font-bold text-red-400">{topic.negative}%</div>
-                          <div className="text-xs text-red-300">Negative</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Context */}
-                    {topic.context && (
-                      <div className="mb-5 p-4 bg-[#181a20]/40 border border-white/10 rounded-xl">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center flex-shrink-0">
-                            <Lightbulb className="w-3 h-3 text-white" />
-                          </div>
-                          <div>
-                            <span className="text-blue-400 font-semibold text-sm">Key Insight:</span>
-                            <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">{topic.context}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Priority Badge */}
-                    {topic.priority && (
-                      <div className="flex justify-center mb-5">
-                        <span className={`px-4 py-2 rounded-full text-xs font-semibold ${
-                          topic.priority === 'high' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                          topic.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                          'bg-green-500/20 text-green-400 border border-green-500/30'
-                        }`}>
-                          {topic.priority.toUpperCase()} PRIORITY
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* CTA Button */}
-                    <div className="mt-6">
-                      <button 
-                        onClick={() => handleTopicClick(topic.topic, topic.rawMentions, topic)}
-                        className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
-                      >
-                        <span>View {topic.total} Reviews</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {filteredMentionsByTopic.length > 10 && (
-                <div className="mt-6 text-center">
-                  <button 
-                    onClick={() => setShowAllMentions(!showAllMentions)}
-                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl hover:from-purple-600 hover:to-blue-700 transition-all text-white font-semibold shadow-lg"
-                  >
-                    <span>{showAllMentions ? 'Show Less' : `Show All (${filteredMentionsByTopic.length})`}</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showAllMentions ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+
 
         {/* Sentiment Over Time Chart */}
         <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
@@ -932,13 +924,34 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={sentimentChartData}>
                         <defs>
-                          <linearGradient id="sentimentGradient" x1="0" y1="0" x2="0" y2="1">
+                          {/* Green gradient for high sentiment (70-100) */}
+                          <linearGradient id="sentimentGradientHigh" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
                             <stop offset="100%" stopColor="#10B981" stopOpacity={0.2} />
                           </linearGradient>
-                          <linearGradient id="sentimentStroke" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="sentimentStrokeHigh" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#10B981" />
                             <stop offset="100%" stopColor="#059669" />
+                          </linearGradient>
+                          
+                          {/* Amber gradient for average sentiment (40-69) */}
+                          <linearGradient id="sentimentGradientMedium" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.8} />
+                            <stop offset="100%" stopColor="#F59E0B" stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="sentimentStrokeMedium" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#F59E0B" />
+                            <stop offset="100%" stopColor="#D97706" />
+                          </linearGradient>
+                          
+                          {/* Red gradient for low sentiment (0-39) */}
+                          <linearGradient id="sentimentGradientLow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#EF4444" stopOpacity={0.8} />
+                            <stop offset="100%" stopColor="#EF4444" stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="sentimentStrokeLow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#EF4444" />
+                            <stop offset="100%" stopColor="#DC2626" />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.3} />
@@ -965,32 +978,143 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                             boxShadow: '0 8px 32px rgba(31, 38, 135, 0.1)'
                           }}
                           labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          formatter={(value: any, name: any, props: any) => {
+                            const sentiment = value as number;
+                            let emoji = '😐';
+                            let color = '#9CA3AF';
+                            
+                            if (sentiment >= 70) {
+                              emoji = '😊';
+                              color = '#10B981';
+                            } else if (sentiment >= 40) {
+                              emoji = '😐';
+                              color = '#F59E0B';
+                            } else {
+                              emoji = '😞';
+                              color = '#EF4444';
+                            }
+                            
+                            const dataPoint = props.payload;
+                            const reviewCount = dataPoint.reviewCount || 0;
+                            const insights = dataPoint.insights || '';
+                            
+                            // Determine sentiment level description
+                            let sentimentLevel = '';
+                            if (sentiment >= 70) {
+                              sentimentLevel = 'High';
+                            } else if (sentiment >= 40) {
+                              sentimentLevel = 'Average';
+                            } else {
+                              sentimentLevel = 'Low';
+                            }
+                            
+                            return [
+                              <div style={{ color }}>
+                                <div style={{ fontSize: '16px', marginBottom: '4px', fontWeight: 'bold' }}>
+                                  {emoji} {sentiment}/100
+                                </div>
+                                <div style={{ fontSize: '12px', opacity: 0.8, marginBottom: '4px' }}>
+                                  {reviewCount > 0 ? 
+                                    `${reviewCount} review${reviewCount !== 1 ? 's' : ''}` : 
+                                    'Estimated sentiment'
+                                  }
+                                </div>
+                                <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '4px' }}>
+                                  {sentimentLevel} sentiment level
+                                </div>
+                                {insights && (
+                                  <div style={{ fontSize: '11px', opacity: 0.7, maxWidth: '200px', lineHeight: '1.3', marginTop: '4px' }}>
+                                    {insights}
+                                  </div>
+                                )}
+                              </div>,
+                              'Sentiment'
+                            ];
+                          }}
                         />
                         <Line 
                           type="monotone" 
                           dataKey="sentiment" 
-                          stroke="url(#sentimentStroke)"
+                          stroke="#8b5cf6"
                           strokeWidth={3}
-                          dot={{ 
-                            fill: '#10B981', 
-                            strokeWidth: 2, 
-                            r: 4,
-                            filter: 'drop-shadow(0 2px 4px rgba(16, 185, 129, 0.3))',
-                            cursor: 'pointer'
+                          dot={(props: any) => {
+                            const sentiment = props.payload.sentiment;
+                            let fillColor = '#9CA3AF';
+                            let strokeColor = '#9CA3AF';
+                            
+                            if (sentiment >= 70) {
+                              fillColor = '#10B981';
+                              strokeColor = '#059669';
+                            } else if (sentiment >= 40) {
+                              fillColor = '#F59E0B';
+                              strokeColor = '#D97706';
+                            } else {
+                              fillColor = '#EF4444';
+                              strokeColor = '#DC2626';
+                            }
+                            
+                            return (
+                              <circle
+                                cx={props.cx}
+                                cy={props.cy}
+                                r={4}
+                                fill={fillColor}
+                                stroke={strokeColor}
+                                strokeWidth={2}
+                                filter="drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))"
+                                cursor="pointer"
+                              />
+                            );
                           }}
-                          activeDot={{ 
-                            r: 6, 
-                            stroke: '#10B981', 
-                            strokeWidth: 2,
-                            fill: '#10B981',
-                            filter: 'drop-shadow(0 4px 8px rgba(16, 185, 129, 0.5))',
-                            cursor: 'pointer'
+                          activeDot={(props: any) => {
+                            const sentiment = props.payload.sentiment;
+                            let fillColor = '#10B981';
+                            let strokeColor = '#059669';
+                            
+                            if (sentiment >= 70) {
+                              fillColor = '#10B981';
+                              strokeColor = '#059669';
+                            } else if (sentiment >= 40) {
+                              fillColor = '#F59E0B';
+                              strokeColor = '#D97706';
+                            } else {
+                              fillColor = '#EF4444';
+                              strokeColor = '#DC2626';
+                            }
+                            
+                            return (
+                              <circle
+                                cx={props.cx}
+                                cy={props.cy}
+                                r={6}
+                                fill={fillColor}
+                                stroke={strokeColor}
+                                strokeWidth={2}
+                                filter="drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5))"
+                                cursor="pointer"
+                              />
+                            );
                           }}
-                          fill="url(#sentimentGradient)"
                           onClick={(data) => handleSentimentDataClick(data)}
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                  </div>
+                </div>
+                
+                {/* Sentiment Color Legend */}
+                <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-green-400">High (70-100)</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                    <span className="text-amber-400">Average (40-69)</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-red-400">Low (0-39)</span>
                   </div>
                 </div>
                 
@@ -1003,7 +1127,17 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                   <div className="relative z-10">
                     <div className="flex items-start space-x-3">
                       <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <span className="text-white font-bold text-sm">⚡</span>
+                        <span className="text-white font-bold text-sm">
+                          {sentimentChartData.length > 0 ? 
+                            (() => {
+                              const avgSentiment = Math.round(sentimentChartData.reduce((sum: number, d: any) => sum + d.sentiment, 0) / sentimentChartData.length);
+                              if (avgSentiment >= 70) return '😊';
+                              if (avgSentiment >= 40) return '😐';
+                              return '😞';
+                            })() :
+                            '⚡'
+                          }
+                        </span>
                       </div>
                       <div className="flex-1">
                         <span className="text-purple-300 font-semibold text-lg">Insight:</span>
@@ -1020,18 +1154,44 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                               const lateAvg = recentDays.slice(-3).reduce((sum: number, d: any) => sum + d.sentiment, 0) / 3;
                               const trendDirection = lateAvg > earlyAvg ? 'improving' : lateAvg < earlyAvg ? 'declining' : 'stable';
                               
-                              // Generate actionable insight
+                              // Analyze sentiment levels and provide context
                               let insight = '';
+                              let emoji = '😐';
                               
-                              if (trendDirection === 'improving') {
-                                insight = `Sentiment is trending upward with ${Math.round(lateAvg - earlyAvg)}% improvement. Peak performance on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Customer satisfaction is improving.`;
-                              } else if (trendDirection === 'declining') {
-                                insight = `Sentiment is declining by ${Math.round(earlyAvg - lateAvg)}%. Lowest point on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${lowDay.sentiment}/100). Immediate attention needed.`;
+                              if (avgSentiment >= 70) {
+                                emoji = '😊';
+                                if (trendDirection === 'improving') {
+                                  insight = `Excellent sentiment trending upward! ${Math.round(lateAvg - earlyAvg)}% improvement with peak performance on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Customers are highly satisfied with service quality, response times, and overall experience. This strong performance suggests effective customer service and product improvements.`;
+                                } else if (trendDirection === 'declining') {
+                                  insight = `High sentiment but declining by ${Math.round(earlyAvg - lateAvg)}%. Peak was ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100), lowest on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${lowDay.sentiment}/100). While still positive, recent issues may be affecting customer satisfaction. Monitor for service consistency.`;
+                                } else {
+                                  insight = `Consistently high sentiment with ${avgSentiment}/100 average. Peak performance on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Customers consistently praise service quality, reliability, and positive experiences. This stable high performance indicates strong customer satisfaction and brand loyalty.`;
+                                }
+                              } else if (avgSentiment >= 40) {
+                                emoji = '😐';
+                                if (trendDirection === 'improving') {
+                                  insight = `Moderate sentiment improving by ${Math.round(lateAvg - earlyAvg)}%. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Recent improvements in customer service and product quality are showing positive results. Continue focusing on addressing common pain points to reach higher satisfaction levels.`;
+                                } else if (trendDirection === 'declining') {
+                                  insight = `Moderate sentiment declining by ${Math.round(earlyAvg - lateAvg)}%. Lowest on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${lowDay.sentiment}/100). Recent issues with service quality, response times, or product problems are affecting satisfaction. Immediate attention needed to prevent further decline.`;
+                                } else {
+                                  insight = `Stable moderate sentiment with ${avgSentiment}/100 average. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Mixed customer experiences with some satisfaction but room for improvement. Focus on addressing common complaints and enhancing service quality.`;
+                                }
                               } else {
-                                insight = `Sentiment is stable with ${avgSentiment}/100 average. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Consistent customer experience.`;
+                                emoji = '😞';
+                                if (trendDirection === 'improving') {
+                                  insight = `Low sentiment but improving by ${Math.round(lateAvg - earlyAvg)}%. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Recent improvements are helping, but significant issues remain. Continue addressing major pain points like service quality, response times, and product problems.`;
+                                } else if (trendDirection === 'declining') {
+                                  insight = `Critical low sentiment declining by ${Math.round(earlyAvg - lateAvg)}%. Lowest on ${new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${lowDay.sentiment}/100). Serious issues with service quality, product problems, or customer support are causing dissatisfaction. Immediate intervention required to address root causes.`;
+                                } else {
+                                  insight = `Consistently low sentiment with ${avgSentiment}/100 average. Peak on ${new Date(peakDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${peakDay.sentiment}/100). Ongoing issues with service quality, product problems, or customer support are affecting satisfaction. Urgent action needed to improve customer experience.`;
+                                }
                               }
                               
-                              return insight;
+                              return (
+                                <span>
+                                  {emoji} {insight}
+                                </span>
+                              );
                             })() :
                             'No sentiment data available.'
                           }
@@ -1133,45 +1293,65 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                               const peakDay = volumeChartData.reduce((max: any, d: any) => d.volume > max.volume ? d : max);
                               const lowDay = volumeChartData.reduce((min: any, d: any) => d.volume < min.volume ? d : min);
                               
-                              // Analyze what might have caused the peak
-                              const peakDate = new Date(peakDay.date);
-                              const peakDateStr = peakDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                              
-                              // Check if peak was on a weekend (common for customer engagement)
-                              const isWeekend = peakDate.getDay() === 0 || peakDate.getDay() === 6;
-                              
-                              // Check if peak was significantly higher than average
-                              const avgVolume = volumeChartData.reduce((sum: number, d: any) => sum + d.volume, 0) / volumeChartData.length;
-                              const isSignificantPeak = peakDay.volume > avgVolume * 1.5;
-                              
-                              // Check if there were any patterns around the peak
-                              const peakIndex = volumeChartData.findIndex((d: any) => d.date === peakDay.date);
-                              const beforePeak = peakIndex > 0 ? volumeChartData[peakIndex - 1].volume : 0;
-                              const afterPeak = peakIndex < volumeChartData.length - 1 ? volumeChartData[peakIndex + 1].volume : 0;
-                              const isIsolatedPeak = peakDay.volume > beforePeak * 2 && peakDay.volume > afterPeak * 2;
-                              
-                              // Generate context about the peak
-                              let insight = `Peak volume on ${peakDateStr} with ${peakDay.volume} reviews`;
-                              
-                              if (isSignificantPeak) {
-                                if (isIsolatedPeak) {
-                                  insight += ` - isolated spike suggests a specific event, campaign, or issue that drove immediate customer feedback.`;
-                                } else if (isWeekend) {
-                                  insight += ` - weekend peak likely due to increased customer activity or a weekend-specific event.`;
-                                } else {
-                                  insight += ` - significant increase suggests a specific event, campaign, or issue that drove customer feedback.`;
+                              // Use the actual peak insight if available
+                              if (peakDay.peakInsight) {
+                                const peakDate = new Date(peakDay.date);
+                                const peakDateStr = peakDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                
+                                // Check if peak was significantly higher than average
+                                const avgVolume = volumeChartData.reduce((sum: number, d: any) => sum + d.volume, 0) / volumeChartData.length;
+                                const isSignificantPeak = peakDay.volume > avgVolume * 1.5;
+                                
+                                let insight = `Peak volume on ${peakDateStr} with ${peakDay.volume} reviews - ${peakDay.peakInsight}`;
+                                
+                                // Add context about the dip if significant
+                                if (lowDay.volume < avgVolume * 0.5) {
+                                  const lowDateStr = new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                  insight += ` Low engagement on ${lowDateStr} (${lowDay.volume} reviews) - may indicate reduced activity or fewer customer touchpoints.`;
                                 }
+                                
+                                return insight;
                               } else {
-                                insight += ` - normal customer engagement levels.`;
+                                // Fallback to the previous logic if no peak insight is available
+                                const peakDate = new Date(peakDay.date);
+                                const peakDateStr = peakDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                
+                                // Check if peak was on a weekend (common for customer engagement)
+                                const isWeekend = peakDate.getDay() === 0 || peakDate.getDay() === 6;
+                                
+                                // Check if peak was significantly higher than average
+                                const avgVolume = volumeChartData.reduce((sum: number, d: any) => sum + d.volume, 0) / volumeChartData.length;
+                                const isSignificantPeak = peakDay.volume > avgVolume * 1.5;
+                                
+                                // Check if there were any patterns around the peak
+                                const peakIndex = volumeChartData.findIndex((d: any) => d.date === peakDay.date);
+                                const beforePeak = peakIndex > 0 ? volumeChartData[peakIndex - 1].volume : 0;
+                                const afterPeak = peakIndex < volumeChartData.length - 1 ? volumeChartData[peakIndex + 1].volume : 0;
+                                const isIsolatedPeak = peakDay.volume > beforePeak * 2 && peakDay.volume > afterPeak * 2;
+                                
+                                // Generate context about the peak
+                                let insight = `Peak volume on ${peakDateStr} with ${peakDay.volume} reviews`;
+                                
+                                if (isSignificantPeak) {
+                                  if (isIsolatedPeak) {
+                                    insight += ` - isolated spike suggests a specific event, campaign, or issue that drove immediate customer feedback.`;
+                                  } else if (isWeekend) {
+                                    insight += ` - weekend peak likely due to increased customer activity or a weekend-specific event.`;
+                                  } else {
+                                    insight += ` - significant increase suggests a specific event, campaign, or issue that drove customer feedback.`;
+                                  }
+                                } else {
+                                  insight += ` - normal customer engagement levels.`;
+                                }
+                                
+                                // Add context about the dip if significant
+                                if (lowDay.volume < avgVolume * 0.5) {
+                                  const lowDateStr = new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                  insight += ` Low engagement on ${lowDateStr} (${lowDay.volume} reviews) - may indicate reduced activity or fewer customer touchpoints.`;
+                                }
+                                
+                                return insight;
                               }
-                              
-                              // Add context about the dip if significant
-                              if (lowDay.volume < avgVolume * 0.5) {
-                                const lowDateStr = new Date(lowDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                insight += ` Low engagement on ${lowDateStr} (${lowDay.volume} reviews) - may indicate reduced activity or fewer customer touchpoints.`;
-                              }
-                              
-                              return insight;
                             })() :
                             'No volume data available.'
                           }
@@ -1188,6 +1368,119 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
             )}
           </div>
         </section>
+
+        {/* Mentions by Topic Section */}
+        {processedData.mentionsByTopic && processedData.mentionsByTopic.length > 0 && (
+          <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-bold text-white">Mentions by Topic</h3>
+                <div className="flex items-center space-x-2 text-sm text-[#B0B0C0]">
+                  <Info className="w-4 h-4" />
+                  <span>Context: Shows emotional distribution by category. Helpful to spot polarizing experiences.</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {processedData.mentionsByTopic.slice(0, visibleTopics).map((topic: any, index: number) => (
+                  <div key={index} className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-white/20 transition-all group">
+                    {/* Glassmorphic overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-2xl pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold text-white text-lg group-hover:text-white/90 transition-colors">{topic.topic}</h4>
+                        <div className="flex items-center space-x-2">
+                          {topic.priority === 'high' && (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded-full">
+                              HIGH PRIORITY
+                            </span>
+                          )}
+                          {topic.priority === 'medium' && (
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full">
+                              MEDIUM PRIORITY
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {/* Sentiment Breakdown */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-green-400">Positive</span>
+                            <span className="text-green-400 font-semibold">{topic.positive}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${topic.positive}%` }}
+                            ></div>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-red-400">Negative</span>
+                            <span className="text-red-400 font-semibold">{topic.negative}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2">
+                            <div 
+                              className="bg-red-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${topic.negative}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        
+                        {/* Total Reviews */}
+                        <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                          <span className="text-sm text-[#B0B0C0]">Total Reviews</span>
+                          <span className="text-white font-semibold">{topic.total}</span>
+                        </div>
+                        
+                        {/* Context */}
+                        {topic.context && (
+                          <div className="pt-2 border-t border-white/10">
+                            <p className="text-sm text-[#B0B0C0] leading-relaxed">
+                              <TruncatedText text={topic.context} maxLength={80} title="Topic Context" />
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* View Reviews Button */}
+                        {topic.rawMentions && topic.rawMentions.length > 0 && (
+                          <div className="pt-4">
+                            <button 
+                              onClick={() => handleTopicClick(topic.topic, topic.rawMentions, topic)}
+                              className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
+                            >
+                              <span>View {topic.total} Reviews</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Load More Button */}
+              {showLoadMore && processedData.mentionsByTopic && visibleTopics < processedData.mentionsByTopic.length && (
+                <div className="mt-8 flex justify-center">
+                  <button
+                    onClick={handleLoadMoreTopics}
+                    className="px-8 py-3 bg-transparent border border-white/20 text-white font-semibold rounded-xl hover:bg-white/5 hover:border-white/30 transition-all duration-200 backdrop-blur-md shadow-lg hover:shadow-xl"
+                  >
+                    Load More Topics
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Competitors Section */}
         <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
@@ -1409,6 +1702,40 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                             </div>
                           </div>
                         </div>
+                        
+                        {/* Business Case */}
+                        {gap.businessCase && (
+                          <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
+                                <BarChart3 className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-blue-400 font-semibold text-sm">Business Case:</span>
+                                <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                  {gap.businessCase}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Implementation */}
+                        {gap.implementation && (
+                          <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-purple-500 rounded flex items-center justify-center flex-shrink-0">
+                                <Target className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-purple-400 font-semibold text-sm">Implementation:</span>
+                                <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                  {gap.implementation}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {/* CTA Button */}
@@ -1712,6 +2039,33 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                   </div>
                 )}
                 
+                {/* Sentiment Breakdown */}
+                {selectedTrendingTopic.totalCount && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Sentiment Breakdown</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-[#B0B0C0]">Total Reviews:</span>
+                        <span className="text-white font-semibold">{selectedTrendingTopic.totalCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-green-400">Positive:</span>
+                        <span className="text-green-400 font-semibold">{selectedTrendingTopic.positiveCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-red-400">Negative:</span>
+                        <span className="text-red-400 font-semibold">{selectedTrendingTopic.negativeCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-[#B0B0C0]">Overall Sentiment:</span>
+                        <span className={`font-semibold ${selectedTrendingTopic.sentiment === 'positive' ? 'text-green-400' : 'text-red-400'}`}>
+                          {selectedTrendingTopic.sentiment === 'positive' ? 'Positive' : 'Negative'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Why is this trending? */}
                 {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 1 && (
                   <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
@@ -1758,9 +2112,11 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <div>
                       <span className="text-purple-400 font-semibold">Review Summary:</span>
                       <span className="text-[#B0B0C0] ml-2">
-                        {selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 
-                          ? `Based on ${selectedTrendingTopic.specificExamples.length} customer reviews, ${selectedTrendingTopic.topic} is a ${selectedTrendingTopic.sentiment === 'positive' ? 'positive' : 'negative'} trending topic. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
-                          : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
+                        {selectedTrendingTopic.totalCount ? 
+                          `Based on ${selectedTrendingTopic.totalCount} customer reviews, ${selectedTrendingTopic.topic} shows ${selectedTrendingTopic.positiveCount || 0} positive and ${selectedTrendingTopic.negativeCount || 0} negative mentions. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
+                          : selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 
+                            ? `Based on ${selectedTrendingTopic.specificExamples.length} customer reviews, ${selectedTrendingTopic.topic} is a ${selectedTrendingTopic.sentiment === 'positive' ? 'positive' : 'negative'} trending topic. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
+                            : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
                         }
                       </span>
                     </div>
