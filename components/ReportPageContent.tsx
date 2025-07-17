@@ -203,10 +203,10 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
   const [selectedSentimentData, setSelectedSentimentData] = useState<any>(null);
 
   // Lazy loading state for mentions by topic
-  const [visibleTopics, setVisibleTopics] = useState(10);
+  const [visibleTopics, setVisibleTopics] = useState(7);
   const [showLoadMore, setShowLoadMore] = useState(() => {
     const totalTopics = reportData.mentionsByTopic?.length || reportData.analysis?.mentionsByTopic?.length || 0;
-    return totalTopics > 10;
+    return totalTopics > 7;
   });
 
   console.log('ReportPageContent received data:', reportData);
@@ -487,7 +487,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   // Load more topics function
   const handleLoadMoreTopics = () => {
-    const nextBatch = visibleTopics + 10;
+    const nextBatch = visibleTopics + 7;
     const totalTopics = processedData.mentionsByTopic?.length || 0;
     
     if (nextBatch >= totalTopics) {

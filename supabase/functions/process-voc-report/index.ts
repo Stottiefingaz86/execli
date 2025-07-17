@@ -1933,79 +1933,111 @@ function generateDailyVolumeData(reviews: Review[], days: number): Array<{date: 
   return data;
 }
 
-// Helper function to generate mentions by topic
-function generateMentionsByTopic(reviews: Review[]): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[]}> {
-  const topics = extractTopicsFromReviews(reviews);
-  const mentionsByTopic: Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[]}> = [];
+// Helper function to map granular topics to core industry topics
+function mapToCoreTopics(reviews: Review[]): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], keywords: string[]}> {
+  // Define core topics for gaming/casino industry
+  const coreTopics = {
+    'Deposits': {
+      keywords: ['deposit', 'deposits', 'payment', 'payments', 'credit card', 'debit card', 'paypal', 'banking', 'bank', 'payment method', 'banking option', 'transaction', 'money', 'funds', 'balance', 'account', 'wallet', 'fee', 'fees', 'charge', 'charges', 'cost', 'costs', 'expensive', 'cheap', 'value', 'refund', 'refunds', 'credit', 'credits'],
+      description: 'Deposit processes, payment methods, and associated fees'
+    },
+    'Withdrawals': {
+      keywords: ['withdrawal', 'withdrawals', 'payout', 'payouts', 'cash out', 'cashout', 'money out', 'get money', 'receive money', 'bank transfer', 'wire transfer', 'check', 'checks', 'money transfer', 'fund transfer'],
+      description: 'Withdrawal processes, payout speed, and cash-out experiences'
+    },
+    'Loyalty & Rewards': {
+      keywords: ['bonus', 'bonuses', 'promotion', 'promotions', 'reward', 'rewards', 'cashback', 'cash back', 'loyalty', 'loyalty program', 'vip', 'vip program', 'points', 'comp points', 'comps', 'free spins', 'free play', 'match bonus', 'welcome bonus', 'signup bonus', 'deposit bonus'],
+      description: 'Bonus programs, promotions, loyalty rewards, and VIP benefits'
+    },
+    'Sports Betting': {
+      keywords: ['sports', 'sport', 'betting', 'bet', 'bets', 'wager', 'wagers', 'odds', 'sportsbook', 'football', 'basketball', 'baseball', 'soccer', 'hockey', 'tennis', 'golf', 'racing', 'horse racing', 'esports', 'esport', 'live betting', 'in-play', 'parlay', 'parlays', 'teaser', 'teasers', 'futures', 'prop bet', 'prop bets'],
+      description: 'Sports betting experience, odds, and sportsbook functionality'
+    },
+    'Poker': {
+      keywords: ['poker', 'texas holdem', 'holdem', 'omaha', 'seven card stud', 'tournament', 'tournaments', 'sit and go', 'cash game', 'cash games', 'ring game', 'ring games', 'poker room', 'poker tournament', 'poker table', 'poker game', 'poker games', 'poker player', 'poker players', 'poker chips', 'poker chips', 'poker hand', 'poker hands', 'poker strategy', 'poker room', 'poker lobby'],
+      description: 'Poker games, tournaments, and poker room experience'
+    },
+    'Casino Games': {
+      keywords: ['casino', 'slot', 'slots', 'blackjack', 'roulette', 'baccarat', 'craps', 'keno', 'bingo', 'scratch card', 'scratch cards', 'video poker', 'pai gow', 'caribbean stud', 'three card poker', 'let it ride', 'casino war', 'big six wheel', 'wheel of fortune', 'game', 'games', 'gaming', 'jackpot', 'jackpots', 'prize', 'prizes', 'win', 'wins', 'winning', 'lose', 'loses', 'losing', 'house edge', 'rtp', 'return to player', 'volatility', 'hit frequency'],
+      description: 'Casino games, slots, table games, and gaming experience'
+    },
+    'Website & UX': {
+      keywords: ['website', 'site', 'app', 'application', 'mobile', 'desktop', 'platform', 'interface', 'ui', 'ux', 'user experience', 'user interface', 'navigation', 'loading', 'speed', 'fast', 'slow', 'lag', 'laggy', 'responsive', 'mobile app', 'mobile site', 'desktop site', 'tablet app', 'loading time', 'page speed', 'site performance', 'uptime', 'down', 'down time', 'design', 'layout', 'menu', 'button', 'buttons', 'link', 'links', 'page', 'pages', 'section', 'sections', 'tab', 'tabs', 'dropdown', 'dropdowns', 'search', 'searching', 'filter', 'filters', 'sort', 'sorting', 'scroll', 'scrolling', 'zoom', 'zooming', 'pinch', 'swipe', 'tap', 'click', 'clicks', 'hover', 'hovering', 'focus', 'focused', 'active', 'inactive', 'enabled', 'disabled', 'visible', 'hidden', 'show', 'shows', 'hide', 'hides', 'display', 'displays', 'render', 'renders', 'load', 'loads', 'loading', 'loaded', 'unload', 'unloads', 'unloading', 'unloaded', 'refresh', 'refreshes', 'refreshing', 'refreshed', 'reload', 'reloads', 'reloading', 'reloaded', 'update', 'updates', 'updating', 'updated', 'sync', 'syncs', 'syncing', 'synced', 'connect', 'connects', 'connecting', 'connected', 'disconnect', 'disconnects', 'disconnecting', 'disconnected'],
+      description: 'Website design, user experience, mobile app, and platform functionality'
+    },
+    'Support & Service': {
+      keywords: ['customer service', 'customer support', 'support', 'help', 'assistance', 'service', 'support team', 'live chat', 'email support', 'phone support', 'response time', 'resolution time', 'ticket system', 'contact', 'communication', 'staff', 'employee', 'agent', 'representative', 'friendly', 'rude', 'professional', 'unprofessional', 'helpful', 'unhelpful', 'knowledgeable', 'responsive', 'unresponsive', 'technical support', 'account support', 'financial support', 'game support', 'platform support', 'website support'],
+      description: 'Customer service, support quality, and response times'
+    }
+  };
+
+  const mentionsByTopic: Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], keywords: string[]}> = [];
   
-  topics.forEach(topic => {
-    const topicReviews = reviews.filter(r => r.text.toLowerCase().includes(topic));
+  // Process each core topic
+  Object.entries(coreTopics).forEach(([topicName, topicConfig]) => {
+    const topicReviews: Review[] = [];
     let positive = 0, negative = 0;
     
-    topicReviews.forEach(review => {
+    // Find reviews that mention this core topic
+    reviews.forEach(review => {
       const text = review.text.toLowerCase();
+      const hasTopicKeywords = topicConfig.keywords.some(keyword => text.includes(keyword));
       
-      // First, check if we have a rating - this is the most reliable indicator
-      if (review.rating !== undefined && review.rating !== null) {
-        if (review.rating >= 4) {
-          positive++;
-        } else if (review.rating <= 2) {
-          negative++;
-        } else {
-          // Rating of 3 is neutral, but let's check text content
-          const hasPositiveWords = text.includes('good') || text.includes('great') || text.includes('love') || 
-                                 text.includes('recommend') || text.includes('satisfied') || text.includes('happy');
-          const hasNegativeWords = text.includes('bad') || text.includes('terrible') || text.includes('hate') || 
-                                 text.includes('scam') || text.includes('complaint') || text.includes('disappointed');
-          
-          if (hasPositiveWords && !hasNegativeWords) {
+      if (hasTopicKeywords) {
+        topicReviews.push(review);
+        
+        // Analyze sentiment for this review
+        if (review.rating !== undefined && review.rating !== null) {
+          if (review.rating >= 4) {
             positive++;
-          } else if (hasNegativeWords && !hasPositiveWords) {
+          } else if (review.rating <= 2) {
             negative++;
           } else {
-            // Default to positive for neutral reviews (better for business)
-            positive++;
+            // Rating of 3 is neutral, analyze text content
+            const hasPositiveWords = text.includes('good') || text.includes('great') || text.includes('love') || 
+                                   text.includes('recommend') || text.includes('satisfied') || text.includes('happy') ||
+                                   text.includes('excellent') || text.includes('amazing') || text.includes('perfect');
+            const hasNegativeWords = text.includes('bad') || text.includes('terrible') || text.includes('hate') || 
+                                   text.includes('scam') || text.includes('complaint') || text.includes('disappointed') ||
+                                   text.includes('problem') || text.includes('issue') || text.includes('waiting') ||
+                                   text.includes('delay') || text.includes('locked') || text.includes('ridiculous') ||
+                                   text.includes('forced') || text.includes('charge') || text.includes('fee');
+            
+            if (hasPositiveWords && !hasNegativeWords) {
+              positive++;
+            } else if (hasNegativeWords && !hasPositiveWords) {
+              negative++;
+            } else {
+              // Default to positive for neutral reviews (better for business)
+              positive++;
+            }
           }
-        }
-      } else {
-        // No rating available, use text analysis
-        const positiveWords = [
-          'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
-          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
-          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
-          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
-        ];
-        
-        const negativeWords = [
-          'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
-          'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
-          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
-          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
-          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue'
-        ];
-        
-        const positiveCount = positiveWords.filter(word => text.includes(word)).length;
-        const negativeCount = negativeWords.filter(word => text.includes(word)).length;
-        
-        if (positiveCount > negativeCount) {
-          positive++;
-        } else if (negativeCount > positiveCount) {
-          negative++;
         } else {
-          // If equal, check for overall tone indicators
-          const hasPositiveTone = text.includes('great') || text.includes('love') || text.includes('recommend') || 
-                                 text.includes('vouch') || text.includes('can\'t complain') || text.includes('no complaints');
-          const hasNegativeTone = text.includes('scam') || text.includes('terrible') || text.includes('hate') || 
-                                 text.includes('worst') || text.includes('complaint') || text.includes('ridiculous') ||
-                                 text.includes('charge') || text.includes('fee') || text.includes('problem') ||
-                                 text.includes('issue') || text.includes('forced');
+          // No rating available, use text analysis
+          const positiveWords = [
+            'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
+            'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
+            'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+            'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+          ];
           
-          if (hasPositiveTone && !hasNegativeTone) {
+          const negativeWords = [
+            'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
+            'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
+            'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+            'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+            'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue'
+          ];
+          
+          const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+          const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+          
+          if (positiveCount > negativeCount) {
             positive++;
-          } else if (hasNegativeTone && !hasPositiveTone) {
+          } else if (negativeCount > positiveCount) {
             negative++;
           } else {
-            // If still unclear, check for more specific negative indicators
+            // If equal, check for specific negative indicators
             const hasSpecificNegative = text.includes('ridiculous') || text.includes('charge') || text.includes('fee') ||
                                       text.includes('forced') || text.includes('problem') || text.includes('issue') ||
                                       text.includes('complaint') || text.includes('hate') || text.includes('terrible');
@@ -2024,16 +2056,31 @@ function generateMentionsByTopic(reviews: Review[]): Array<{topic: string, posit
     const total = positive + negative;
     if (total > 0) {
       mentionsByTopic.push({
-        topic,
+        topic: topicName,
         positive: Math.round((positive / total) * 100),
         negative: Math.round((negative / total) * 100),
-        total: topicReviews.length, // Use actual review count instead of sentiment count
-        rawMentions: topicReviews.map(r => r.text)
+        total: topicReviews.length,
+        rawMentions: topicReviews.map(r => r.text),
+        keywords: topicConfig.keywords
       });
     }
   });
   
   return mentionsByTopic;
+}
+
+// Helper function to generate mentions by topic (updated to use core topics)
+function generateMentionsByTopic(reviews: Review[]): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[]}> {
+  const coreTopicsData = mapToCoreTopics(reviews);
+  
+  // Convert to the expected format
+  return coreTopicsData.map(topic => ({
+    topic: topic.topic,
+    positive: topic.positive,
+    negative: topic.negative,
+    total: topic.total,
+    rawMentions: topic.rawMentions
+  }));
 }
 
 // Helper function to generate advanced metrics
