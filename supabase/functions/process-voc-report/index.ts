@@ -214,7 +214,7 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
     }),
     mentionsByTopic: (() => {
       // Use core topics mapping instead of granular topics
-      const coreTopicsData = mapToCoreTopics(allReviews);
+      const coreTopicsData = mapToCoreTopics(allReviews, businessName);
       
       return coreTopicsData.map(topic => ({
         topic: topic.topic,
@@ -1939,43 +1939,150 @@ function generateDailyVolumeData(reviews: Review[], days: number): Array<{date: 
 }
 
 // Helper function to map granular topics to core industry topics
-function mapToCoreTopics(reviews: Review[]): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], keywords: string[]}> {
-  // Define core topics for gaming/casino industry
-  const coreTopics = {
-    'Deposits': {
-      keywords: ['deposit', 'deposits', 'payment', 'payments', 'credit card', 'debit card', 'paypal', 'banking', 'bank', 'payment method', 'banking option', 'transaction', 'money', 'funds', 'balance', 'account', 'wallet', 'fee', 'fees', 'charge', 'charges', 'cost', 'costs', 'expensive', 'cheap', 'value', 'refund', 'refunds', 'credit', 'credits'],
-      description: 'Deposit processes, payment methods, and associated fees'
+function mapToCoreTopics(reviews: Review[], businessName: string, businessUrl?: string): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], keywords: string[]}> {
+  const industry = detectIndustry(businessName, businessUrl);
+  
+  // Define core topics by industry
+  const industryTopics = {
+    gaming: {
+      'Deposits': {
+        keywords: ['deposit', 'deposits', 'payment', 'payments', 'credit card', 'debit card', 'paypal', 'banking', 'bank', 'payment method', 'banking option', 'transaction', 'money', 'funds', 'balance', 'account', 'wallet', 'fee', 'fees', 'charge', 'charges', 'cost', 'costs', 'expensive', 'cheap', 'value', 'refund', 'refunds', 'credit', 'credits'],
+        description: 'Deposit processes, payment methods, and associated fees'
+      },
+      'Withdrawals': {
+        keywords: ['withdrawal', 'withdrawals', 'payout', 'payouts', 'cash out', 'cashout', 'money out', 'get money', 'receive money', 'bank transfer', 'wire transfer', 'check', 'checks', 'money transfer', 'fund transfer'],
+        description: 'Withdrawal processes, payout speed, and cash-out experiences'
+      },
+      'Loyalty & Rewards': {
+        keywords: ['bonus', 'bonuses', 'promotion', 'promotions', 'reward', 'rewards', 'cashback', 'cash back', 'loyalty', 'loyalty program', 'vip', 'vip program', 'points', 'comp points', 'comps', 'free spins', 'free play', 'match bonus', 'welcome bonus', 'signup bonus', 'deposit bonus'],
+        description: 'Bonus programs, promotions, loyalty rewards, and VIP benefits'
+      },
+      'Sports Betting': {
+        keywords: ['sports', 'sport', 'betting', 'bet', 'bets', 'wager', 'wagers', 'odds', 'sportsbook', 'football', 'basketball', 'baseball', 'soccer', 'hockey', 'tennis', 'golf', 'racing', 'horse racing', 'esports', 'esport', 'live betting', 'in-play', 'parlay', 'parlays', 'teaser', 'teasers', 'futures', 'prop bet', 'prop bets'],
+        description: 'Sports betting experience, odds, and sportsbook functionality'
+      },
+      'Poker': {
+        keywords: ['poker', 'texas holdem', 'holdem', 'omaha', 'seven card stud', 'tournament', 'tournaments', 'sit and go', 'cash game', 'cash games', 'ring game', 'ring games', 'poker room', 'poker tournament', 'poker table', 'poker game', 'poker games', 'poker player', 'poker players', 'poker chips', 'poker chips', 'poker hand', 'poker hands', 'poker strategy', 'poker room', 'poker lobby'],
+        description: 'Poker games, tournaments, and poker room experience'
+      },
+      'Casino Games': {
+        keywords: ['casino', 'slot', 'slots', 'blackjack', 'roulette', 'baccarat', 'craps', 'keno', 'bingo', 'scratch card', 'scratch cards', 'video poker', 'pai gow', 'caribbean stud', 'three card poker', 'let it ride', 'casino war', 'big six wheel', 'wheel of fortune', 'game', 'games', 'gaming', 'jackpot', 'jackpots', 'prize', 'prizes', 'win', 'wins', 'winning', 'lose', 'loses', 'losing', 'house edge', 'rtp', 'return to player', 'volatility', 'hit frequency'],
+        description: 'Casino games, slots, table games, and gaming experience'
+      },
+      'Website & UX': {
+        keywords: ['website', 'site', 'app', 'application', 'mobile', 'desktop', 'platform', 'interface', 'ui', 'ux', 'user experience', 'user interface', 'navigation', 'loading', 'speed', 'fast', 'slow', 'lag', 'laggy', 'responsive', 'mobile app', 'mobile site', 'desktop site', 'tablet app', 'loading time', 'page speed', 'site performance', 'uptime', 'down', 'down time', 'design', 'layout', 'menu', 'button', 'buttons', 'link', 'links', 'page', 'pages', 'section', 'sections', 'tab', 'tabs', 'dropdown', 'dropdowns', 'search', 'searching', 'filter', 'filters', 'sort', 'sorting', 'scroll', 'scrolling', 'zoom', 'zooming', 'pinch', 'swipe', 'tap', 'click', 'clicks', 'hover', 'hovering', 'focus', 'focused', 'active', 'inactive', 'enabled', 'disabled', 'visible', 'hidden', 'show', 'shows', 'hide', 'hides', 'display', 'displays', 'render', 'renders', 'load', 'loads', 'loading', 'loaded', 'unload', 'unloads', 'unloading', 'unloaded', 'refresh', 'refreshes', 'refreshing', 'refreshed', 'reload', 'reloads', 'reloading', 'reloaded', 'update', 'updates', 'updating', 'updated', 'sync', 'syncs', 'syncing', 'synced', 'connect', 'connects', 'connecting', 'connected', 'disconnect', 'disconnects', 'disconnecting', 'disconnected'],
+        description: 'Website design, user experience, mobile app, and platform functionality'
+      },
+      'Support & Service': {
+        keywords: ['customer service', 'customer support', 'support', 'help', 'assistance', 'service', 'support team', 'live chat', 'email support', 'phone support', 'response time', 'resolution time', 'ticket system', 'contact', 'communication', 'staff', 'employee', 'agent', 'representative', 'friendly', 'rude', 'professional', 'unprofessional', 'helpful', 'unhelpful', 'knowledgeable', 'responsive', 'unresponsive', 'technical support', 'account support', 'financial support', 'game support', 'platform support', 'website support'],
+        description: 'Customer service, support quality, and response times'
+      }
     },
-    'Withdrawals': {
-      keywords: ['withdrawal', 'withdrawals', 'payout', 'payouts', 'cash out', 'cashout', 'money out', 'get money', 'receive money', 'bank transfer', 'wire transfer', 'check', 'checks', 'money transfer', 'fund transfer'],
-      description: 'Withdrawal processes, payout speed, and cash-out experiences'
+    hospitality: {
+      'Room Quality': {
+        keywords: ['room', 'rooms', 'bedroom', 'suite', 'accommodation', 'clean', 'cleanliness', 'dirty', 'messy', 'tidy', 'neat', 'comfortable', 'uncomfortable', 'bed', 'beds', 'mattress', 'pillow', 'pillows', 'linen', 'sheets', 'towels', 'bathroom', 'shower', 'bathtub', 'toilet', 'sink', 'mirror', 'amenities', 'furniture', 'decor', 'decoration', 'interior', 'design'],
+        description: 'Room cleanliness, comfort, and overall quality'
+      },
+      'Check-in/Check-out': {
+        keywords: ['check in', 'checkin', 'check out', 'checkout', 'arrival', 'departure', 'reception', 'front desk', 'lobby', 'registration', 'booking', 'reservation', 'confirm', 'confirmation', 'key', 'card', 'access', 'entrance', 'exit', 'arrive', 'leave', 'early', 'late', 'time', 'wait', 'waiting', 'queue', 'line'],
+        description: 'Check-in and check-out processes and efficiency'
+      },
+      'Location & Accessibility': {
+        keywords: ['location', 'address', 'area', 'neighborhood', 'district', 'city', 'town', 'street', 'avenue', 'road', 'highway', 'transport', 'transportation', 'bus', 'train', 'subway', 'metro', 'airport', 'station', 'parking', 'park', 'walk', 'walking', 'distance', 'near', 'close', 'far', 'convenient', 'inconvenient', 'access', 'accessible', 'accessibility'],
+        description: 'Hotel location, accessibility, and transportation options'
+      },
+      'Staff & Service': {
+        keywords: ['staff', 'employee', 'receptionist', 'concierge', 'housekeeping', 'maid', 'cleaner', 'manager', 'service', 'customer service', 'helpful', 'friendly', 'rude', 'professional', 'unprofessional', 'attentive', 'responsive', 'unresponsive', 'polite', 'impolite', 'courteous', 'discourteous', 'smile', 'greeting', 'welcome', 'assist', 'assistance', 'support'],
+        description: 'Staff friendliness, professionalism, and service quality'
+      },
+      'Amenities & Facilities': {
+        keywords: ['amenity', 'amenities', 'facility', 'facilities', 'pool', 'swimming', 'gym', 'fitness', 'spa', 'sauna', 'hot tub', 'jacuzzi', 'restaurant', 'bar', 'lounge', 'cafe', 'breakfast', 'dining', 'wifi', 'internet', 'free wifi', 'parking', 'valet', 'shuttle', 'business center', 'conference', 'meeting', 'event', 'wedding', 'banquet'],
+        description: 'Hotel amenities, facilities, and additional services'
+      },
+      'Value & Pricing': {
+        keywords: ['price', 'pricing', 'cost', 'expensive', 'cheap', 'affordable', 'budget', 'value', 'worth', 'overpriced', 'reasonable', 'unreasonable', 'rate', 'rates', 'fee', 'fees', 'charge', 'charges', 'bill', 'billing', 'payment', 'pay', 'paid', 'money', 'dollar', 'dollars', 'euro', 'euros', 'pound', 'pounds'],
+        description: 'Pricing, value for money, and cost-effectiveness'
+      },
+      'Food & Dining': {
+        keywords: ['food', 'meal', 'breakfast', 'lunch', 'dinner', 'restaurant', 'dining', 'buffet', 'menu', 'dish', 'dishes', 'cuisine', 'chef', 'cooking', 'cooked', 'fresh', 'tasty', 'delicious', 'yummy', 'bland', 'boring', 'spicy', 'hot', 'cold', 'warm', 'quality', 'portion', 'size', 'serving'],
+        description: 'Food quality, dining experience, and restaurant services'
+      },
+      'Website & Booking': {
+        keywords: ['website', 'site', 'online', 'booking', 'reservation', 'book', 'reserve', 'confirm', 'confirmation', 'email', 'phone', 'call', 'contact', 'information', 'details', 'rate', 'rates', 'availability', 'available', 'unavailable', 'date', 'dates', 'check in', 'check out', 'adult', 'adults', 'child', 'children', 'room', 'rooms'],
+        description: 'Website functionality, booking process, and online experience'
+      }
     },
-    'Loyalty & Rewards': {
-      keywords: ['bonus', 'bonuses', 'promotion', 'promotions', 'reward', 'rewards', 'cashback', 'cash back', 'loyalty', 'loyalty program', 'vip', 'vip program', 'points', 'comp points', 'comps', 'free spins', 'free play', 'match bonus', 'welcome bonus', 'signup bonus', 'deposit bonus'],
-      description: 'Bonus programs, promotions, loyalty rewards, and VIP benefits'
+    ecommerce: {
+      'Product Quality': {
+        keywords: ['product', 'item', 'goods', 'quality', 'material', 'fabric', 'texture', 'feel', 'look', 'appearance', 'design', 'style', 'fashion', 'brand', 'branded', 'authentic', 'genuine', 'fake', 'counterfeit', 'durable', 'sturdy', 'fragile', 'break', 'broken', 'damage', 'damaged', 'defect', 'defective', 'perfect', 'imperfect'],
+        description: 'Product quality, materials, and overall condition'
+      },
+      'Shipping & Delivery': {
+        keywords: ['shipping', 'delivery', 'deliver', 'ship', 'sent', 'send', 'package', 'packaging', 'box', 'container', 'tracking', 'track', 'tracked', 'shipped', 'delivered', 'arrived', 'arrival', 'transit', 'transport', 'carrier', 'fedex', 'ups', 'usps', 'dhl', 'express', 'standard', 'ground', 'air', 'overnight', 'fast', 'slow', 'quick', 'delay', 'delayed', 'late', 'on time'],
+        description: 'Shipping speed, delivery reliability, and packaging'
+      },
+      'Returns & Refunds': {
+        keywords: ['return', 'returns', 'refund', 'refunds', 'exchange', 'exchanges', 'replace', 'replacement', 'money back', 'moneyback', 'credit', 'credits', 'policy', 'policies', 'warranty', 'guarantee', 'satisfaction', 'unsatisfied', 'dissatisfied', 'problem', 'issue', 'defect', 'defective', 'broken', 'damaged', 'wrong', 'incorrect', 'mistake', 'error'],
+        description: 'Return policies, refund processes, and customer satisfaction'
+      },
+      'Customer Service': {
+        keywords: ['customer service', 'support', 'help', 'assistance', 'contact', 'email', 'phone', 'call', 'chat', 'live chat', 'message', 'response', 'reply', 'answer', 'question', 'inquiry', 'complaint', 'problem', 'issue', 'resolve', 'resolution', 'satisfied', 'unsatisfied', 'helpful', 'unhelpful', 'friendly', 'rude', 'professional', 'unprofessional'],
+        description: 'Customer service quality, response times, and support experience'
+      },
+      'Website & UX': {
+        keywords: ['website', 'site', 'app', 'application', 'mobile', 'desktop', 'platform', 'interface', 'ui', 'ux', 'user experience', 'user interface', 'navigation', 'menu', 'search', 'filter', 'sort', 'browse', 'page', 'pages', 'loading', 'speed', 'fast', 'slow', 'lag', 'responsive', 'design', 'layout', 'easy', 'difficult', 'confusing', 'clear', 'simple', 'complicated'],
+        description: 'Website design, user experience, and platform functionality'
+      },
+      'Pricing & Value': {
+        keywords: ['price', 'pricing', 'cost', 'expensive', 'cheap', 'affordable', 'budget', 'value', 'worth', 'overpriced', 'reasonable', 'unreasonable', 'sale', 'discount', 'deal', 'offer', 'promotion', 'clearance', 'markdown', 'reduced', 'original', 'compare', 'comparison', 'competitive', 'competitor', 'market', 'market price'],
+        description: 'Pricing, value for money, and competitive pricing'
+      },
+      'Payment & Security': {
+        keywords: ['payment', 'pay', 'paid', 'credit card', 'debit card', 'paypal', 'stripe', 'apple pay', 'google pay', 'venmo', 'cash', 'check', 'money order', 'secure', 'security', 'safe', 'unsafe', 'fraud', 'scam', 'trust', 'trusted', 'untrusted', 'encryption', 'ssl', 'https', 'private', 'privacy', 'data', 'information'],
+        description: 'Payment options, security, and transaction safety'
+      },
+      'Inventory & Availability': {
+        keywords: ['stock', 'inventory', 'available', 'unavailable', 'out of stock', 'oos', 'in stock', 'limited', 'quantity', 'supply', 'demand', 'backorder', 'preorder', 'reserve', 'reservation', 'waitlist', 'notify', 'notification', 'alert', 'restock', 'replenish', 'supplier', 'vendor'],
+        description: 'Product availability, stock levels, and inventory management'
+      }
     },
-    'Sports Betting': {
-      keywords: ['sports', 'sport', 'betting', 'bet', 'bets', 'wager', 'wagers', 'odds', 'sportsbook', 'football', 'basketball', 'baseball', 'soccer', 'hockey', 'tennis', 'golf', 'racing', 'horse racing', 'esports', 'esport', 'live betting', 'in-play', 'parlay', 'parlays', 'teaser', 'teasers', 'futures', 'prop bet', 'prop bets'],
-      description: 'Sports betting experience, odds, and sportsbook functionality'
-    },
-    'Poker': {
-      keywords: ['poker', 'texas holdem', 'holdem', 'omaha', 'seven card stud', 'tournament', 'tournaments', 'sit and go', 'cash game', 'cash games', 'ring game', 'ring games', 'poker room', 'poker tournament', 'poker table', 'poker game', 'poker games', 'poker player', 'poker players', 'poker chips', 'poker chips', 'poker hand', 'poker hands', 'poker strategy', 'poker room', 'poker lobby'],
-      description: 'Poker games, tournaments, and poker room experience'
-    },
-    'Casino Games': {
-      keywords: ['casino', 'slot', 'slots', 'blackjack', 'roulette', 'baccarat', 'craps', 'keno', 'bingo', 'scratch card', 'scratch cards', 'video poker', 'pai gow', 'caribbean stud', 'three card poker', 'let it ride', 'casino war', 'big six wheel', 'wheel of fortune', 'game', 'games', 'gaming', 'jackpot', 'jackpots', 'prize', 'prizes', 'win', 'wins', 'winning', 'lose', 'loses', 'losing', 'house edge', 'rtp', 'return to player', 'volatility', 'hit frequency'],
-      description: 'Casino games, slots, table games, and gaming experience'
-    },
-    'Website & UX': {
-      keywords: ['website', 'site', 'app', 'application', 'mobile', 'desktop', 'platform', 'interface', 'ui', 'ux', 'user experience', 'user interface', 'navigation', 'loading', 'speed', 'fast', 'slow', 'lag', 'laggy', 'responsive', 'mobile app', 'mobile site', 'desktop site', 'tablet app', 'loading time', 'page speed', 'site performance', 'uptime', 'down', 'down time', 'design', 'layout', 'menu', 'button', 'buttons', 'link', 'links', 'page', 'pages', 'section', 'sections', 'tab', 'tabs', 'dropdown', 'dropdowns', 'search', 'searching', 'filter', 'filters', 'sort', 'sorting', 'scroll', 'scrolling', 'zoom', 'zooming', 'pinch', 'swipe', 'tap', 'click', 'clicks', 'hover', 'hovering', 'focus', 'focused', 'active', 'inactive', 'enabled', 'disabled', 'visible', 'hidden', 'show', 'shows', 'hide', 'hides', 'display', 'displays', 'render', 'renders', 'load', 'loads', 'loading', 'loaded', 'unload', 'unloads', 'unloading', 'unloaded', 'refresh', 'refreshes', 'refreshing', 'refreshed', 'reload', 'reloads', 'reloading', 'reloaded', 'update', 'updates', 'updating', 'updated', 'sync', 'syncs', 'syncing', 'synced', 'connect', 'connects', 'connecting', 'connected', 'disconnect', 'disconnects', 'disconnecting', 'disconnected'],
-      description: 'Website design, user experience, mobile app, and platform functionality'
-    },
-    'Support & Service': {
-      keywords: ['customer service', 'customer support', 'support', 'help', 'assistance', 'service', 'support team', 'live chat', 'email support', 'phone support', 'response time', 'resolution time', 'ticket system', 'contact', 'communication', 'staff', 'employee', 'agent', 'representative', 'friendly', 'rude', 'professional', 'unprofessional', 'helpful', 'unhelpful', 'knowledgeable', 'responsive', 'unresponsive', 'technical support', 'account support', 'financial support', 'game support', 'platform support', 'website support'],
-      description: 'Customer service, support quality, and response times'
+    restaurant: {
+      'Food Quality': {
+        keywords: ['food', 'meal', 'dish', 'dishes', 'cuisine', 'cooking', 'cooked', 'fresh', 'tasty', 'delicious', 'yummy', 'bland', 'boring', 'spicy', 'hot', 'cold', 'warm', 'quality', 'ingredient', 'ingredients', 'flavor', 'flavour', 'taste', 'seasoning', 'spice', 'herb', 'sauce', 'gravy', 'juice', 'juicy', 'tender', 'tough', 'crispy', 'crunchy', 'soft', 'hard'],
+        description: 'Food quality, taste, and culinary experience'
+      },
+      'Service & Staff': {
+        keywords: ['service', 'staff', 'server', 'waiter', 'waitress', 'host', 'hostess', 'manager', 'chef', 'cook', 'kitchen', 'friendly', 'rude', 'attentive', 'inattentive', 'helpful', 'unhelpful', 'professional', 'unprofessional', 'polite', 'impolite', 'courteous', 'discourteous', 'smile', 'greeting', 'welcome', 'assist', 'assistance', 'support', 'responsive', 'unresponsive'],
+        description: 'Staff friendliness, service quality, and professionalism'
+      },
+      'Atmosphere & Ambiance': {
+        keywords: ['atmosphere', 'ambiance', 'ambience', 'environment', 'setting', 'decor', 'decoration', 'interior', 'design', 'lighting', 'music', 'noise', 'quiet', 'loud', 'crowded', 'busy', 'empty', 'spacious', 'cozy', 'romantic', 'casual', 'formal', 'elegant', 'rustic', 'modern', 'traditional', 'clean', 'dirty', 'messy', 'tidy', 'neat'],
+        description: 'Restaurant atmosphere, ambiance, and dining environment'
+      },
+      'Menu & Variety': {
+        keywords: ['menu', 'variety', 'selection', 'choice', 'choices', 'option', 'options', 'dietary', 'vegetarian', 'vegan', 'gluten free', 'allergy', 'allergies', 'special', 'specials', 'seasonal', 'local', 'organic', 'fresh', 'imported', 'traditional', 'fusion', 'ethnic', 'international', 'continental', 'american', 'italian', 'chinese', 'japanese', 'mexican', 'indian', 'french'],
+        description: 'Menu variety, dietary options, and food selection'
+      },
+      'Pricing & Value': {
+        keywords: ['price', 'pricing', 'cost', 'expensive', 'cheap', 'affordable', 'budget', 'value', 'worth', 'overpriced', 'reasonable', 'unreasonable', 'portion', 'size', 'serving', 'generous', 'small', 'large', 'adequate', 'inadequate', 'satisfying', 'unsatisfying', 'fill', 'filling', 'hungry', 'full', 'satisfied', 'unsatisfied'],
+        description: 'Pricing, portion sizes, and value for money'
+      },
+      'Location & Accessibility': {
+        keywords: ['location', 'address', 'area', 'neighborhood', 'district', 'city', 'town', 'street', 'avenue', 'road', 'highway', 'transport', 'transportation', 'bus', 'train', 'subway', 'metro', 'parking', 'park', 'walk', 'walking', 'distance', 'near', 'close', 'far', 'convenient', 'inconvenient', 'access', 'accessible', 'accessibility', 'parking', 'valet'],
+        description: 'Restaurant location, accessibility, and parking'
+      },
+      'Hygiene & Cleanliness': {
+        keywords: ['clean', 'cleanliness', 'dirty', 'messy', 'tidy', 'neat', 'hygiene', 'sanitary', 'unsanitary', 'germ', 'bacteria', 'virus', 'sick', 'illness', 'food safety', 'health', 'healthy', 'unhealthy', 'fresh', 'stale', 'rotten', 'spoiled', 'expired', 'date', 'expiration', 'kitchen', 'bathroom', 'restroom', 'toilet'],
+        description: 'Restaurant cleanliness, hygiene, and food safety'
+      },
+      'Reservations & Wait Time': {
+        keywords: ['reservation', 'reserve', 'book', 'booking', 'table', 'seat', 'wait', 'waiting', 'queue', 'line', 'crowd', 'busy', 'rush', 'peak', 'off peak', 'time', 'timing', 'schedule', 'appointment', 'walk in', 'walkin', 'no reservation', 'first come', 'first served', 'priority', 'vip'],
+        description: 'Reservation system, wait times, and seating arrangements'
+      }
     }
   };
 
+  const coreTopics = industryTopics[industry] || industryTopics.gaming; // Default to gaming if industry not found
   const mentionsByTopic: Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], keywords: string[]}> = [];
   
   // Process each core topic
@@ -2075,8 +2182,8 @@ function mapToCoreTopics(reviews: Review[]): Array<{topic: string, positive: num
 }
 
 // Helper function to generate mentions by topic (updated to use core topics)
-function generateMentionsByTopic(reviews: Review[]): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[]}> {
-  const coreTopicsData = mapToCoreTopics(reviews);
+function generateMentionsByTopic(reviews: Review[], businessName: string): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[]}> {
+  const coreTopicsData = mapToCoreTopics(reviews, businessName);
   
   // Convert to the expected format
   return coreTopicsData.map(topic => ({
@@ -3180,6 +3287,48 @@ function generateTopicKeyInsights(topic: string, reviews: Review[]): string[] {
   }
   
   return insights.length > 0 ? insights : [`${topic} is a trending topic in customer feedback with ${total} mentions`];
+}
+
+// Helper function to detect industry from business data
+function detectIndustry(businessName: string, businessUrl?: string): string {
+  const name = businessName.toLowerCase();
+  const url = businessUrl?.toLowerCase() || '';
+  
+  // Gaming/Casino industry
+  if (name.includes('casino') || name.includes('bet') || name.includes('poker') || 
+      name.includes('slot') || name.includes('gambling') || name.includes('sportsbook') ||
+      url.includes('casino') || url.includes('bet') || url.includes('poker') ||
+      url.includes('slot') || url.includes('gambling') || url.includes('sportsbook')) {
+    return 'gaming';
+  }
+  
+  // Hotel/Hospitality industry
+  if (name.includes('hotel') || name.includes('resort') || name.includes('inn') || 
+      name.includes('lodge') || name.includes('motel') || name.includes('accommodation') ||
+      url.includes('hotel') || url.includes('resort') || url.includes('inn') ||
+      url.includes('lodge') || url.includes('motel') || url.includes('accommodation')) {
+    return 'hospitality';
+  }
+  
+  // E-commerce/Retail industry
+  if (name.includes('shop') || name.includes('store') || name.includes('market') || 
+      name.includes('retail') || name.includes('ecommerce') || name.includes('online store') ||
+      url.includes('shop') || url.includes('store') || url.includes('market') ||
+      url.includes('retail') || url.includes('ecommerce') || url.includes('amazon') ||
+      url.includes('ebay') || url.includes('etsy')) {
+    return 'ecommerce';
+  }
+  
+  // Restaurant/Food industry
+  if (name.includes('restaurant') || name.includes('cafe') || name.includes('diner') || 
+      name.includes('bistro') || name.includes('pizzeria') || name.includes('grill') ||
+      url.includes('restaurant') || url.includes('cafe') || url.includes('diner') ||
+      url.includes('bistro') || url.includes('pizzeria') || url.includes('grill')) {
+    return 'restaurant';
+  }
+  
+  // Default to gaming if no clear industry detected
+  return 'gaming';
 }
 
 serve(async (req) => {
