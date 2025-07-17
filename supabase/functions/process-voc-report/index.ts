@@ -212,19 +212,24 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
         totalCount: topicReviews.length
       };
     }),
-    mentionsByTopic: Array.from(allMentionsByTopic.entries()).map(([topic, data]) => ({
-      topic,
-      positive: data.positive,
-      negative: data.negative,
-      total: data.total,
-      rawMentions: data.rawMentions,
-      context: generateTopicKeyInsight({ topic, ...data }, allReviews),
-      mainConcern: `The primary issue or positive aspect for ${topic} with examples`,
-      priority: data.negative > data.positive ? 'high' : 'medium',
-      trendAnalysis: `How this topic's sentiment has changed over time`,
-      specificExamples: data.rawMentions?.slice(0, 3) || [],
-      keyInsight: generateTopicKeyInsight({ topic, ...data }, allReviews)
-    })),
+    mentionsByTopic: (() => {
+      // Use core topics mapping instead of granular topics
+      const coreTopicsData = mapToCoreTopics(allReviews);
+      
+      return coreTopicsData.map(topic => ({
+        topic: topic.topic,
+        positive: topic.positive,
+        negative: topic.negative,
+        total: topic.total,
+        rawMentions: topic.rawMentions,
+        context: generateTopicKeyInsight({ topic: topic.topic, positive: topic.positive, negative: topic.negative, total: topic.total, rawMentions: topic.rawMentions }, allReviews),
+        mainConcern: `The primary issue or positive aspect for ${topic.topic} with examples`,
+        priority: topic.negative > topic.positive ? 'high' : 'medium',
+        trendAnalysis: `How this topic's sentiment has changed over time`,
+        specificExamples: topic.rawMentions?.slice(0, 3) || [],
+        keyInsight: generateTopicKeyInsight({ topic: topic.topic, positive: topic.positive, negative: topic.negative, total: topic.total, rawMentions: topic.rawMentions }, allReviews)
+      }));
+    })(),
     sentimentOverTime: generateDailySentimentData(allReviews, 30),
     volumeOverTime: generateDailyVolumeData(allReviews, 30),
     marketGaps: (() => {
