@@ -30,19 +30,19 @@ export default function Navigation() {
             <div className="flex items-center space-x-8">
               <button 
                 onClick={() => scrollToSection('how-it-works')}
-                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
               >
                 How it works
               </button>
               <button 
                 onClick={() => scrollToSection('pricing')}
-                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
               >
                 Pricing
               </button>
               <button 
                 onClick={() => scrollToSection('blog')}
-                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
               >
                 Blog
               </button>
@@ -102,19 +102,19 @@ export default function Navigation() {
               <div className="space-y-2 mb-4">
                 <button 
                   onClick={() => scrollToSection('how-it-works')}
-                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                 >
                   How it works
                 </button>
                 <button 
                   onClick={() => scrollToSection('pricing')}
-                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                 >
                   Pricing
                 </button>
                 <button 
                   onClick={() => scrollToSection('blog')}
-                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                 >
                   Blog
                 </button>
