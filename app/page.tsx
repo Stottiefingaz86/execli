@@ -417,7 +417,7 @@ function CTASection() {
 
 function BlogSection() {
   return (
-    <section className="max-w-6xl mx-auto px-4 pb-20">
+    <section id="blog" className="max-w-6xl mx-auto px-4 pb-20">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-white">Latest Insights & Tips</h2>
         <p className="text-[#B0B0C0] text-lg max-w-2xl mx-auto">Learn how to leverage customer feedback and improve your business</p>

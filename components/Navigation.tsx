@@ -6,6 +6,14 @@ import { useState } from 'react'
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+    setIsMobileMenuOpen(false)
+  }
+
   return (
     <nav className="sticky top-0 z-[100] bg-[#0a0a0f]/80 backdrop-blur-2xl border-b border-white/10 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -21,15 +29,24 @@ export default function Navigation() {
           <div className="hidden md:flex items-center space-x-6">
             {/* Main Navigation Links */}
             <div className="flex items-center space-x-6">
-              <Link href="/how-it-works" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium">
+              <button 
+                onClick={() => scrollToSection('how-it-works')}
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+              >
                 How it works
-              </Link>
-              <Link href="/pricing" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium">
+              </button>
+              <button 
+                onClick={() => scrollToSection('pricing')}
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+              >
                 Pricing
-              </Link>
-              <Link href="/blog" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium">
+              </button>
+              <button 
+                onClick={() => scrollToSection('blog')}
+                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+              >
                 Blog
-              </Link>
+              </button>
             </div>
             
             {/* Auth Buttons */}
@@ -84,15 +101,24 @@ export default function Navigation() {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-white/10 mt-4">
               {/* Main Navigation Links */}
               <div className="space-y-2 mb-4">
-                <Link href="/how-it-works" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2">
+                <button 
+                  onClick={() => scrollToSection('how-it-works')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                >
                   How it works
-                </Link>
-                <Link href="/pricing" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2">
+                </button>
+                <button 
+                  onClick={() => scrollToSection('pricing')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                >
                   Pricing
-                </Link>
-                <Link href="/blog" className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2">
+                </button>
+                <button 
+                  onClick={() => scrollToSection('blog')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                >
                   Blog
-                </Link>
+                </button>
               </div>
               
               {/* Auth Buttons */}
