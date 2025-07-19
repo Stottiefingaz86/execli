@@ -503,6 +503,7 @@ export default function Home() {
   // Platform detection state
   const [detectingPlatforms, setDetectingPlatforms] = useState(false);
   const [loading, setLoading] = useState(false); // New loading state
+  const [loadingMessage, setLoadingMessage] = useState('Creating your report...'); // Loading message state
 
   useEffect(() => {
     setShowHighlight(true);
@@ -516,7 +517,7 @@ export default function Home() {
   const getFaviconUrl = (domain: string) => domain ? `https://www.google.com/s2/favicons?domain=${domain}` : '';
 
   // Polling function
-  async function pollReportStatus(reportId: string, maxAttempts = 30) {
+  async function pollReportStatus(reportId: string, maxAttempts = 60) {
     let attempts = 0;
     setPolling(true);
     setPollingError(null);
@@ -533,6 +534,11 @@ export default function Home() {
           hasAnalysis: data.has_analysis,
           progressMessage: data.progress_message
         });
+        
+        // Update loading message based on progress
+        if (data.progress_message) {
+          setLoadingMessage(data.progress_message);
+        }
         
         if (data.status === 'complete' && data.report_url) {
           console.log('Report complete, redirecting to:', data.report_url);
@@ -553,7 +559,7 @@ export default function Home() {
         setSubmitted(false);
         return;
       }
-      await new Promise(res => setTimeout(res, 3000));
+      await new Promise(res => setTimeout(res, 2000));
       attempts++;
     }
     setErrorMessage('Report generation timed out. Please try again.');
@@ -646,7 +652,7 @@ export default function Home() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
-                        <span className="text-white text-lg font-semibold">Creating your report...</span>
+                        <span className="text-white text-lg font-semibold">{loadingMessage}</span>
                       </div>
                     </div>
                   )}
