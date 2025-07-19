@@ -1370,6 +1370,34 @@ export default function ReportPageContent({
       } else if (hasHelpful) {
         return `Customer service praised: ${reviewCount} customers appreciate helpful support.`;
       }
+    } else if (topicLower.includes('poker')) {
+      // Specific poker analysis to extract real issues
+      const hasRigged = /\b(rigged|fixed|manipulated|cheating|bot|bots|automated|fake)\b/gi.test(allText);
+      const hasUnfair = /\b(unfair|dishonest|scam|fraud|corrupt|biased)\b/gi.test(allText);
+      const hasSlow = /\b(slow|delay|lag|unresponsive|freeze)\b/gi.test(allText);
+      const hasBugs = /\b(bug|glitch|error|crash|problem|issue)\b/gi.test(allText);
+      const hasGood = /\b(good|great|excellent|smooth|fair|honest)\b/gi.test(allText);
+      const hasTournament = /\b(tournament|tourney|sit.*go|cash.*game)\b/gi.test(allText);
+      
+      if (hasRigged || hasUnfair) {
+        let issues = [];
+        if (hasRigged) issues.push('rigged games');
+        if (hasUnfair) issues.push('unfair play');
+        if (hasBugs) issues.push('technical bugs');
+        if (hasSlow) issues.push('performance issues');
+        
+        return `CRITICAL: Poker ${issues.join(', ')} - ${reviewCount} customers report bots and cheating. Trust severely damaged.`;
+      } else if (hasBugs || hasSlow) {
+        let issues = [];
+        if (hasBugs) issues.push('bugs');
+        if (hasSlow) issues.push('slow performance');
+        
+        return `Poker technical issues: ${issues.join(', ')} affecting ${reviewCount} customers.`;
+      } else if (hasGood) {
+        return `Poker positive: ${reviewCount} customers satisfied with fair gameplay.`;
+      } else if (hasTournament) {
+        return `Poker tournament issues: ${reviewCount} customers report problems with tournament play.`;
+      }
     } else if (topicLower.includes('app') || topicLower.includes('mobile')) {
       const hasBugs = /\b(bug|crash|glitch|error|problem|issue)\b/gi.test(allText);
       const hasSlow = /\b(slow|lag|freeze|unresponsive)\b/gi.test(allText);
@@ -1390,20 +1418,35 @@ export default function ReportPageContent({
     const positiveWords = /\b(good|great|excellent|amazing|fantastic|smooth|easy|quick|reliable|satisfied|happy|love)\b/gi;
     const negativeWords = /\b(bad|terrible|poor|awful|slow|difficult|problem|issue|error|disappointed|frustrated|hate)\b/gi;
     const urgentWords = /\b(urgent|critical|emergency|immediate|serious)\b/gi;
+    const scamWords = /\b(scam|fraud|fake|dishonest|untrustworthy|rigged|cheating)\b/gi;
+    const technicalWords = /\b(bug|glitch|crash|error|broken|unresponsive|freeze)\b/gi;
+    const slowWords = /\b(slow|delay|lag|wait|stuck|processing)\b/gi;
     
     const positiveMatches = allText.match(positiveWords) || [];
     const negativeMatches = allText.match(negativeWords) || [];
     const urgentMatches = allText.match(urgentWords) || [];
+    const scamMatches = allText.match(scamWords) || [];
+    const technicalMatches = allText.match(technicalWords) || [];
+    const slowMatches = allText.match(slowWords) || [];
+    
+    // Extract specific issues
+    let specificIssues = [];
+    if (scamMatches.length > 0) specificIssues.push('trust issues');
+    if (technicalMatches.length > 0) specificIssues.push('technical problems');
+    if (slowMatches.length > 0) specificIssues.push('performance issues');
     
     // Only show URGENT for negative topics, not positive ones
     if (urgentMatches.length > 0 && negativeMatches.length > positiveMatches.length) {
-      return `URGENT: Critical issues for ${topic} - ${reviewCount} customers need immediate attention.`;
+      const issues = specificIssues.length > 0 ? ` - ${specificIssues.join(', ')}` : '';
+      return `URGENT: Critical issues for ${topic}${issues} - ${reviewCount} customers need immediate attention.`;
     } else if (positiveMatches.length > negativeMatches.length * 2) {
       return `${topic} positive: ${reviewCount} customers satisfied with service.`;
     } else if (negativeMatches.length > positiveMatches.length * 2) {
-      return `${topic} concerns: ${reviewCount} customers report problems needing attention.`;
+      const issues = specificIssues.length > 0 ? `: ${specificIssues.join(', ')}` : ' concerns';
+      return `${topic}${issues} - ${reviewCount} customers report problems needing attention.`;
     } else {
-      return `${topic} mixed: ${reviewCount} customers have varied experiences.`;
+      const issues = specificIssues.length > 0 ? `: ${specificIssues.join(', ')}` : ' mixed feedback';
+      return `${topic}${issues} - ${reviewCount} customers have varied experiences.`;
     }
   };
 
