@@ -22,14 +22,27 @@ export async function GET(request: NextRequest) {
       .from('voc_reports')
       .select('status, analysis, sources, progress_message')
       .eq('id', reportId)
-      .single()
+      .maybeSingle() // Use maybeSingle() instead of single() to handle 0 rows gracefully
 
     if (error) {
       console.error('Error fetching report status:', error)
       return NextResponse.json({ 
         status: 'error', 
         report_id: reportId,
-        error: 'Report not found'
+        error: 'Database error: ' + error.message
+      })
+    }
+
+    // Handle case where no report is found
+    if (!data) {
+      console.log('Report not found in database:', reportId)
+      return NextResponse.json({
+        status: 'processing', // Default to processing if report not found yet
+        report_id: reportId,
+        report_url: null,
+        has_analysis: false,
+        sources_count: 0,
+        progress_message: 'Initializing report...'
       })
     }
 

@@ -53,7 +53,7 @@ export default function ReportPage() {
           .from('voc_reports')
           .select('*')
           .eq('id', reportId)
-          .single()
+          .maybeSingle()
 
         if (vocError) {
           console.error('Error fetching VOC report:', vocError)
@@ -62,10 +62,14 @@ export default function ReportPage() {
             .from('reports')
             .select('report_data')
             .eq('id', reportId)
-            .single()
+            .maybeSingle()
 
           if (oldError || !oldReport || !oldReport.report_data) {
-            setError(oldError ? (typeof oldError === 'object' ? JSON.stringify(oldError) : String(oldError)) : 'No report found')
+            // Report not found in either table - start polling for it
+            console.log('Report not found in database, starting polling...')
+            setProgressMessage('Initializing your report...')
+            setPolling(true)
+            startPolling()
             return
           }
           setReportData(oldReport.report_data)
@@ -91,7 +95,12 @@ export default function ReportPage() {
             return
           }
         } else {
-          setError('No report found')
+          // No report found in voc_reports table - start polling for it
+          console.log('No report found in voc_reports, starting polling...')
+          setProgressMessage('Initializing your report...')
+          setPolling(true)
+          startPolling()
+          return
         }
       } catch (err: any) {
         console.error('Error fetching report:', err)
@@ -137,7 +146,7 @@ export default function ReportPage() {
             .from('voc_reports')
         .select('*')
             .eq('id', reportId)
-        .single()
+        .maybeSingle()
 
           if (!error && updatedReport) {
             const reportWithSources = {
