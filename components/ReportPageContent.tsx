@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -461,7 +461,51 @@ export default function ReportPageContent({
   };
 
   // AI-powered topic classification function
-  const classifyTopic = (text: string): string => {
+  // AI-powered topic classification using OpenAI
+  const classifyTopicWithAI = async (text: string): Promise<string> => {
+    if (!text) return "other";
+    
+    try {
+      const response = await fetch('/api/classify-topic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          availableTopics: [
+            "sports betting",
+            "poker", 
+            "casino games",
+            "deposits",
+            "withdrawals", 
+            "loyalty rewards",
+            "customer service",
+            "mobile app",
+            "website",
+            "fees",
+            "verification",
+            "other"
+          ]
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('AI classification failed, falling back to keyword method');
+        return classifyTopicWithKeywords(text);
+      }
+      
+      const result = await response.json();
+      return result.topic || "other";
+      
+    } catch (error) {
+      console.error('AI classification error:', error);
+      return classifyTopicWithKeywords(text);
+    }
+  };
+
+  // Fallback keyword-based classification
+  const classifyTopicWithKeywords = (text: string): string => {
     if (!text) return "other";
     
     const lowerText = text.toLowerCase();
@@ -570,11 +614,16 @@ export default function ReportPageContent({
     return bestScore >= 5 ? bestTopic : "other";
   };
 
+  // Main topic classification function (uses AI with fallback)
+  const classifyTopic = async (text: string): Promise<string> => {
+    return await classifyTopicWithAI(text);
+  };
+
   // Topic relevance filtering function (now uses AI classification)
-  const isTopicRelevant = (text: string, topic: string): boolean => {
+  const isTopicRelevant = async (text: string, topic: string): Promise<boolean> => {
     if (!text || !topic) return false;
     
-    const classifiedTopic = classifyTopic(text);
+    const classifiedTopic = await classifyTopic(text);
     return classifiedTopic === topic.toLowerCase();
   };
 
@@ -587,22 +636,27 @@ export default function ReportPageContent({
   };
 
   // Filter comments by topic and sentiment
-  const filterCommentsByTopicAndSentiment = (
+  const filterCommentsByTopicAndSentiment = async (
     comments: string[],
     topic: string,
     targetSentiment: "positive" | "negative" | "neutral",
-  ): string[] => {
+  ): Promise<string[]> => {
     if (!comments || !Array.isArray(comments)) return [];
 
-    return comments.filter((comment) => {
+    const filteredComments = [];
+    for (const comment of comments) {
       // Check topic relevance
-      const isRelevant = isTopicRelevant(comment, topic);
-      if (!isRelevant) return false;
+      const isRelevant = await isTopicRelevant(comment, topic);
+      if (!isRelevant) continue;
 
       // Check sentiment
       const sentiment = analyzeSentiment(comment);
-      return sentiment === targetSentiment;
-    });
+      if (sentiment === targetSentiment) {
+        filteredComments.push(comment);
+      }
+    }
+    
+    return filteredComments;
   };
 
   // Highlight keywords in text
@@ -925,26 +979,30 @@ export default function ReportPageContent({
   };
 
   // Function to process and deduplicate data with enhanced filtering
-  const processAndDeduplicateData = (data: any) => {
+  const processAndDeduplicateData = async (data: any) => {
     if (!data) return data;
 
     // Process mentions by topic with proper filtering
     if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
-      data.mentionsByTopic = data.mentionsByTopic.map((topic: any) => {
+      for (let i = 0; i < data.mentionsByTopic.length; i++) {
+        const topic = data.mentionsByTopic[i];
         const allMentions = deduplicateComments(topic.rawMentions || []);
 
         // Filter mentions by topic relevance
-        const relevantMentions = allMentions.filter((mention: string) =>
-          isTopicRelevant(mention, topic.topic),
-        );
+        const relevantMentions = [];
+        for (const mention of allMentions) {
+          if (await isTopicRelevant(mention, topic.topic)) {
+            relevantMentions.push(mention);
+          }
+        }
 
         // Separate positive and negative mentions
-        const positiveMentions = filterCommentsByTopicAndSentiment(
+        const positiveMentions = await filterCommentsByTopicAndSentiment(
           relevantMentions,
           topic.topic,
           "positive",
         );
-        const negativeMentions = filterCommentsByTopicAndSentiment(
+        const negativeMentions = await filterCommentsByTopicAndSentiment(
           relevantMentions,
           topic.topic,
           "negative",
@@ -955,7 +1013,7 @@ export default function ReportPageContent({
         const positiveCount = positiveMentions.length;
         const negativeCount = negativeMentions.length;
 
-        return {
+        data.mentionsByTopic[i] = {
           ...topic,
           rawMentions: relevantMentions,
           positive: positiveCount,
@@ -964,112 +1022,155 @@ export default function ReportPageContent({
           positiveMentions,
           negativeMentions,
         };
-      });
+      }
     }
 
     // Process executive summary with proper sentiment filtering
     if (data.executiveSummary?.praisedSections) {
-      data.executiveSummary.praisedSections =
-        data.executiveSummary.praisedSections.map((section: any) => {
-          const allExamples = deduplicateComments(section.examples || []);
-          const positiveExamples = allExamples.filter(
-            (example: string) =>
-              analyzeSentiment(example) === "positive" &&
-              isTopicRelevant(example, section.topic),
-          );
+      for (let i = 0; i < data.executiveSummary.praisedSections.length; i++) {
+        const section = data.executiveSummary.praisedSections[i];
+        const allExamples = deduplicateComments(section.examples || []);
+        const positiveExamples = [];
+        
+        for (const example of allExamples) {
+          if (analyzeSentiment(example) === "positive" && 
+              await isTopicRelevant(example, section.topic)) {
+            positiveExamples.push(example);
+          }
+        }
 
-          return {
-            ...section,
-            examples: positiveExamples,
-            percentage:
-              positiveExamples.length > 0
-                ? Math.round(
-                    (positiveExamples.length / allExamples.length) * 100,
-                  )
-                : 0,
-          };
-        });
+        data.executiveSummary.praisedSections[i] = {
+          ...section,
+          examples: positiveExamples,
+          percentage:
+            positiveExamples.length > 0
+              ? Math.round(
+                  (positiveExamples.length / allExamples.length) * 100,
+                )
+              : 0,
+        };
+      }
     }
 
     if (data.executiveSummary?.painPoints) {
-      data.executiveSummary.painPoints = data.executiveSummary.painPoints.map(
-        (point: any) => {
-          const allExamples = deduplicateComments(point.examples || []);
-          const negativeExamples = allExamples.filter(
-            (example: string) =>
-              analyzeSentiment(example) === "negative" &&
-              isTopicRelevant(example, point.topic),
-          );
+      for (let i = 0; i < data.executiveSummary.painPoints.length; i++) {
+        const point = data.executiveSummary.painPoints[i];
+        const allExamples = deduplicateComments(point.examples || []);
+        const negativeExamples = [];
+        
+        for (const example of allExamples) {
+          if (analyzeSentiment(example) === "negative" && 
+              await isTopicRelevant(example, point.topic)) {
+            negativeExamples.push(example);
+          }
+        }
 
-          return {
-            ...point,
-            examples: negativeExamples,
-            percentage:
-              negativeExamples.length > 0
-                ? Math.round(
-                    (negativeExamples.length / allExamples.length) * 100,
-                  )
-                : 0,
-          };
-        },
-      );
+        data.executiveSummary.painPoints[i] = {
+          ...point,
+          examples: negativeExamples,
+          percentage:
+            negativeExamples.length > 0
+              ? Math.round(
+                  (negativeExamples.length / allExamples.length) * 100,
+                )
+              : 0,
+        };
+      }
     }
 
     // Process key insights with proper filtering
     if (data.keyInsights && Array.isArray(data.keyInsights)) {
-      data.keyInsights = data.keyInsights.map((insight: any) => {
+      for (let i = 0; i < data.keyInsights.length; i++) {
+        const insight = data.keyInsights[i];
         const allMentions = deduplicateComments(insight.rawMentions || []);
-        const relevantMentions = allMentions.filter((mention: string) =>
-          isTopicRelevant(mention, insight.insight),
-        );
+        const relevantMentions = [];
+        
+        for (const mention of allMentions) {
+          if (await isTopicRelevant(mention, insight.insight)) {
+            relevantMentions.push(mention);
+          }
+        }
 
-        return {
+        data.keyInsights[i] = {
           ...insight,
           rawMentions: relevantMentions,
         };
-      });
+      }
     }
 
     return data;
   };
 
-  // Handle data structure - analysis might be nested or spread
-  const processedData = processAndDeduplicateData({
-    ...reportData,
-    // If analysis is nested, spread it out
-    ...(reportData.analysis || {}),
-    // Ensure we have the basic fields
-    business_name: reportData.business_name,
-    business_url: reportData.business_url,
-    // Handle different data structures
-    executiveSummary:
-      reportData.executiveSummary || reportData.analysis?.executiveSummary,
-    keyInsights: reportData.keyInsights || reportData.analysis?.keyInsights,
-    sentimentOverTime:
-      reportData.sentimentOverTime || reportData.analysis?.sentimentOverTime,
-    volumeOverTime:
-      reportData.volumeOverTime || reportData.analysis?.volumeOverTime,
-    mentionsByTopic:
-      reportData.mentionsByTopic || reportData.analysis?.mentionsByTopic,
-    trendingTopics:
-      reportData.trendingTopics || reportData.analysis?.trendingTopics,
-    marketGaps: reportData.marketGaps || reportData.analysis?.marketGaps || [],
-    advancedMetrics:
-      reportData.advancedMetrics || reportData.analysis?.advancedMetrics,
-    suggestedActions:
-      reportData.suggestedActions ||
-      reportData.analysis?.suggestedActions ||
-      [],
-    vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
-  });
+  // State for processed data
+  const [processedData, setProcessedData] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(true);
+
+  // Process data with AI classification
+  useEffect(() => {
+    const processData = async () => {
+      setIsProcessing(true);
+      try {
+        const data = {
+          ...reportData,
+          // If analysis is nested, spread it out
+          ...(reportData.analysis || {}),
+          // Ensure we have the basic fields
+          business_name: reportData.business_name,
+          business_url: reportData.business_url,
+          // Handle different data structures
+          executiveSummary:
+            reportData.executiveSummary || reportData.analysis?.executiveSummary,
+          keyInsights: reportData.keyInsights || reportData.analysis?.keyInsights,
+          sentimentOverTime:
+            reportData.sentimentOverTime || reportData.analysis?.sentimentOverTime,
+          volumeOverTime:
+            reportData.volumeOverTime || reportData.analysis?.volumeOverTime,
+          mentionsByTopic:
+            reportData.mentionsByTopic || reportData.analysis?.mentionsByTopic,
+          trendingTopics:
+            reportData.trendingTopics || reportData.analysis?.trendingTopics,
+          marketGaps: reportData.marketGaps || reportData.analysis?.marketGaps || [],
+          advancedMetrics:
+            reportData.advancedMetrics || reportData.analysis?.advancedMetrics,
+          suggestedActions:
+            reportData.suggestedActions ||
+            reportData.analysis?.suggestedActions ||
+            [],
+          vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
+        };
+
+        const processed = await processAndDeduplicateData(data);
+        setProcessedData(processed);
+      } catch (error) {
+        console.error('Error processing data:', error);
+        setProcessedData(null);
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    processData();
+  }, [reportData]);
 
   console.log("Processed data:", processedData);
-  console.log("Mentions by topic:", processedData.mentionsByTopic);
-  console.log("Positive topics:", processedData.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
+  console.log("Mentions by topic:", processedData?.mentionsByTopic);
+  console.log("Positive topics:", processedData?.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
+
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2">Processing with AI</h2>
+          <p className="text-gray-400">Classifying topics with OpenAI...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!processedData) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-4">No report data</h2>
           <p className="text-gray-400">Report data is missing.</p>
@@ -1078,16 +1179,19 @@ export default function ReportPageContent({
     );
   }
 
-  const handleTopicClick = (
+  const handleTopicClick = async (
     topicName: string,
     rawMentions?: string[],
     topicData?: any,
   ) => {
     if (rawMentions && rawMentions.length > 0) {
       // Filter mentions by topic relevance and analyze sentiment properly
-      const relevantMentions = rawMentions.filter((mention: string) =>
-        isTopicRelevant(mention, topicName),
-      );
+      const relevantMentions = [];
+      for (const mention of rawMentions) {
+        if (await isTopicRelevant(mention, topicName)) {
+          relevantMentions.push(mention);
+        }
+      }
 
       // Create reviews with proper sentiment analysis
       const reviews = relevantMentions.map((text: string) => {
