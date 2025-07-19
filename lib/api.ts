@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 export async function getCompany(companyId: string) {
-  const supabaseUrl = process.env.SUPABASE_URL!
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -25,7 +25,7 @@ export async function getCompany(companyId: string) {
 }
 
 export async function getReport(reportId: string) {
-  const supabaseUrl = process.env.SUPABASE_URL!
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 

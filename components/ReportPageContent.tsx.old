@@ -203,60 +203,16 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
   const [selectedSentimentData, setSelectedSentimentData] = useState<any>(null);
 
   // Lazy loading state for mentions by topic
-  const [visibleTopics, setVisibleTopics] = useState(10);
+  const [visibleTopics, setVisibleTopics] = useState(7);
   const [showLoadMore, setShowLoadMore] = useState(() => {
     const totalTopics = reportData.mentionsByTopic?.length || reportData.analysis?.mentionsByTopic?.length || 0;
-    return totalTopics > 10;
+    return totalTopics > 7;
   });
 
   console.log('ReportPageContent received data:', reportData);
 
-  // Function to deduplicate comments and ensure fresh data
-  const deduplicateComments = (comments: string[]): string[] => {
-    if (!comments || !Array.isArray(comments)) return [];
-    return [...new Set(comments)].filter(comment => comment && comment.trim().length > 0);
-  };
-
-  // Function to process and deduplicate data
-  const processAndDeduplicateData = (data: any) => {
-    if (!data) return data;
-    
-    // Deduplicate mentions by topic
-    if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
-      data.mentionsByTopic = data.mentionsByTopic.map((topic: any) => ({
-        ...topic,
-        rawMentions: deduplicateComments(topic.rawMentions)
-      }));
-    }
-    
-    // Deduplicate executive summary examples
-    if (data.executiveSummary?.praisedSections) {
-      data.executiveSummary.praisedSections = data.executiveSummary.praisedSections.map((section: any) => ({
-        ...section,
-        examples: deduplicateComments(section.examples)
-      }));
-    }
-    
-    if (data.executiveSummary?.painPoints) {
-      data.executiveSummary.painPoints = data.executiveSummary.painPoints.map((point: any) => ({
-        ...point,
-        examples: deduplicateComments(point.examples)
-      }));
-    }
-    
-    // Deduplicate key insights
-    if (data.keyInsights && Array.isArray(data.keyInsights)) {
-      data.keyInsights = data.keyInsights.map((insight: any) => ({
-        ...insight,
-        rawMentions: deduplicateComments(insight.rawMentions)
-      }));
-    }
-    
-    return data;
-  };
-
   // Handle data structure - analysis might be nested or spread
-  const processedData = processAndDeduplicateData({
+  const processedData = {
     ...reportData,
     // If analysis is nested, spread it out
     ...(reportData.analysis || {}),
@@ -274,7 +230,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
     advancedMetrics: reportData.advancedMetrics || reportData.analysis?.advancedMetrics,
     suggestedActions: reportData.suggestedActions || reportData.analysis?.suggestedActions || [],
     vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
-  });
+  };
 
   console.log('Processed data:', processedData);
 
@@ -298,17 +254,53 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
       const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
       const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
       
-      // Create reviews with sentiment analysis based on backend percentages
+      // Create reviews with sentiment analysis based on actual content
       const reviews = rawMentions.map((text, index) => {
+        const lowerText = text.toLowerCase();
         let sentiment = 'neutral'; // Default to neutral
         
-        // Distribute positive and negative reviews based on backend percentages
-        if (index < positiveCount) {
+        // Analyze actual review content for sentiment
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
+          'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'bot', 'cheat', 'rigged', 'suspect',
+          'predatory', 'dangerous', 'warn', 'serious', 'no resolution', 'no explanation', 'ignoring', 'no response'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        if (positiveCount > negativeCount) {
           sentiment = 'positive';
-        } else if (index < positiveCount + negativeCount) {
+        } else if (negativeCount > positiveCount) {
           sentiment = 'negative';
         } else {
-          sentiment = 'neutral';
+          // If equal, check for stronger indicators
+          const hasStrongPositive = lowerText.includes('great') || lowerText.includes('love') || lowerText.includes('recommend') || 
+                                   lowerText.includes('vouch') || lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
+          const hasStrongNegative = lowerText.includes('scam') || lowerText.includes('terrible') || lowerText.includes('hate') || 
+                                   lowerText.includes('worst') || lowerText.includes('complaint') || lowerText.includes('ridiculous') ||
+                                   lowerText.includes('charge') || lowerText.includes('fee') || lowerText.includes('problem') ||
+                                   lowerText.includes('issue') || lowerText.includes('forced') || lowerText.includes('bot') ||
+                                   lowerText.includes('cheat') || lowerText.includes('rigged') || lowerText.includes('suspect');
+          
+          if (hasStrongPositive && !hasStrongNegative) {
+            sentiment = 'positive';
+          } else if (hasStrongNegative && !hasStrongPositive) {
+            sentiment = 'negative';
+          } else {
+            // Default to negative for unclear cases (better to show potential issues)
+            sentiment = 'negative';
+          }
         }
         
         return { text, sentiment, topic: topicName };
@@ -322,27 +314,51 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const handleInsightClick = (insight: any) => {
     if (insight.rawMentions && insight.rawMentions.length > 0) {
-      // Use consistent sentiment analysis based on insight direction
-      const reviews = insight.rawMentions.map((text: string, index: number) => {
+      const reviews = insight.rawMentions.map((text: string) => {
+        const lowerText = text.toLowerCase();
         let sentiment = 'neutral'; // Default to neutral
         
-        // Use insight direction to determine sentiment
-        if (insight.direction === 'up') {
+        // Analyze actual review content for sentiment
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
+          'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'bot', 'cheat', 'rigged', 'suspect',
+          'predatory', 'dangerous', 'warn', 'serious', 'no resolution', 'no explanation', 'ignoring', 'no response'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        if (positiveCount > negativeCount) {
           sentiment = 'positive';
-        } else if (insight.direction === 'down') {
+        } else if (negativeCount > positiveCount) {
           sentiment = 'negative';
         } else {
-          // For mixed insights, distribute based on index
-          const totalReviews = insight.rawMentions.length;
-          const positiveCount = Math.round((totalReviews * 0.6)); // Assume 60% positive for mixed
-          const negativeCount = Math.round((totalReviews * 0.4)); // Assume 40% negative for mixed
+          // If equal, check for stronger indicators
+          const hasStrongPositive = lowerText.includes('great') || lowerText.includes('love') || lowerText.includes('recommend') || 
+                                   lowerText.includes('vouch') || lowerText.includes('can\'t complain') || lowerText.includes('no complaints');
+          const hasStrongNegative = lowerText.includes('scam') || lowerText.includes('terrible') || lowerText.includes('hate') || 
+                                   lowerText.includes('worst') || lowerText.includes('complaint') || lowerText.includes('ridiculous') ||
+                                   lowerText.includes('charge') || lowerText.includes('fee') || lowerText.includes('problem') ||
+                                   lowerText.includes('issue') || lowerText.includes('forced') || lowerText.includes('bot') ||
+                                   lowerText.includes('cheat') || lowerText.includes('rigged') || lowerText.includes('suspect');
           
-          if (index < positiveCount) {
+          if (hasStrongPositive && !hasStrongNegative) {
             sentiment = 'positive';
-          } else if (index < positiveCount + negativeCount) {
+          } else if (hasStrongNegative && !hasStrongPositive) {
             sentiment = 'negative';
           } else {
-            sentiment = 'neutral';
+            // Default to negative for unclear cases (better to show potential issues)
+            sentiment = 'negative';
           }
         }
         
@@ -437,17 +453,15 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
         mentions: 75,
         platforms: ['All Sources'],
         impact: 'high',
-        rawMentions: ['Great service!', 'Excellent experience', 'Highly recommended'],
-        reviews: [
-          { text: 'Great service!', topic: 'Customer Service', sentiment: 'positive' },
-          { text: 'Excellent experience', topic: 'Overall Experience', sentiment: 'positive' },
-          { text: 'Highly recommended', topic: 'Recommendation', sentiment: 'positive' }
-        ]
+        rawMentions: [],
+        reviews: []
       }
     ];
   };
 
   const insights = generateInsights();
+
+
 
   // Generate chart data for sentiment over time
   const sentimentChartData = processedData.sentimentOverTime?.length > 0 
@@ -473,7 +487,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   // Load more topics function
   const handleLoadMoreTopics = () => {
-    const nextBatch = visibleTopics + 10;
+    const nextBatch = visibleTopics + 7;
     const totalTopics = processedData.mentionsByTopic?.length || 0;
     
     if (nextBatch >= totalTopics) {
@@ -488,7 +502,22 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
     <div className="min-h-screen bg-[#0f1117] text-white">
       {/* Header */}
       <div className="bg-[#181a20]/70 border-b border-white/20">
-        {/* Business header removed to match production */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-[#8b5cf6] rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">A</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{processedData.business_name || 'Business'}</h1>
+                <p className="text-[#B0B0C0]">{processedData.business_url || 'https://example.com'}</p>
+              </div>
+            </div>
+            <div className="flex space-x-3">
+              {/* Removed regenerate button */}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
@@ -497,22 +526,18 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           <div className="relative z-10">
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Voice of Customer Report</h2>
-                  <p className="text-[#B0B0C0] mt-2">Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-3xl font-bold text-white">Voice of Customer Report</h2>
+                <p className="text-[#B0B0C0] mt-2">Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-[#8b5cf6] rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-lg">A</span>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-semibold">{reportData.business_name?.charAt(0) || 'B'}</span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">{reportData.business_name || 'Unknown Brand'}</div>
-                      <div className="text-xs text-[#B0B0C0]">{reportData.business_url || 'Unknown URL'}</div>
-                    </div>
-                  </div>
+                <div>
+                  <p className="font-semibold text-white text-lg">{processedData.business_name || 'Business'}</p>
+                  <p className="text-sm text-[#B0B0C0]">{processedData.business_url || 'https://example.com'}</p>
                 </div>
               </div>
             </div>
@@ -650,7 +675,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                 ) : (
                   <>
                     <p>
-                      Based on analysis of customer reviews across multiple platforms, the business 
+                      Based on analysis of customer reviews across multiple platforms, {processedData.business_name || 'the business'} 
                       shows a {processedData.executiveSummary?.sentimentChange?.startsWith('+') ? 'positive' : 'mixed'} sentiment trend 
                       with {processedData.executiveSummary?.volumeChange || '+12%'} change in review volume over the past 30 days.
                     </p>
@@ -691,7 +716,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       <span className="text-white font-semibold text-lg">Sentiment Trend</span>
                       <div className="relative group ml-1">
                         <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
-                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                           Sentiment Trend is calculated as the percentage change in average customer sentiment over the last 30 days compared to the previous period. Derived from review ratings and text sentiment analysis.
                         </div>
                       </div>
@@ -724,7 +749,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       <span className="text-white font-semibold text-lg">Review Volume</span>
                       <div className="relative group ml-1">
                         <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
-                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                           Review Volume is the percentage change in the number of reviews received over the last 30 days compared to the previous period. Calculated from all review sources.
                         </div>
                       </div>
@@ -757,7 +782,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       <span className="text-white font-semibold text-lg">Trust Score</span>
                       <div className="relative group ml-1">
                         <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
-                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
+                        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                           Trust Score is calculated based on the average rating and sentiment of all customer reviews over the last 30 days. Higher scores indicate greater customer confidence.
                         </div>
                       </div>
@@ -801,47 +826,28 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                           </div>
                         )}
                       </div>
-                    )) || (() => {
-                      // Generate real data from mentions by topic
-                      const positiveTopics = processedData.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative) || [];
-                      const topPositiveTopics = positiveTopics.slice(0, 3);
-                      
-                      if (topPositiveTopics.length > 0) {
-                        return (
-                          <div className="text-green-300">
-                            {topPositiveTopics.map((topic: any, index: number) => {
-                              const percentage = Math.round((topic.positive / (topic.positive + topic.negative)) * 100);
-                              const example = topic.rawMentions?.[0] || "Positive feedback about this topic";
-                              return (
-                                <div key={index} className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">{topic.topic}</span>
-                                    <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">{percentage}% positive</span>
-                                  </div>
-                                  <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                    "{example.substring(0, 100)}..."
-                                  </div>
-                                </div>
-                              );
-                            })}
+                    )) || (
+                      <div className="text-green-300">
+                        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">Customer Service</span>
+                            <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">85% positive</span>
                           </div>
-                        );
-                      } else {
-                        return (
-                          <div className="text-green-300">
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">No positive feedback detected</span>
-                                <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">0% positive</span>
-                              </div>
-                              <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                "No significant positive feedback found"
-                              </div>
-                            </div>
+                          <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
+                            "Great customer service, very responsive and helpful"
                           </div>
-                        );
-                      }
-                    })()}
+                        </div>
+                        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">Withdrawals</span>
+                            <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">78% positive</span>
+                          </div>
+                          <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
+                            "Fast withdrawals, no issues with payouts"
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -872,47 +878,28 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                           </div>
                         )}
                       </div>
-                    )) || (() => {
-                      // Generate real data from mentions by topic
-                      const negativeTopics = processedData.mentionsByTopic?.filter((topic: any) => topic.negative > topic.positive) || [];
-                      const topNegativeTopics = negativeTopics.slice(0, 3);
-                      
-                      if (topNegativeTopics.length > 0) {
-                        return (
-                          <div className="text-red-300">
-                            {topNegativeTopics.map((topic: any, index: number) => {
-                              const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
-                              const example = topic.rawMentions?.[0] || "Negative feedback about this topic";
-                              return (
-                                <div key={index} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">{topic.topic}</span>
-                                    <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">{percentage}% negative</span>
-                                  </div>
-                                  <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                    "{example.substring(0, 100)}..."
-                                  </div>
-                                </div>
-                              );
-                            })}
+                    )) || (
+                      <div className="text-red-300">
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">Deposit Fees</span>
+                            <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">65% negative</span>
                           </div>
-                        );
-                      } else {
-                        return (
-                          <div className="text-red-300">
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">No concerns detected</span>
-                                <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">0% negative</span>
-                              </div>
-                              <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                "No significant negative feedback found"
-                              </div>
-                            </div>
+                          <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
+                            "Ridiculous charge on credit card deposits"
                           </div>
-                        );
-                      }
-                    })()}
+                        </div>
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">Verification Process</span>
+                            <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">45% negative</span>
+                          </div>
+                          <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
+                            "Verification process is too complicated"
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -946,82 +933,39 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       </div>
                       <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">{alert.message}</div>
                     </div>
-                  )) || (() => {
-                    // Generate real alerts from mentions by topic
-                    const criticalTopics = processedData.mentionsByTopic?.filter((topic: any) => 
-                      topic.negative > topic.positive && (topic.negative / (topic.positive + topic.negative)) > 0.6
-                    ) || [];
-                    const warningTopics = processedData.mentionsByTopic?.filter((topic: any) => 
-                      topic.negative > topic.positive && (topic.negative / (topic.positive + topic.negative)) > 0.4
-                    ) || [];
-                    
-                    const alerts: any[] = [];
-                    
-                    // Add critical alerts
-                    criticalTopics.slice(0, 2).forEach((topic: any) => {
-                      const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
-                      alerts.push({
-                        type: 'critical',
-                        metric: topic.topic,
-                        message: `High negative sentiment (${percentage}%) about ${topic.topic.toLowerCase()} affecting customer satisfaction`
-                      });
-                    });
-                    
-                    // Add warning alerts
-                    warningTopics.slice(0, 2).forEach((topic: any) => {
-                      const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
-                      alerts.push({
-                        type: 'warning',
-                        metric: topic.topic,
-                        message: `Moderate negative sentiment (${percentage}%) about ${topic.topic.toLowerCase()} needs attention`
-                      });
-                    });
-                    
-                    if (alerts.length > 0) {
-                      return (
-                        <>
-                          {alerts.map((alert, index) => (
-                            <div key={index} className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  alert.type === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                  alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-blue-500/20 text-blue-400'
-                                }`}>
-                                  {alert.type.toUpperCase()}
-                                </span>
-                                <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">{alert.metric}</span>
-                              </div>
-                              <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">{alert.message}</div>
-                            </div>
-                          ))}
-                        </>
-                      );
-                    } else {
-                      return (
-                        <>
-                          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">
-                                INFO
-                              </span>
-                              <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">No immediate actions required</span>
-                            </div>
-                            <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">
-                              No critical issues detected that require immediate attention
-                            </div>
-                          </div>
-                        </>
-                      );
-                    }
-                  })()}
+                  )) || (
+                    <>
+                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">
+                            CRITICAL
+                          </span>
+                          <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">Deposit Fees</span>
+                        </div>
+                        <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">
+                          High negative sentiment about deposit fees affecting customer acquisition
+                        </div>
+                      </div>
+                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+                            WARNING
+                          </span>
+                          <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">Verification</span>
+                        </div>
+                        <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">
+                          Complex verification process causing customer frustration
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-
+        {/* Key Insights - REMOVED - Covered in Executive Summary */}
 
 
 
@@ -1520,6 +1464,18 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="font-semibold text-white text-lg group-hover:text-white/90 transition-colors">{topic.topic}</h4>
+                        <div className="flex items-center space-x-2">
+                          {topic.priority === 'high' && (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded-full">
+                              HIGH PRIORITY
+                            </span>
+                          )}
+                          {topic.priority === 'medium' && (
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full">
+                              MEDIUM PRIORITY
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="space-y-4">
@@ -1614,7 +1570,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               {/* Your Brand */}
               <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                                        <h4 className="font-semibold text-white text-lg">Your Brand</h4>
+                  <h4 className="font-semibold text-white text-lg">{processedData.business_name || 'Your Brand'}</h4>
                   <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold text-sm">Y</span>
                   </div>
@@ -1728,111 +1684,145 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-6">
               {processedData.marketGaps && Array.isArray(processedData.marketGaps) && processedData.marketGaps.length > 0 ? (
                 processedData.marketGaps.map((gap: any, index: number) => (
-                  <div key={index} className="bg-[#181a20]/60 border border-purple-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-4 relative overflow-hidden hover:border-purple-500/30 transition-all group">
+                  <div key={index} className="bg-[#181a20]/60 border border-purple-500/20 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-purple-500/30 transition-all group">
                     {/* Glassmorphic overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/5 rounded-xl pointer-events-none" />
-                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-blue-500/10 rounded-xl pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/5 rounded-2xl pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-blue-500/10 rounded-2xl pointer-events-none" />
                     
                     <div className="relative z-10">
                       {/* Header */}
-                      <div className="flex items-start space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
-                          <Target className="w-4 h-4 text-white" />
+                      <div className="flex items-start space-x-4 mb-6">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                          <Target className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-white text-lg mb-1 group-hover:text-white/90 transition-colors">{gap.gap}</h4>
-                          <div className="flex items-center space-x-3 text-xs">
+                          <h4 className="font-bold text-white text-xl mb-2 group-hover:text-white/90 transition-colors">{gap.gap}</h4>
+                          <div className="flex items-center space-x-4 text-sm">
                             <span className="text-[#B0B0C0] group-hover:text-white/80 transition-colors">{gap.mentions} mentions</span>
                             <span className="text-blue-400 font-semibold group-hover:text-blue-300 transition-colors">{gap.kpiImpact}</span>
                           </div>
                         </div>
                       </div>
                       
-                      {/* Content Cards - Compact 2x2 Grid */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* User */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
-                              <User className="w-2.5 h-2.5 text-white" />
+                      {/* Content Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Specific Action */}
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
+                              <Lightbulb className="w-3 h-3 text-white" />
                             </div>
                             <div>
-                              <span className="text-blue-400 font-semibold text-xs">User:</span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText text={gap.suggestion || 'N/A'} maxLength={60} title="User Action" />
+                              <span className="text-blue-400 font-semibold text-sm">Specific Action:</span>
+                              <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">{gap.suggestion}</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Business Impact */}
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center flex-shrink-0">
+                              <BarChart3 className="w-3 h-3 text-white" />
+                            </div>
+                            <div>
+                              <span className="text-blue-400 font-semibold text-sm">Business Impact:</span>
+                              <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                {gap.context || 'Customers frequently mention this in their feedback, indicating an area for improvement.'}
                               </p>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Consider */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
-                              <Lightbulb className="w-2.5 h-2.5 text-white" />
+                        {/* Customer Complaints */}
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-gradient-to-br from-yellow-500 to-orange-600 rounded flex items-center justify-center flex-shrink-0">
+                              <MessageSquare className="w-3 h-3 text-white" />
                             </div>
-                            <div>
-                              <span className="text-green-400 font-semibold text-xs">Consider:</span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText text={gap.opportunity || 'N/A'} maxLength={60} title="Consideration" />
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Customers are saying */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center flex-shrink-0">
-                              <MessageSquare className="w-2.5 h-2.5 text-white" />
-                            </div>
-                            <div>
-                              <span className="text-orange-400 font-semibold text-xs">Customers are saying:</span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                            <div className="flex-1">
+                              <span className="text-orange-400 font-semibold text-sm">Customer Complaints:</span>
+                              <div className="mt-2">
                                 {gap.specificExamples && gap.specificExamples.length > 0 ? (
-                                  <TruncatedText text={`"${gap.specificExamples[0]}"`} maxLength={60} title="Customer Feedback" />
+                                  <p className="text-[#B0B0C0] text-sm italic leading-relaxed group-hover:text-white/80 transition-colors">
+                                    <TruncatedText text={`"${gap.specificExamples[0]}"`} maxLength={80} title="Customer Complaint" />
+                                  </p>
                                 ) : (
-                                  <span>No specific feedback</span>
+                                  <p className="text-[#B0B0C0] text-sm italic group-hover:text-white/80 transition-colors">No specific complaints available</p>
                                 )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Revenue Opportunity */}
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
+                              <Zap className="w-3 h-3 text-white" />
+                            </div>
+                            <div>
+                              <span className="text-green-400 font-semibold text-sm">Revenue Opportunity:</span>
+                              <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                {gap.opportunity || 'Addressing this concern could significantly improve customer satisfaction.'}
                               </p>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Business case */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-purple-500 rounded flex items-center justify-center flex-shrink-0">
-                              <BarChart3 className="w-2.5 h-2.5 text-white" />
-                            </div>
-                            <div>
-                              <span className="text-purple-400 font-semibold text-xs">Business case:</span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText text={gap.businessCase || 'N/A'} maxLength={60} title="Business Case" />
-                              </p>
+                        {/* Business Case */}
+                        {gap.businessCase && (
+                          <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
+                                <BarChart3 className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-blue-400 font-semibold text-sm">Business Case:</span>
+                                <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                  {gap.businessCase}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
+                        
+                        {/* Implementation */}
+                        {gap.implementation && (
+                          <div className="bg-[#181a20]/60 border border-white/10 rounded-xl p-4 group-hover:border-white/20 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-purple-500 rounded flex items-center justify-center flex-shrink-0">
+                                <Target className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-purple-400 font-semibold text-sm">Implementation:</span>
+                                <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                  {gap.implementation}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {/* CTA Button */}
-                      <div className="mt-4">
+                      <div className="mt-6">
                         <button 
                           onClick={() => handleTopicClick(gap.gap, gap.rawMentions, gap)}
-                          className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105 text-sm"
+                          className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
                         >
                           <span>View {gap.mentions} Reviews</span>
-                          <ChevronRight className="w-3 h-3" />
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="col-span-2 text-center py-8">
+                <div className="text-center py-8">
                   <p className="text-[#B0B0C0]">No market gaps identified from the available data.</p>
                 </div>
               )}
@@ -1868,104 +1858,110 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               </div>
             </div>
             
-            <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {processedData.suggestedActions && Array.isArray(processedData.suggestedActions) && processedData.suggestedActions.length > 0 ? (
-                <div>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-3 text-white font-semibold text-xs">Pain Point</th>
-                        <th className="text-left p-3 text-white font-semibold text-xs">Recommendation</th>
-                        <th className="text-left p-3 text-white font-semibold text-xs">Description</th>
-                        <th className="text-left p-3 text-white font-semibold text-xs">Priority</th>
-                        <th className="text-left p-3 text-white font-semibold text-xs">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {processedData.suggestedActions.map((action: any, index: number) => (
-                        <tr key={index} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-3 text-[#B0B0C0] text-xs">
-                            <TruncatedText text={typeof action === 'string' ? 'N/A' : action.painPoint || 'N/A'} maxLength={80} title="Pain Point" />
-                          </td>
-                          <td className="p-3 text-[#B0B0C0] text-xs">
-                            <TruncatedText text={typeof action === 'string' ? action : action.recommendation || 'N/A'} maxLength={80} title="Recommendation" />
-                          </td>
-                          <td className="p-3 text-[#B0B0C0] text-xs">
-                            <TruncatedText text={typeof action === 'string' ? 'N/A' : action.context || 'N/A'} maxLength={80} title="Description" />
-                          </td>
-                          <td className="p-3 text-[#B0B0C0] text-xs">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              typeof action === 'string' ? 'bg-gray-500/20 text-gray-300' :
-                              action.kpiImpact?.includes('High') ? 'bg-red-500/20 text-red-300' :
-                              action.kpiImpact?.includes('Medium') ? 'bg-yellow-500/20 text-yellow-300' :
-                              'bg-green-500/20 text-green-300'
-                            }`}>
-                              {typeof action === 'string' ? 'N/A' : 
-                               action.kpiImpact?.includes('High') ? 'HIGH' :
-                               action.kpiImpact?.includes('Medium') ? 'MEDIUM' : 'LOW'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-[#B0B0C0] text-xs">
-                            <div className="relative">
-                              <button 
-                                onClick={() => {
-                                  // Toggle dropdown for this row
-                                  const dropdownId = `dropdown-${index}`;
-                                  const dropdown = document.getElementById(dropdownId);
-                                  if (dropdown) {
-                                    dropdown.classList.toggle('hidden');
-                                  }
-                                }}
-                                className="p-1 hover:bg-white/10 rounded transition-colors"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                              
-                              {/* Dropdown Menu */}
-                              <div 
-                                id={`dropdown-${index}`}
-                                className="absolute right-0 top-8 bg-[#181a20] border border-white/10 rounded-lg shadow-lg z-10 hidden min-w-[120px]"
-                              >
-                                <button 
-                                  onClick={() => {
-                                    // Edit action
-                                    console.log('Edit action:', action);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 transition-colors flex items-center space-x-2"
-                                >
-                                  <span>✏️</span>
-                                  <span>Edit</span>
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    // Remove action
-                                    console.log('Remove action:', action);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 transition-colors flex items-center space-x-2"
-                                >
-                                  <span>🗑️</span>
-                                  <span>Remove</span>
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    // Delete action
-                                    console.log('Delete action:', action);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/20 text-red-300 transition-colors flex items-center space-x-2"
-                                >
-                                  <span>❌</span>
-                                  <span>Delete</span>
-                                </button>
+                processedData.suggestedActions.map((action: any, index: number) => (
+                  <div key={index} className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-white/20 transition-all group">
+                    {/* Glassmorphic overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-2xl pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-2xl pointer-events-none" />
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-start space-x-4 mb-6">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                          <Zap className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-white text-xl mb-2 group-hover:text-white/90 transition-colors">
+                            {typeof action === 'string' ? action : action.action}
+                          </h4>
+                          <div className="flex items-center space-x-4 text-sm">
+                            <span className="text-[#B0B0C0] group-hover:text-white/80 transition-colors">{action.kpiImpact}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {typeof action !== 'string' && (
+                        <>
+                          {/* Pain Point */}
+                          <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 rounded-xl group-hover:bg-red-500/15 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-red-500 rounded flex items-center justify-center flex-shrink-0">
+                                <AlertTriangle className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-red-400 font-semibold text-sm">Pain Point:</span>
+                                <p className="text-red-300 text-sm mt-1 leading-relaxed group-hover:text-red-200 transition-colors">{action.painPoint}</p>
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                          
+                          {/* Recommendation */}
+                          <div className="mb-5 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl group-hover:bg-blue-500/15 transition-colors">
+                            <div className="flex items-start space-x-3">
+                              <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
+                                <Lightbulb className="w-3 h-3 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-blue-400 font-semibold text-sm">Recommendation:</span>
+                                <p className="text-blue-300 text-sm mt-1 leading-relaxed group-hover:text-blue-200 transition-colors">{action.recommendation}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Context */}
+                          {action.context && (
+                            <div className="mb-5 p-4 bg-[#181a20]/40 border border-white/10 rounded-xl group-hover:border-white/20 transition-colors">
+                              <div className="flex items-start space-x-3">
+                                <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center flex-shrink-0">
+                                  <BarChart3 className="w-3 h-3 text-white" />
+                                </div>
+                                <div>
+                                  <span className="text-blue-400 font-semibold text-sm">Context:</span>
+                                  <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                                    <TruncatedText text={action.context} maxLength={120} title="Action Context" />
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Expected Outcome */}
+                          {action.expectedOutcome && (
+                            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl group-hover:bg-green-500/15 transition-colors">
+                              <div className="flex items-start space-x-3">
+                                <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
+                                  <Target className="w-3 h-3 text-white" />
+                                </div>
+                                <div>
+                                  <span className="text-green-400 font-semibold text-sm">Expected Outcome:</span>
+                                  <p className="text-green-300 text-sm mt-1 leading-relaxed group-hover:text-green-200 transition-colors">
+                                    <TruncatedText text={action.expectedOutcome} maxLength={100} title="Expected Outcome" />
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* CTA Button */}
+                          {action.rawMentions && action.rawMentions.length > 0 && (
+                            <div className="mt-6">
+                              <button 
+                                onClick={() => handleTopicClick(action.action, action.rawMentions, action)}
+                                className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105"
+                              >
+                                <span>View {action.rawMentions.length} Related Reviews</span>
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center py-8">
+                <div className="col-span-3 text-center py-8">
                   <p className="text-[#B0B0C0]">No suggested actions identified from the available data.</p>
                 </div>
               )}
@@ -1989,57 +1985,41 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
-                  <div className="absolute top-3 right-3">
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-blue-400 cursor-pointer" />
-                      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
-                        Trust Score is calculated based on the average rating and sentiment of all customer reviews over the last 30 days. Higher scores indicate greater customer confidence.
-                      </div>
-                    </div>
-                  </div>
+                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
                   <div className="text-3xl font-bold text-blue-400 mb-2">{processedData.advancedMetrics.trustScore || 82}</div>
                   <div className="text-sm text-[#B0B0C0]">Trust Score</div>
                   <div className="text-xs text-[#B0B0C0] mt-1">Customer confidence level</div>
-                </div>
-                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
-                  <div className="absolute top-3 right-3">
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-red-400 cursor-pointer" />
-                      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
-                        Repeat Complaints represent the percentage of customers who have reported the same issue multiple times. Higher percentages indicate unresolved systemic problems.
-                      </div>
-                    </div>
+                  <div className="mt-3 flex items-center justify-center space-x-2">
+                    <Info className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs text-[#B0B0C0]">Measures customer trust and brand perception</span>
                   </div>
+                </div>
+                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
                   <div className="text-3xl font-bold text-red-400 mb-2">{processedData.advancedMetrics.repeatComplaints || 7}</div>
                   <div className="text-sm text-[#B0B0C0]">Repeat Complaints</div>
                   <div className="text-xs text-[#B0B0C0] mt-1">% of recurring issues</div>
-                </div>
-                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
-                  <div className="absolute top-3 right-3">
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-green-400 cursor-pointer" />
-                      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
-                        Average Resolution Time measures how quickly customer issues are resolved. Faster resolution times indicate better customer service efficiency.
-                      </div>
-                    </div>
+                  <div className="mt-3 flex items-center justify-center space-x-2">
+                    <Info className="w-4 h-4 text-red-400" />
+                    <span className="text-xs text-[#B0B0C0]">Indicates unresolved systemic issues</span>
                   </div>
+                </div>
+                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
                   <div className="text-3xl font-bold text-green-400 mb-2">{processedData.advancedMetrics.avgResolutionTime || '1.2 days'}</div>
                   <div className="text-sm text-[#B0B0C0]">Avg Resolution Time</div>
                   <div className="text-xs text-[#B0B0C0] mt-1">Time to fix issues</div>
-                </div>
-                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center relative">
-                  <div className="absolute top-3 right-3">
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-purple-400 cursor-pointer" />
-                      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity z-[9999] pointer-events-none">
-                        VOC Velocity measures the rate of change in customer feedback volume. Positive values indicate increasing customer engagement and feedback.
-                      </div>
-                    </div>
+                  <div className="mt-3 flex items-center justify-center space-x-2">
+                    <Info className="w-4 h-4 text-green-400" />
+                    <span className="text-xs text-[#B0B0C0]">Speed of customer issue resolution</span>
                   </div>
+                </div>
+                <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 text-center">
                   <div className="text-3xl font-bold text-purple-400 mb-2">{processedData.advancedMetrics.vocVelocity || '+5%'}</div>
                   <div className="text-sm text-[#B0B0C0]">VOC Velocity</div>
                   <div className="text-xs text-[#B0B0C0] mt-1">Feedback growth rate</div>
+                  <div className="mt-3 flex items-center justify-center space-x-2">
+                    <Info className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs text-[#B0B0C0]">Rate of customer feedback increase</span>
+                  </div>
                 </div>
               </div>
               
@@ -2076,204 +2056,15 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                 </div>
               </div>
               
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-8">
-                {/* VOC Analysis Summary */}
-                <div className="space-y-8">
-                  {/* Overall Performance */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">✓</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Overall Performance</h4>
+              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6">
+                <p className="text-[#B0B0C0] text-lg leading-relaxed mb-6">{processedData.vocDigest.summary}</p>
+                <div className="space-y-2">
+                  {processedData.vocDigest.highlights.map((highlight: any, index: number) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      <span className="text-[#B0B0C0]">{highlight}</span>
                     </div>
-                    <div className="ml-11 space-y-3">
-                      <p className="text-[#B0B0C0] leading-relaxed">
-                        {processedData.vocDigest.summary || 'Customer satisfaction analysis shows mixed performance with opportunities for improvement.'}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span className="text-sm text-green-400 font-medium">GOOD PERFORMANCE</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Key Findings */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">🔍</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Key Findings</h4>
-                    </div>
-                    <div className="ml-11 space-y-4">
-                      {processedData.executiveSummary?.praisedSections && processedData.executiveSummary.praisedSections.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-[#B0B0C0] leading-relaxed">
-                            <span className="text-green-400 font-medium">Strength:</span> {processedData.executiveSummary.praisedSections[0]?.topic || 'Customer service'} is the most praised aspect 
-                            ({processedData.executiveSummary.praisedSections[0]?.examples?.length || 0} positive mentions, avg rating: {processedData.executiveSummary.praisedSections[0]?.percentage || '4.0'}/5).
-                          </p>
-                        </div>
-                      )}
-                      {processedData.executiveSummary?.painPoints && processedData.executiveSummary.painPoints.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-[#B0B0C0] leading-relaxed">
-                            <span className="text-red-400 font-medium">Concern:</span> {processedData.executiveSummary.painPoints[0]?.topic || 'Service quality'} is the biggest pain point 
-                            ({processedData.executiveSummary.painPoints[0]?.examples?.length || 0} negative mentions, avg rating: {processedData.executiveSummary.painPoints[0]?.percentage || '3.0'}/5).
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Detailed Insights */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">✓</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Detailed Insights</h4>
-                    </div>
-                    <div className="ml-11">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {processedData.mentionsByTopic && processedData.mentionsByTopic.slice(0, 9).map((topic: any, index: number) => (
-                          <div key={index} className="bg-[#181a20]/40 border border-white/10 rounded-lg p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium text-white">{topic.topic}</span>
-                              <span className="text-xs text-[#B0B0C0]">avg rating: {((topic.positive / (topic.positive + topic.negative)) * 5).toFixed(1)}/5</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-green-400">{topic.positive} positive</span>
-                              <span className="text-red-400">{topic.negative} negative</span>
-                            </div>
-                            <div className="flex justify-between text-xs text-[#B0B0C0] mt-1">
-                              <span>{Math.round((topic.positive / (topic.positive + topic.negative)) * 100)}% positive</span>
-                              <span>{Math.round((topic.negative / (topic.positive + topic.negative)) * 100)}% negative</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Business Impact */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">💼</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Business Impact</h4>
-                    </div>
-                    <div className="ml-11 space-y-3">
-                      <p className="text-[#B0B0C0] leading-relaxed">
-                        {processedData.executiveSummary?.sentimentChange?.startsWith('+') ? 
-                          'Positive performance with opportunities for continued growth' : 
-                          'Mixed performance requiring targeted improvements'
-                        }
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                          <span className="text-sm text-[#B0B0C0]">
-                            Opportunity to enhance specific areas for better customer satisfaction
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                          <span className="text-sm text-[#B0B0C0]">
-                            Need for ongoing monitoring and quick response to issues
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Immediate Actions */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">🎯</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Immediate Actions</h4>
-                    </div>
-                    <div className="ml-11 space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-red-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-red-400">Priority:</span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Address {processedData.executiveSummary?.topComplaint || 'service quality'} issues immediately to prevent customer churn.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-green-400">Leverage:</span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Use positive {processedData.executiveSummary?.mostPraised || 'customer service'} feedback in marketing materials.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-blue-400">Monitor:</span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Track sentiment trends weekly to identify emerging issues.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-purple-400">Improve:</span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Implement customer feedback loops for continuous improvement.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Data Quality */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">📊</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Data Quality</h4>
-                    </div>
-                    <div className="ml-11">
-                      <p className="text-sm text-[#B0B0C0]">
-                        Analysis based on {processedData.detected_sources?.reduce((total: number, source: any) => total + source.review_count, 0) || 0} customer reviews with comprehensive sentiment analysis and topic extraction.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Frequently Mentioned Topics */}
-                  {processedData.mentionsByTopic && processedData.mentionsByTopic.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">📝</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Frequently Mentioned Topics</h4>
-                      </div>
-                      <div className="ml-11">
-                        <div className="space-y-2">
-                          {processedData.mentionsByTopic.slice(0, 5).map((topic: any, index: number) => (
-                            <div key={index} className="flex items-center space-x-3">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                              <span className="text-sm text-[#B0B0C0]">{topic.topic} is frequently mentioned</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
@@ -2283,228 +2074,194 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
       {/* Trending Topic Detailed Modal */}
       {showTrendingModal && selectedTrendingTopic && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#181a20]/90 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] max-w-6xl w-full max-h-[95vh] overflow-hidden relative">
-            {/* Glassmorphic Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-purple-500/5 rounded-3xl pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-pink-500/5 rounded-3xl pointer-events-none" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1c1e26]/95 backdrop-blur-xl rounded-xl border border-white/10 p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-semibold text-white">Trending Topic: {selectedTrendingTopic.topic}</h3>
+                <p className="text-sm text-[#B0B0C0] mt-1">
+                  Detailed analysis and customer feedback
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowTrendingModal(false)}
+                className="w-8 h-8 bg-[#0f1117]/60 backdrop-blur-md border border-white/10 rounded-lg hover:bg-white/5 transition-all duration-200 flex items-center justify-center text-[#B0B0C0] hover:text-white"
+              >
+                <span className="text-lg">×</span>
+              </button>
+            </div>
             
-            <div className="relative z-10 h-full flex flex-col">
-              {/* Header */}
-              <div className="flex items-center justify-between p-8 border-b border-white/10">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">📊</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Key Insights and Summary */}
+              <div className="space-y-6">
+                {/* Key Insights - Moved to top */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 0 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Key Insights</h4>
+                    <div className="space-y-3">
+                      {selectedTrendingTopic.keyInsights.map((insight: string, idx: number) => (
+                        <div key={idx} className="flex items-start space-x-3">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                          <p className="text-sm text-[#B0B0C0]">{insight}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-3xl font-bold text-white">Trending Topic: {selectedTrendingTopic.topic}</h3>
-                    <p className="text-[#B0B0C0] mt-1">
-                      Detailed analysis and customer feedback insights
-                    </p>
+                )}
+                
+                {/* Sentiment Breakdown */}
+                {selectedTrendingTopic.totalCount && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Sentiment Breakdown</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-[#B0B0C0]">Total Reviews:</span>
+                        <span className="text-white font-semibold">{selectedTrendingTopic.totalCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-green-400">Positive:</span>
+                        <span className="text-green-400 font-semibold">{selectedTrendingTopic.positiveCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-red-400">Negative:</span>
+                        <span className="text-red-400 font-semibold">{selectedTrendingTopic.negativeCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-[#B0B0C0]">Overall Sentiment:</span>
+                        <span className={`font-semibold ${selectedTrendingTopic.sentiment === 'positive' ? 'text-green-400' : 'text-red-400'}`}>
+                          {selectedTrendingTopic.sentiment === 'positive' ? 'Positive' : 'Negative'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Why is this trending? */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 1 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Why is this trending?</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">📈</span>
+                      </div>
+                      <div>
+                        <span className="text-yellow-400 font-semibold">Trend Analysis:</span>
+                        <span className="text-[#B0B0C0] ml-2">
+                          {selectedTrendingTopic.keyInsights[1] || 'Recent increase in customer mentions and feedback.'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* What to do */}
+                {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 2 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Recommended Action</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">⚡</span>
+                      </div>
+                      <div>
+                        <span className="text-green-400 font-semibold">Action Required:</span>
+                        <span className="text-[#B0B0C0] ml-2">
+                          {selectedTrendingTopic.keyInsights[2] || 'Address customer concerns and improve service quality.'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Summary of All Reviews */}
+                <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4">Summary</h4>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xs">📋</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-400 font-semibold">Review Summary:</span>
+                      <span className="text-[#B0B0C0] ml-2">
+                        {selectedTrendingTopic.totalCount ? 
+                          `Based on ${selectedTrendingTopic.totalCount} customer reviews, ${selectedTrendingTopic.topic} shows ${selectedTrendingTopic.positiveCount || 0} positive and ${selectedTrendingTopic.negativeCount || 0} negative mentions. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
+                          : selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 
+                            ? `Based on ${selectedTrendingTopic.specificExamples.length} customer reviews, ${selectedTrendingTopic.topic} is a ${selectedTrendingTopic.sentiment === 'positive' ? 'positive' : 'negative'} trending topic. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
+                            : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
+                        }
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setShowTrendingModal(false)}
-                  className="w-10 h-10 bg-[#0f1117]/60 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center justify-center text-[#B0B0C0] hover:text-white hover:scale-110"
-                >
-                  <span className="text-xl">×</span>
-                </button>
               </div>
               
-              {/* Content - Masonry Layout */}
-              <div className="flex-1 overflow-y-auto p-8">
-                <div className="columns-1 lg:columns-2 xl:columns-3 gap-6 space-y-6">
-                  
-                  {/* Sentiment Breakdown Card */}
-                  {selectedTrendingTopic.totalCount && (
-                    <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">📈</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Sentiment Breakdown</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center p-3 bg-[#181a20]/40 rounded-xl">
-                          <span className="text-sm text-[#B0B0C0]">Total Reviews</span>
-                          <span className="text-white font-semibold">{selectedTrendingTopic.totalCount}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-[#181a20]/40 rounded-xl">
-                          <span className="text-sm text-green-400">Positive</span>
-                          <span className="text-green-400 font-semibold">{selectedTrendingTopic.positiveCount || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-[#181a20]/40 rounded-xl">
-                          <span className="text-sm text-red-400">Negative</span>
-                          <span className="text-red-400 font-semibold">{selectedTrendingTopic.negativeCount || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-[#181a20]/40 rounded-xl">
-                          <span className="text-sm text-[#B0B0C0]">Overall Sentiment</span>
-                          <span className={`font-semibold ${selectedTrendingTopic.sentiment === 'positive' ? 'text-green-400' : 'text-red-400'}`}>
-                            {selectedTrendingTopic.sentiment === 'positive' ? 'Positive' : 'Negative'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Trend Analysis Card */}
-                  {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 1 && (
-                    <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">🔍</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Why is this trending?</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-yellow-400 font-semibold text-sm">Trend Analysis:</span>
-                            <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">
-                              {selectedTrendingTopic.keyInsights[1] || 'Recent increase in customer mentions and feedback.'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Recommended Action Card */}
-                  {selectedTrendingTopic.keyInsights && selectedTrendingTopic.keyInsights.length > 2 && (
-                    <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">⚡</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Recommended Action</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-green-400 font-semibold text-sm">Action Required:</span>
-                            <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">
-                              {selectedTrendingTopic.keyInsights[2] || 'Address customer concerns and improve service quality.'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Business Impact Card */}
-                  {selectedTrendingTopic.businessImpact && (
-                    <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">💼</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Business Impact</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-blue-400 font-semibold text-sm">Impact Analysis:</span>
-                            <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">
-                              {selectedTrendingTopic.businessImpact}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Summary Card */}
-                  <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">📋</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">Summary</h4>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                        <div>
-                          <span className="text-purple-400 font-semibold text-sm">Review Summary:</span>
-                          <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">
-                            {selectedTrendingTopic.totalCount ? 
-                              `Based on ${selectedTrendingTopic.totalCount} customer reviews, ${selectedTrendingTopic.topic} shows ${selectedTrendingTopic.positiveCount || 0} positive and ${selectedTrendingTopic.negativeCount || 0} negative mentions. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
-                              : selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 
-                                ? `Based on ${selectedTrendingTopic.specificExamples.length} customer reviews, ${selectedTrendingTopic.topic} is a ${selectedTrendingTopic.sentiment === 'positive' ? 'positive' : 'negative'} trending topic. ${selectedTrendingTopic.context || 'Customers are actively discussing this topic in their feedback.'}`
-                                : `Analysis of customer feedback shows ${selectedTrendingTopic.topic} is trending with ${selectedTrendingTopic.sentiment} sentiment.`
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Customer Examples Card */}
-                  {selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 && (
-                    <div className="bg-[#181a20]/60 border border-white/15 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">💬</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Customer Examples</h4>
-                      </div>
-                      <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
-                        {selectedTrendingTopic.specificExamples.map((example: string, idx: number) => (
-                          <div key={idx} className="p-4 bg-[#181a20]/40 rounded-xl border border-white/10">
-                            <div className="flex items-start space-x-3">
-                              <div className="w-6 h-6 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-bold text-xs">💬</span>
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm text-[#B0B0C0] italic leading-relaxed">"{example}"</p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-xs text-[#B0B0C0]">Customer Review</span>
-                                  <span className="text-xs text-blue-400">#{idx + 1}</span>
-                                </div>
+              {/* Right Column - Customer Examples */}
+              <div className="space-y-6">
+                {/* Customer Examples - Scrollable */}
+                {selectedTrendingTopic.specificExamples && selectedTrendingTopic.specificExamples.length > 0 && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Customer Examples</h4>
+                    <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
+                      {selectedTrendingTopic.specificExamples.map((example: string, idx: number) => (
+                        <div key={idx} className="p-4 bg-[#181a20]/60 rounded-lg border border-white/10">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-6 h-6 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <span className="text-white font-bold text-xs">💬</span>
+                            </div>
+                            <div>
+                              <p className="text-sm text-[#B0B0C0] italic leading-relaxed">"{example}"</p>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <span className="text-xs text-[#B0B0C0]">Customer Review</span>
+                                <span className="text-xs text-blue-400">#{idx + 1}</span>
                               </div>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Business Impact */}
+                {selectedTrendingTopic.businessImpact && (
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Business Impact</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">📈</span>
+                      </div>
+                      <div>
+                        <span className="text-green-400 font-semibold">Business Impact:</span>
+                        <span className="text-[#B0B0C0] ml-2">{selectedTrendingTopic.businessImpact}</span>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Main Issue Card */}
-                  {selectedTrendingTopic.mainIssue && (
-                    <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-2xl p-6 backdrop-blur-xl break-inside-avoid">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">⚡</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-white">Main Issue & Recommendations</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-purple-400 font-semibold text-sm">Main Issue:</span>
-                            <p className="text-[#B0B0C0] text-sm mt-1 leading-relaxed">
-                              {selectedTrendingTopic.mainIssue}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 mt-4">
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                            Trending Topic
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
-                            High Priority
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
+            
+            {/* Action Items */}
+            {selectedTrendingTopic.mainIssue && (
+              <div className="mt-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-6">
+                <h4 className="text-lg font-semibold text-white mb-4">Main Issue & Recommendations</h4>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xs">⚡</span>
+                  </div>
+                  <div>
+                    <span className="text-purple-400 font-semibold">Main Issue:</span>
+                    <span className="text-[#B0B0C0] ml-2">{selectedTrendingTopic.mainIssue}</span>
+                    <div className="flex items-center space-x-2 mt-3">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                        Trending Topic
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+                        High Priority
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

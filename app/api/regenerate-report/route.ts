@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  const supabaseUrl = process.env.SUPABASE_URL!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Trigger the Edge Function to regenerate the report
-    const edgeFunctionUrl = `${process.env.SUPABASE_URL}/functions/v1/process-voc-report`;
+          const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-voc-report`;
     console.log('Triggering Edge Function:', edgeFunctionUrl);
     console.log('Report data:', { reportId, company_id: report.company_id, business_name: report.business_name });
     

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { runScrapingWorkflow } from '@/lib/scraper';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabaseUrl = process.env.SUPABASE_URL!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

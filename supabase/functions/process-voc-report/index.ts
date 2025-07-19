@@ -1141,6 +1141,13 @@ function extractJsonFromOpenAI(content: string): any {
 async function getReviewSourceUrls(businessName: string, businessUrl: string): Promise<{ [platform: string]: string | null }> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) throw new Error('Missing OPENAI_API_KEY');
+  
+  // Add null checks for parameters
+  if (!businessName || !businessUrl) {
+    console.error('Missing businessName or businessUrl:', { businessName, businessUrl });
+    throw new Error('Missing businessName or businessUrl');
+  }
+  
   let domain = '';
   try {
     domain = new URL(businessUrl).hostname.replace('www.', '');
@@ -3333,11 +3340,65 @@ function detectIndustry(businessName: string, businessUrl?: string): string {
 
 serve(async (req) => {
   try {
-    const { report_id, company_id, business_name, business_url, email } = await req.json();
+    const { business_name, business_url, email, industry = null } = await req.json();
+    
+    // Add null checks for required parameters
+    if (!business_name || !business_url || !email) {
+      console.error('Missing required parameters:', { business_name, business_url, email });
+      return new Response(JSON.stringify({ error: 'Missing required parameters: business_name, business_url, or email' }), { status: 400 });
+    }
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    
+    // Create company record first
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .insert({
+        name: business_name,
+        email: email,
+        status: 'processing',
+        industry: industry || null
+      })
+      .select()
+      .single();
+    
+    if (companyError) {
+      console.error('Error creating company:', companyError);
+      return new Response(JSON.stringify({ error: 'Failed to create company', details: companyError }), { status: 500 });
+    }
+    
+    // Create report record
+    const { data: report, error: reportError } = await supabase
+      .from('voc_reports')
+      .insert({
+        company_id: company.id,
+        business_name: business_name,
+        business_url: business_url,
+        processed_at: new Date().toISOString(),
+        sources: [],
+        status: 'processing',
+        progress_message: 'Initializing your report...'
+      })
+      .select()
+      .single();
+    
+    if (reportError) {
+      console.error('Error creating report:', reportError);
+      return new Response(JSON.stringify({ error: 'Failed to create report', details: reportError }), { status: 500 });
+    }
+    
+    // Update company with report_id
+    await supabase
+      .from('companies')
+      .update({ report_id: report.id })
+      .eq('id', company.id);
+    
+    const report_id = report.id;
+    const company_id = company.id;
+    
     async function updateProgress(message: string, status: string = 'processing') {
       await supabase.from('voc_reports').update({ progress_message: message, status }).eq('id', report_id);
     }
@@ -3705,7 +3766,11 @@ serve(async (req) => {
     }
 
     await updateProgress('Report ready!', 'complete');
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+    return new Response(JSON.stringify({ 
+      success: true, 
+      report_id: report_id,
+      company_id: company_id
+    }), { status: 200 });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || String(err) }), { status: 500 });
   }

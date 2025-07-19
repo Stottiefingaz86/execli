@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const url = process.env.SUPABASE_URL;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!url) {
       return NextResponse.json({ error: 'SUPABASE_URL not set' }, { status: 500 });
     }

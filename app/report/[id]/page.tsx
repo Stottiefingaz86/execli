@@ -308,16 +308,6 @@ export default function ReportPage() {
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Regenerate Button */}
-        <div className="mb-6 flex justify-end">
-          <button
-            onClick={regenerateReport}
-            disabled={regenerating}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#8b5cf6] to-[#3b82f6] text-white rounded-lg hover:from-[#7c3aed] hover:to-[#2563eb] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
-            {regenerating ? 'Regenerating...' : 'Regenerate Report'}
-          </button>
-        </div>
         <ReportPageContent reportData={reportData} reportId={Array.isArray(params.id) ? params.id[0] : params.id} />
       </div>
     </div>
