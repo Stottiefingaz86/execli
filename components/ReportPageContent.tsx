@@ -211,45 +211,257 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   console.log('ReportPageContent received data:', reportData);
 
-  // Function to deduplicate comments and ensure fresh data
+  // Enhanced sentiment analysis function
+  const analyzeSentiment = (text: string): 'positive' | 'negative' | 'neutral' => {
+    if (!text) return 'neutral';
+    
+    const lowerText = text.toLowerCase();
+    
+    // Strong negative indicators
+    const negativeWords = [
+      'scam', 'fraud', 'fake', 'terrible', 'awful', 'horrible', 'worst', 'bad', 'poor', 'disappointed',
+      'hate', 'dislike', 'angry', 'furious', 'mad', 'upset', 'frustrated', 'annoyed', 'irritated',
+      'waste', 'useless', 'broken', 'defective', 'faulty', 'problem', 'issue', 'error', 'bug',
+      'slow', 'unreliable', 'untrustworthy', 'suspicious', 'doubtful', 'questionable',
+      'expensive', 'overpriced', 'costly', 'pricey', 'rip-off', 'overcharged',
+      'difficult', 'complicated', 'confusing', 'unclear', 'vague', 'misleading',
+      'rude', 'unhelpful', 'unresponsive', 'ignored', 'neglected', 'abandoned',
+      'dangerous', 'risky', 'unsafe', 'harmful', 'damaging', 'destructive',
+      'stay away', 'avoid', 'never', 'don\'t', 'won\'t', 'can\'t', 'impossible',
+      'fail', 'failed', 'failure', 'broken', 'crash', 'error', 'bug', 'glitch'
+    ];
+    
+    // Strong positive indicators
+    const positiveWords = [
+      'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'outstanding', 'superb', 'perfect',
+      'love', 'like', 'enjoy', 'satisfied', 'happy', 'pleased', 'delighted', 'thrilled',
+      'good', 'nice', 'fine', 'okay', 'alright', 'decent', 'acceptable', 'satisfactory',
+      'fast', 'quick', 'efficient', 'effective', 'reliable', 'trustworthy', 'dependable',
+      'helpful', 'supportive', 'responsive', 'attentive', 'caring', 'professional',
+      'easy', 'simple', 'straightforward', 'clear', 'obvious', 'intuitive',
+      'affordable', 'cheap', 'inexpensive', 'reasonable', 'fair', 'worth', 'value',
+      'recommend', 'suggest', 'endorse', 'approve', 'support', 'back', 'stand by',
+      'success', 'successful', 'working', 'functioning', 'operational', 'active'
+    ];
+    
+    // Count negative and positive words
+    let negativeCount = 0;
+    let positiveCount = 0;
+    
+    negativeWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        negativeCount += (lowerText.match(new RegExp(word, 'g')) || []).length;
+      }
+    });
+    
+    positiveWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        positiveCount += (lowerText.match(new RegExp(word, 'g')) || []).length;
+      }
+    });
+    
+    // Additional negative patterns
+    const negativePatterns = [
+      /\b(no|not|never|don't|won't|can't|isn't|aren't|wasn't|weren't)\b/gi,
+      /\b(bad|poor|terrible|awful|horrible)\b/gi,
+      /\b(problem|issue|error|bug|fail|broken)\b/gi,
+      /\b(scam|fraud|fake|dishonest)\b/gi,
+      /\b(expensive|overpriced|rip-off)\b/gi,
+      /\b(slow|unreliable|untrustworthy)\b/gi
+    ];
+    
+    negativePatterns.forEach(pattern => {
+      const matches = lowerText.match(pattern);
+      if (matches) {
+        negativeCount += matches.length;
+      }
+    });
+    
+    // Determine sentiment based on word counts and context
+    if (negativeCount > positiveCount * 2) {
+      return 'negative';
+    } else if (positiveCount > negativeCount * 2) {
+      return 'positive';
+    } else {
+      return 'neutral';
+    }
+  };
+
+  // Topic relevance filtering function
+  const isTopicRelevant = (text: string, topic: string): boolean => {
+    if (!text || !topic) return false;
+    
+    const lowerText = text.toLowerCase();
+    const lowerTopic = topic.toLowerCase();
+    
+    // Topic-specific keywords
+    const topicKeywords: { [key: string]: string[] } = {
+      'sports betting': ['sports', 'betting', 'bet', 'wager', 'odds', 'parlay', 'spread', 'line', 'sport', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf', 'hockey', 'mma', 'boxing', 'racing', 'nfl', 'nba', 'mlb', 'nhl', 'ufc'],
+      'casino games': ['casino', 'slot', 'poker', 'blackjack', 'roulette', 'craps', 'baccarat', 'keno', 'bingo', 'game', 'gaming', 'gambling', 'card', 'table', 'machine', 'jackpot', 'win', 'spin', 'deal'],
+      'withdrawals': ['withdraw', 'withdrawal', 'cash out', 'payout', 'money', 'fund', 'bank', 'account', 'transfer', 'deposit', 'balance', 'wallet', 'payment', 'credit', 'debit'],
+      'customer service': ['service', 'support', 'help', 'assist', 'contact', 'call', 'email', 'chat', 'live', 'agent', 'representative', 'staff', 'team', 'response', 'reply', 'answer'],
+      'deposit fees': ['fee', 'charge', 'cost', 'price', 'deposit', 'payment', 'transaction', 'bank', 'credit', 'debit', 'card', 'transfer', 'wire', 'ach'],
+      'verification process': ['verify', 'verification', 'id', 'identity', 'document', 'proof', 'photo', 'passport', 'license', 'ssn', 'social', 'security', 'number', 'address', 'utility', 'bill'],
+      'loyalty rewards': ['loyalty', 'reward', 'bonus', 'point', 'credit', 'cashback', 'promotion', 'offer', 'deal', 'discount', 'vip', 'member', 'program', 'benefit', 'perk'],
+      'mobile app': ['app', 'mobile', 'phone', 'android', 'ios', 'iphone', 'smartphone', 'tablet', 'download', 'install', 'update', 'version', 'interface', 'ui', 'ux', 'design'],
+      'website': ['website', 'site', 'web', 'online', 'internet', 'browser', 'page', 'link', 'url', 'domain', 'www', 'http', 'https'],
+      'bonuses': ['bonus', 'promotion', 'offer', 'deal', 'discount', 'free', 'credit', 'cashback', 'reward', 'point', 'vip', 'member', 'program'],
+      'poker': ['poker', 'texas', 'holdem', 'omaha', 'tournament', 'cash', 'game', 'table', 'card', 'hand', 'flop', 'turn', 'river', 'bluff', 'fold', 'call', 'raise', 'all-in'],
+      'slots': ['slot', 'machine', 'reel', 'spin', 'jackpot', 'win', 'line', 'pay', 'symbol', 'wild', 'scatter', 'bonus', 'feature', 'progressive'],
+      'blackjack': ['blackjack', '21', 'card', 'dealer', 'hit', 'stand', 'double', 'split', 'ace', 'face', 'bust', 'natural', 'insurance'],
+      'roulette': ['roulette', 'wheel', 'number', 'red', 'black', 'even', 'odd', 'high', 'low', 'dozen', 'column', 'straight', 'split', 'corner', 'line'],
+      'live dealer': ['live', 'dealer', 'real', 'person', 'human', 'camera', 'stream', 'video', 'interactive', 'chat', 'table', 'game', 'experience'],
+      'security': ['security', 'safe', 'secure', 'protection', 'encryption', 'ssl', 'firewall', 'hack', 'breach', 'fraud', 'scam', 'trust', 'reliable', 'authentic'],
+      'payment methods': ['payment', 'method', 'credit', 'debit', 'card', 'bank', 'transfer', 'wire', 'ach', 'paypal', 'venmo', 'crypto', 'bitcoin', 'ethereum', 'wallet']
+    };
+    
+    // Check if topic has specific keywords
+    if (topicKeywords[lowerTopic]) {
+      const keywords = topicKeywords[lowerTopic];
+      return keywords.some(keyword => lowerText.includes(keyword));
+    }
+    
+    // Fallback: check if topic words appear in text
+    const topicWords = lowerTopic.split(' ');
+    return topicWords.some(word => lowerText.includes(word));
+  };
+
+  // Enhanced deduplication with sentiment and topic filtering
   const deduplicateComments = (comments: string[]): string[] => {
     if (!comments || !Array.isArray(comments)) return [];
     return [...new Set(comments)].filter(comment => comment && comment.trim().length > 0);
   };
 
-  // Function to process and deduplicate data
+  // Filter comments by topic and sentiment
+  const filterCommentsByTopicAndSentiment = (comments: string[], topic: string, targetSentiment: 'positive' | 'negative' | 'neutral'): string[] => {
+    if (!comments || !Array.isArray(comments)) return [];
+    
+    return comments.filter(comment => {
+      // Check topic relevance
+      const isRelevant = isTopicRelevant(comment, topic);
+      if (!isRelevant) return false;
+      
+      // Check sentiment
+      const sentiment = analyzeSentiment(comment);
+      return sentiment === targetSentiment;
+    });
+  };
+
+  // Highlight keywords in text
+  const highlightKeywords = (text: string, topic: string): string => {
+    if (!text || !topic) return text;
+    
+    const lowerTopic = topic.toLowerCase();
+    const topicKeywords: { [key: string]: string[] } = {
+      'sports betting': ['sports', 'betting', 'bet', 'wager', 'odds', 'parlay', 'spread', 'line', 'sport', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf', 'hockey', 'mma', 'boxing', 'racing', 'nfl', 'nba', 'mlb', 'nhl', 'ufc'],
+      'casino games': ['casino', 'slot', 'poker', 'blackjack', 'roulette', 'craps', 'baccarat', 'keno', 'bingo', 'game', 'gaming', 'gambling', 'card', 'table', 'machine', 'jackpot', 'win', 'spin', 'deal'],
+      'withdrawals': ['withdraw', 'withdrawal', 'cash out', 'payout', 'money', 'fund', 'bank', 'account', 'transfer', 'deposit', 'balance', 'wallet', 'payment', 'credit', 'debit'],
+      'customer service': ['service', 'support', 'help', 'assist', 'contact', 'call', 'email', 'chat', 'live', 'agent', 'representative', 'staff', 'team', 'response', 'reply', 'answer'],
+      'deposit fees': ['fee', 'charge', 'cost', 'price', 'deposit', 'payment', 'transaction', 'bank', 'credit', 'debit', 'card', 'transfer', 'wire', 'ach'],
+      'verification process': ['verify', 'verification', 'id', 'identity', 'document', 'proof', 'photo', 'passport', 'license', 'ssn', 'social', 'security', 'number', 'address', 'utility', 'bill'],
+      'loyalty rewards': ['loyalty', 'reward', 'bonus', 'point', 'credit', 'cashback', 'promotion', 'offer', 'deal', 'discount', 'vip', 'member', 'program', 'benefit', 'perk'],
+      'mobile app': ['app', 'mobile', 'phone', 'android', 'ios', 'iphone', 'smartphone', 'tablet', 'download', 'install', 'update', 'version', 'interface', 'ui', 'ux', 'design'],
+      'website': ['website', 'site', 'web', 'online', 'internet', 'browser', 'page', 'link', 'url', 'domain', 'www', 'http', 'https'],
+      'bonuses': ['bonus', 'promotion', 'offer', 'deal', 'discount', 'free', 'credit', 'cashback', 'reward', 'point', 'vip', 'member', 'program'],
+      'poker': ['poker', 'texas', 'holdem', 'omaha', 'tournament', 'cash', 'game', 'table', 'card', 'hand', 'flop', 'turn', 'river', 'bluff', 'fold', 'call', 'raise', 'all-in'],
+      'slots': ['slot', 'machine', 'reel', 'spin', 'jackpot', 'win', 'line', 'pay', 'symbol', 'wild', 'scatter', 'bonus', 'feature', 'progressive'],
+      'blackjack': ['blackjack', '21', 'card', 'dealer', 'hit', 'stand', 'double', 'split', 'ace', 'face', 'bust', 'natural', 'insurance'],
+      'roulette': ['roulette', 'wheel', 'number', 'red', 'black', 'even', 'odd', 'high', 'low', 'dozen', 'column', 'straight', 'split', 'corner', 'line'],
+      'live dealer': ['live', 'dealer', 'real', 'person', 'human', 'camera', 'stream', 'video', 'interactive', 'chat', 'table', 'game', 'experience'],
+      'security': ['security', 'safe', 'secure', 'protection', 'encryption', 'ssl', 'firewall', 'hack', 'breach', 'fraud', 'scam', 'trust', 'reliable', 'authentic'],
+      'payment methods': ['payment', 'method', 'credit', 'debit', 'card', 'bank', 'transfer', 'wire', 'ach', 'paypal', 'venmo', 'crypto', 'bitcoin', 'ethereum', 'wallet']
+    };
+    
+    let highlightedText = text;
+    const keywords = topicKeywords[lowerTopic] || [topic];
+    
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+      highlightedText = highlightedText.replace(regex, `<mark class="bg-yellow-200 text-black px-1 rounded">$&</mark>`);
+    });
+    
+    return highlightedText;
+  };
+
+  // Function to process and deduplicate data with enhanced filtering
   const processAndDeduplicateData = (data: any) => {
     if (!data) return data;
     
-    // Deduplicate mentions by topic
+    // Process mentions by topic with proper filtering
     if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
-      data.mentionsByTopic = data.mentionsByTopic.map((topic: any) => ({
-        ...topic,
-        rawMentions: deduplicateComments(topic.rawMentions)
-      }));
+      data.mentionsByTopic = data.mentionsByTopic.map((topic: any) => {
+        const allMentions = deduplicateComments(topic.rawMentions || []);
+        
+        // Filter mentions by topic relevance
+        const relevantMentions = allMentions.filter((mention: string) => 
+          isTopicRelevant(mention, topic.topic)
+        );
+        
+        // Separate positive and negative mentions
+        const positiveMentions = filterCommentsByTopicAndSentiment(relevantMentions, topic.topic, 'positive');
+        const negativeMentions = filterCommentsByTopicAndSentiment(relevantMentions, topic.topic, 'negative');
+        
+        // Recalculate percentages based on actual sentiment analysis
+        const totalRelevant = relevantMentions.length;
+        const positivePercentage = totalRelevant > 0 ? Math.round((positiveMentions.length / totalRelevant) * 100) : 0;
+        const negativePercentage = totalRelevant > 0 ? Math.round((negativeMentions.length / totalRelevant) * 100) : 0;
+        
+        return {
+          ...topic,
+          rawMentions: relevantMentions,
+          positive: positivePercentage,
+          negative: negativePercentage,
+          total: totalRelevant,
+          positiveMentions,
+          negativeMentions
+        };
+      });
     }
     
-    // Deduplicate executive summary examples
+    // Process executive summary with proper sentiment filtering
     if (data.executiveSummary?.praisedSections) {
-      data.executiveSummary.praisedSections = data.executiveSummary.praisedSections.map((section: any) => ({
-        ...section,
-        examples: deduplicateComments(section.examples)
-      }));
+      data.executiveSummary.praisedSections = data.executiveSummary.praisedSections.map((section: any) => {
+        const allExamples = deduplicateComments(section.examples || []);
+        const positiveExamples = allExamples.filter((example: string) => 
+          analyzeSentiment(example) === 'positive' && isTopicRelevant(example, section.topic)
+        );
+        
+        return {
+          ...section,
+          examples: positiveExamples,
+          percentage: positiveExamples.length > 0 ? Math.round((positiveExamples.length / allExamples.length) * 100) : 0
+        };
+      });
     }
     
     if (data.executiveSummary?.painPoints) {
-      data.executiveSummary.painPoints = data.executiveSummary.painPoints.map((point: any) => ({
-        ...point,
-        examples: deduplicateComments(point.examples)
-      }));
+      data.executiveSummary.painPoints = data.executiveSummary.painPoints.map((point: any) => {
+        const allExamples = deduplicateComments(point.examples || []);
+        const negativeExamples = allExamples.filter((example: string) => 
+          analyzeSentiment(example) === 'negative' && isTopicRelevant(example, point.topic)
+        );
+        
+        return {
+          ...point,
+          examples: negativeExamples,
+          percentage: negativeExamples.length > 0 ? Math.round((negativeExamples.length / allExamples.length) * 100) : 0
+        };
+      });
     }
     
-    // Deduplicate key insights
+    // Process key insights with proper filtering
     if (data.keyInsights && Array.isArray(data.keyInsights)) {
-      data.keyInsights = data.keyInsights.map((insight: any) => ({
-        ...insight,
-        rawMentions: deduplicateComments(insight.rawMentions)
-      }));
+      data.keyInsights = data.keyInsights.map((insight: any) => {
+        const allMentions = deduplicateComments(insight.rawMentions || []);
+        const relevantMentions = allMentions.filter((mention: string) => 
+          isTopicRelevant(mention, insight.insight)
+        );
+        
+        return {
+          ...insight,
+          rawMentions: relevantMentions
+        };
+      });
     }
     
     return data;
@@ -289,33 +501,32 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const handleTopicClick = (topicName: string, rawMentions?: string[], topicData?: any) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Use the backend sentiment data to ensure consistency
-      const totalReviews = rawMentions.length;
-      const positivePercentage = topicData?.positive || 0;
-      const negativePercentage = topicData?.negative || 0;
+      // Filter mentions by topic relevance and analyze sentiment properly
+      const relevantMentions = rawMentions.filter((mention: string) => 
+        isTopicRelevant(mention, topicName)
+      );
       
-      // Calculate actual counts based on backend percentages
-      const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
-      const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
-      
-      // Create reviews with sentiment analysis based on backend percentages
-      const reviews = rawMentions.map((text, index) => {
-        let sentiment = 'neutral'; // Default to neutral
-        
-        // Distribute positive and negative reviews based on backend percentages
-        if (index < positiveCount) {
-          sentiment = 'positive';
-        } else if (index < positiveCount + negativeCount) {
-          sentiment = 'negative';
-        } else {
-          sentiment = 'neutral';
-        }
-        
-        return { text, sentiment, topic: topicName };
+      // Create reviews with proper sentiment analysis
+      const reviews = relevantMentions.map((text: string) => {
+        const sentiment = analyzeSentiment(text);
+        return { 
+          text, 
+          sentiment, 
+          topic: topicName,
+          highlightedText: highlightKeywords(text, topicName)
+        };
       });
       
+      // Separate by sentiment for better organization
+      const positiveReviews = reviews.filter(r => r.sentiment === 'positive');
+      const negativeReviews = reviews.filter(r => r.sentiment === 'negative');
+      const neutralReviews = reviews.filter(r => r.sentiment === 'neutral');
+      
+      // Combine with positive first, then negative, then neutral
+      const organizedReviews = [...positiveReviews, ...negativeReviews, ...neutralReviews];
+      
       setSelectedTopic(topicName);
-      setSelectedReviews(reviews);
+      setSelectedReviews(organizedReviews);
       setShowReviewModal(true);
     }
   };
@@ -2581,7 +2792,16 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               {selectedReviews.map((review, index) => {
                 return (
                   <div key={index} className="bg-[#181a20] border border-white/10 rounded-xl p-4">
-                    <p className="text-white mb-3 leading-relaxed">{review.text}</p>
+                    <div className="mb-3 leading-relaxed">
+                      {review.highlightedText ? (
+                        <div 
+                          className="text-white"
+                          dangerouslySetInnerHTML={{ __html: review.highlightedText }}
+                        />
+                      ) : (
+                        <p className="text-white">{review.text}</p>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
