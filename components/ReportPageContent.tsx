@@ -712,7 +712,7 @@ export default function ReportPageContent({
         "spin",
         "deal",
       ],
-      withdrawals: [
+      "withdrawals": [
         "withdraw",
         "withdrawal",
         "cash out",
@@ -816,7 +816,7 @@ export default function ReportPageContent({
         "ux",
         "design",
       ],
-      website: [
+      "website": [
         "website",
         "site",
         "web",
@@ -831,7 +831,7 @@ export default function ReportPageContent({
         "http",
         "https",
       ],
-      bonuses: [
+      "bonuses": [
         "bonus",
         "promotion",
         "offer",
@@ -846,7 +846,7 @@ export default function ReportPageContent({
         "member",
         "program",
       ],
-      poker: [
+      "poker": [
         "poker",
         "texas",
         "holdem",
@@ -866,7 +866,7 @@ export default function ReportPageContent({
         "raise",
         "all-in",
       ],
-      slots: [
+      "slots": [
         "slot",
         "machine",
         "reel",
@@ -882,7 +882,7 @@ export default function ReportPageContent({
         "feature",
         "progressive",
       ],
-      blackjack: [
+      "blackjack": [
         "blackjack",
         "21",
         "card",
@@ -897,7 +897,7 @@ export default function ReportPageContent({
         "natural",
         "insurance",
       ],
-      roulette: [
+      "roulette": [
         "roulette",
         "wheel",
         "number",
@@ -929,7 +929,7 @@ export default function ReportPageContent({
         "game",
         "experience",
       ],
-      security: [
+      "security": [
         "security",
         "safe",
         "secure",
@@ -1296,36 +1296,36 @@ export default function ReportPageContent({
     // Topic-specific analysis patterns
     const analysisPatterns: { [key: string]: { positive: string[], negative: string[], neutral: string[] } } = {
       'deposits': {
-        positive: ['easy', 'quick', 'fast', 'smooth', 'instant', 'convenient', 'simple', 'reliable'],
-        negative: ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck'],
-        neutral: ['process', 'method', 'option', 'way', 'system']
+        "positive": ['easy', 'quick', 'fast', 'smooth', 'instant', 'convenient', 'simple', 'reliable'],
+        "negative": ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck'],
+        "neutral": ['process', 'method', 'option', 'way', 'system']
       },
       'withdrawals': {
-        positive: ['quick', 'fast', 'smooth', 'easy', 'reliable', 'trusted', 'honest'],
-        negative: ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck', 'scam', 'fraud'],
-        neutral: ['process', 'method', 'option', 'way', 'system']
+        "positive": ['quick', 'fast', 'smooth', 'easy', 'reliable', 'trusted', 'honest'],
+        "negative": ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck', 'scam', 'fraud'],
+        "neutral": ['process', 'method', 'option', 'way', 'system']
       },
       'loyalty rewards': {
-        positive: ['good', 'great', 'excellent', 'amazing', 'fantastic', 'worth', 'valuable', 'beneficial'],
-        negative: ['poor', 'bad', 'terrible', 'worthless', 'useless', 'disappointing', 'unfair', 'rigged'],
-        neutral: ['program', 'system', 'points', 'benefits', 'rewards']
+        "positive": ['good', 'great', 'excellent', 'amazing', 'fantastic', 'worth', 'valuable', 'beneficial'],
+        "negative": ['poor', 'bad', 'terrible', 'worthless', 'useless', 'disappointing', 'unfair', 'rigged'],
+        "neutral": ['program', 'system', 'points', 'benefits', 'rewards']
       },
       'customer service': {
-        positive: ['helpful', 'responsive', 'friendly', 'professional', 'quick', 'efficient', 'knowledgeable'],
-        negative: ['unhelpful', 'unresponsive', 'rude', 'slow', 'useless', 'ignored', 'unprofessional'],
-        neutral: ['support', 'service', 'assistance', 'help']
+        "positive": ['helpful', 'responsive', 'friendly', 'professional', 'quick', 'efficient', 'knowledgeable'],
+        "negative": ['unhelpful', 'unresponsive', 'rude', 'slow', 'useless', 'ignored', 'unprofessional'],
+        "neutral": ['support', 'service', 'assistance', 'help']
       },
       'mobile app': {
-        positive: ['smooth', 'fast', 'easy', 'intuitive', 'user-friendly', 'reliable', 'stable'],
-        negative: ['buggy', 'slow', 'crashes', 'glitchy', 'unstable', 'difficult', 'confusing'],
-        neutral: ['app', 'mobile', 'interface', 'design']
+        "positive": ['smooth', 'fast', 'easy', 'intuitive', 'user-friendly', 'reliable', 'stable'],
+        "negative": ['buggy', 'slow', 'crashes', 'glitchy', 'unstable', 'difficult', 'confusing'],
+        "neutral": ['app', 'mobile', 'interface', 'design']
       }
     };
 
     const patterns = analysisPatterns[lowerTopic] || {
-      positive: ['good', 'great', 'excellent', 'amazing'],
-      negative: ['bad', 'terrible', 'poor', 'awful'],
-      neutral: ['okay', 'fine', 'average']
+              "positive": ['good', 'great', 'excellent', 'amazing'],
+        "negative": ['bad', 'terrible', 'poor', 'awful'],
+        "neutral": ['okay', 'fine', 'average']
     };
 
     // Count pattern matches
