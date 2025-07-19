@@ -38,8 +38,8 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
 async function analyzeReviewsInBatches(reviews: Review[], businessName: string): Promise<any> {
   console.log(`Starting batch analysis for ${reviews.length} reviews...`);
   
-  // Process reviews in batches of 25
-  const batchSize = 25;
+  // Process reviews in batches of 15 to avoid token limits
+  const batchSize = 15;
   const batches = chunkArray(reviews, batchSize);
   console.log(`Created ${batches.length} batches of ${batchSize} reviews each`);
   
@@ -2734,8 +2734,8 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string)
   }
 
   // For batching, use smaller limits to avoid token issues
-  const maxReviewLength = 800; // Reduced for batching
-  const maxTotalReviews = 25; // Smaller batches for better analysis
+  const maxReviewLength = 500; // Further reduced to avoid token limits
+  const maxTotalReviews = 15; // Smaller batches for better analysis
   const truncatedReviews = reviews.slice(0, maxTotalReviews).map(r => ({
     ...r,
     text: r.text.length > maxReviewLength ? r.text.substring(0, maxReviewLength) + '...' : r.text
@@ -2828,7 +2828,7 @@ Return ONLY valid JSON. NO additional text or explanations.`;
           }
         ],
         temperature: 0.1,
-        max_tokens: 32000 // Extended to 32k tokens for comprehensive analysis of all reviews
+        max_tokens: 16384 // Reduced to stay within GPT-4o limits
       })
     });
 
@@ -3298,6 +3298,10 @@ function generateTopicKeyInsights(topic: string, reviews: Review[]): string[] {
 
 // Helper function to detect industry from business data
 function detectIndustry(businessName: string, businessUrl?: string): string {
+  if (!businessName) {
+    return 'gaming'; // Default fallback
+  }
+  
   const name = businessName.toLowerCase();
   const url = businessUrl?.toLowerCase() || '';
   
