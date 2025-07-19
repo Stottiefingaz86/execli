@@ -50,6 +50,10 @@ async function analyzeReviewsInBatches(reviews: Review[], businessName: string):
     console.log(`Processing batch ${i + 1}/${batches.length} with ${batch.length} reviews...`);
     
     try {
+      // Update progress for each batch
+      const progressMessage = `Analyzing batch ${i + 1}/${batches.length} (${batch.length} reviews)...`;
+      console.log(progressMessage);
+      
       const batchAnalysis = await analyzeReviewsWithOpenAI(batch, businessName);
       batchResults.push(batchAnalysis);
       console.log(`Batch ${i + 1} analysis completed successfully`);
@@ -3573,7 +3577,7 @@ serve(async (req) => {
     }
     
     // 3. Analyze reviews with OpenAI using batching
-    await updateProgress('Analyzing customer feedback with AI (processing in batches)...');
+    await updateProgress('Analyzing customer feedback with AI...');
     let analysis: any = {};
     try {
       if (allReviews.length > 0) {
@@ -3582,9 +3586,11 @@ serve(async (req) => {
         // Use batching for better analysis quality
         if (allReviews.length > 30) {
           console.log('Using batch processing for large review set...');
+          await updateProgress(`Processing ${allReviews.length} reviews in batches (this may take 3-5 minutes)...`);
           analysis = await analyzeReviewsInBatches(allReviews, business_name);
         } else {
           console.log('Using single batch for smaller review set...');
+          await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
           analysis = await analyzeReviewsWithOpenAI(allReviews, business_name);
         }
         

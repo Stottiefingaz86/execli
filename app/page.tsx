@@ -516,12 +516,16 @@ export default function Home() {
 
   const getFaviconUrl = (domain: string) => domain ? `https://www.google.com/s2/favicons?domain=${domain}` : '';
 
-  // Polling function
-  async function pollReportStatus(reportId: string, maxAttempts = 60) {
+  // Polling function - No timeout limit, let backend control completion
+  async function pollReportStatus(reportId: string) {
     let attempts = 0;
     setPolling(true);
     setPollingError(null);
-    while (attempts < maxAttempts) {
+    
+    // Show initial progress message
+    setLoadingMessage('Initializing your report...');
+    
+    while (true) { // No maximum attempts - let backend control completion
       try {
         const res = await fetch(`/api/report-status?report_id=${reportId}`);
         const data = await res.json();
@@ -532,7 +536,8 @@ export default function Home() {
           status: data.status,
           reportUrl: data.report_url,
           hasAnalysis: data.has_analysis,
-          progressMessage: data.progress_message
+          progressMessage: data.progress_message,
+          sourcesCount: data.sources_count
         });
         
         // Update loading message based on progress
@@ -540,11 +545,17 @@ export default function Home() {
           setLoadingMessage(data.progress_message);
         }
         
+        // Handle completion
         if (data.status === 'complete' && data.report_url) {
           console.log('Report complete, redirecting to:', data.report_url);
-          window.location.href = data.report_url;
+          setLoadingMessage('Report ready! Redirecting...');
+          setTimeout(() => {
+            window.location.href = data.report_url;
+          }, 1000);
           return;
         }
+        
+        // Handle error
         if (data.status === 'error') {
           setErrorMessage('There was an error generating your report. Please try again.');
           setHasError(true);
@@ -552,20 +563,33 @@ export default function Home() {
           setSubmitted(false);
           return;
         }
+        
+        // Show progress with attempt count for long-running reports
+        if (attempts > 30) { // After 1 minute, show more detailed progress
+          const minutes = Math.floor(attempts / 30);
+          const seconds = (attempts % 30) * 2;
+          const timeElapsed = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          
+          if (!data.progress_message || data.progress_message.includes('Processing')) {
+            setLoadingMessage(`Analyzing customer feedback with AI... (${timeElapsed} elapsed)`);
+          }
+        }
+        
       } catch (err) {
-        setErrorMessage('Network error. Please try again.');
-        setHasError(true);
-        setPolling(false);
-        setSubmitted(false);
-        return;
+        console.error('Polling error:', err);
+        // Don't immediately show error for network issues - retry
+        if (attempts > 10) { // Only show error after 20 seconds of network issues
+          setErrorMessage('Network error. Please check your connection and try again.');
+          setHasError(true);
+          setPolling(false);
+          setSubmitted(false);
+          return;
+        }
       }
+      
       await new Promise(res => setTimeout(res, 2000));
       attempts++;
     }
-    setErrorMessage('Report generation timed out. Please try again.');
-    setHasError(true);
-    setPolling(false);
-    setSubmitted(false);
   }
 
   return (
@@ -652,7 +676,11 @@ export default function Home() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
-                        <span className="text-white text-lg font-semibold">{loadingMessage}</span>
+                        <span className="text-white text-lg font-semibold text-center">{loadingMessage}</span>
+                        <div className="text-sm text-gray-400 text-center max-w-xs">
+                          This can take 2-5 minutes for thorough analysis.<br />
+                          We're analyzing customer feedback across multiple platforms.
+                        </div>
                       </div>
                     </div>
                   )}
