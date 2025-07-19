@@ -1290,163 +1290,69 @@ export default function ReportPageContent({
     const topicLower = topic.toLowerCase();
     const reviewCount = rawMentions.length;
 
-    // Enhanced pattern analysis for different topics
-    if (topicLower.includes('deposit')) {
-      const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
-      const hasErrors = /\b(error|failed|rejected|problem|issue|declined)\b/gi.test(allText);
-      const hasSuccess = /\b(easy|quick|fast|smooth|instant|convenient|simple|reliable)\b/gi.test(allText);
-      const hasFees = /\b(fee|charge|cost|expensive)\b/gi.test(allText);
-      
-      if (hasDelays || hasErrors) {
-        let issues = [];
-        if (hasDelays) issues.push('delays');
-        if (hasErrors) issues.push('failures');
-        if (hasFees) issues.push('fees');
-        
-        return `Deposit issues: ${issues.join(', ')} affecting ${reviewCount} customers. Users frustrated with processing problems.`;
-      } else if (hasSuccess) {
-        return `Deposits working well: fast and reliable for ${reviewCount} customers. Users praise speed and convenience.`;
-      }
-    } else if (topicLower.includes('withdrawal')) {
-      const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
-      const hasErrors = /\b(error|failed|rejected|problem|issue|declined)\b/gi.test(allText);
-      const hasScam = /\b(scam|fraud|dishonest|untrustworthy|fake|rigged)\b/gi.test(allText);
-      const hasLimits = /\b(limit|restriction|minimum|maximum)\b/gi.test(allText);
-      
-      if (hasScam) {
-        return `CRITICAL: Trust issues - ${reviewCount} customers report potential fraud. Requires immediate investigation.`;
-      } else if (hasDelays || hasErrors) {
-        let issues = [];
-        if (hasDelays) issues.push('delays');
-        if (hasErrors) issues.push('failures');
-        if (hasLimits) issues.push('limits');
-        
-        return `Withdrawal problems: ${issues.join(', ')} affecting ${reviewCount} customers. Damaging trust and retention.`;
-      }
-    } else if (topicLower.includes('loyalty') || topicLower.includes('reward')) {
-      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing|bad|terrible)\b/gi.test(allText);
-      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent|amazing|fantastic)\b/gi.test(allText);
-      const hasComplex = /\b(complicated|confusing|difficult|complex|hard)\b/gi.test(allText);
-      const hasPoints = /\b(points|rewards|benefits|bonuses|cashback|perks)\b/gi.test(allText);
-      const hasEasy = /\b(easy|simple|straightforward|clear)\b/gi.test(allText);
-      
-      if (hasUnfair) {
-        return `Loyalty program criticized: ${reviewCount} customers find rewards worthless or rigged.`;
-      } else if (hasComplex) {
-        return `Loyalty program confusing: ${reviewCount} customers struggle with complex system.`;
-      } else if (hasGood && hasPoints) {
-        return `Loyalty program praised: ${reviewCount} customers appreciate points and rewards.`;
-      } else if (hasEasy && hasPoints) {
-        return `Loyalty program well-designed: ${reviewCount} customers find system easy and valuable.`;
-      } else if (hasGood) {
-        return `Loyalty program positive: ${reviewCount} customers appreciate rewards and benefits.`;
-      }
-    } else if (topicLower.includes('sports') || topicLower.includes('betting')) {
-      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing|bad|terrible|scam|fraud)\b/gi.test(allText);
-      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent|amazing|fantastic)\b/gi.test(allText);
-      const hasOdds = /\b(odds|lines|spreads|payouts|winnings)\b/gi.test(allText);
-      const hasVariety = /\b(variety|selection|options|games|sports)\b/gi.test(allText);
-      
-      if (hasUnfair) {
-        return `Sports betting criticized: ${reviewCount} customers report unfair odds and rigged systems.`;
-      } else if (hasGood && hasOdds) {
-        return `Sports betting praised: ${reviewCount} customers appreciate fair odds and good payouts.`;
-      } else if (hasGood && hasVariety) {
-        return `Sports betting positive: ${reviewCount} customers like variety and betting options.`;
-      } else if (hasGood) {
-        return `Sports betting satisfied: ${reviewCount} customers happy with betting experience.`;
-      }
-    } else if (topicLower.includes('service') || topicLower.includes('support')) {
-      const hasUnhelpful = /\b(unhelpful|unresponsive|rude|useless|ignored|slow)\b/gi.test(allText);
-      const hasHelpful = /\b(helpful|responsive|friendly|professional|quick|efficient)\b/gi.test(allText);
-      const hasLongWait = /\b(wait|hold|queue|busy|unavailable)\b/gi.test(allText);
-      
-      if (hasUnhelpful || hasLongWait) {
-        let issues = [];
-        if (hasUnhelpful) issues.push('unresponsive');
-        if (hasLongWait) issues.push('long waits');
-        
-        return `Customer service problems: ${issues.join(', ')} affecting ${reviewCount} customers.`;
-      } else if (hasHelpful) {
-        return `Customer service praised: ${reviewCount} customers appreciate helpful support.`;
-      }
-    } else if (topicLower.includes('poker')) {
-      // Specific poker analysis to extract real issues
-      const hasRigged = /\b(rigged|fixed|manipulated|cheating|bot|bots|automated|fake)\b/gi.test(allText);
-      const hasUnfair = /\b(unfair|dishonest|scam|fraud|corrupt|biased)\b/gi.test(allText);
-      const hasSlow = /\b(slow|delay|lag|unresponsive|freeze)\b/gi.test(allText);
-      const hasBugs = /\b(bug|glitch|error|crash|problem|issue)\b/gi.test(allText);
-      const hasGood = /\b(good|great|excellent|smooth|fair|honest)\b/gi.test(allText);
-      const hasTournament = /\b(tournament|tourney|sit.*go|cash.*game)\b/gi.test(allText);
-      
-      if (hasRigged || hasUnfair) {
-        let issues = [];
-        if (hasRigged) issues.push('rigged games');
-        if (hasUnfair) issues.push('unfair play');
-        if (hasBugs) issues.push('technical bugs');
-        if (hasSlow) issues.push('performance issues');
-        
-        return `CRITICAL: Poker ${issues.join(', ')} - ${reviewCount} customers report bots and cheating. Trust severely damaged.`;
-      } else if (hasBugs || hasSlow) {
-        let issues = [];
-        if (hasBugs) issues.push('bugs');
-        if (hasSlow) issues.push('slow performance');
-        
-        return `Poker technical issues: ${issues.join(', ')} affecting ${reviewCount} customers.`;
-      } else if (hasGood) {
-        return `Poker positive: ${reviewCount} customers satisfied with fair gameplay.`;
-      } else if (hasTournament) {
-        return `Poker tournament issues: ${reviewCount} customers report problems with tournament play.`;
-      }
-    } else if (topicLower.includes('app') || topicLower.includes('mobile')) {
-      const hasBugs = /\b(bug|crash|glitch|error|problem|issue)\b/gi.test(allText);
-      const hasSlow = /\b(slow|lag|freeze|unresponsive)\b/gi.test(allText);
-      const hasGood = /\b(smooth|fast|easy|intuitive|user-friendly)\b/gi.test(allText);
-      
-      if (hasBugs || hasSlow) {
-        let issues = [];
-        if (hasBugs) issues.push('bugs');
-        if (hasSlow) issues.push('slow');
-        
-        return `Mobile app issues: ${issues.join(', ')} affecting ${reviewCount} customers.`;
-      } else if (hasGood) {
-        return `Mobile app praised: ${reviewCount} customers like smooth experience.`;
-      }
+    // Universal pattern analysis that works across all industries
+    const hasQualityIssues = /\b(poor|bad|terrible|awful|disappointing|unacceptable|substandard|inferior)\b/gi.test(allText);
+    const hasTrustIssues = /\b(scam|fraud|fake|dishonest|untrustworthy|deceptive|misleading|rigged)\b/gi.test(allText);
+    const hasTechnicalIssues = /\b(bug|glitch|crash|error|broken|unresponsive|freeze|malfunction)\b/gi.test(allText);
+    const hasPerformanceIssues = /\b(slow|delay|lag|wait|stuck|processing|unresponsive|timeout)\b/gi.test(allText);
+    const hasServiceIssues = /\b(unhelpful|rude|ignored|unresponsive|useless|incompetent|unprofessional)\b/gi.test(allText);
+    const hasPriceIssues = /\b(expensive|overpriced|costly|rip-off|overcharged|unfair|pricey)\b/gi.test(allText);
+    const hasQualityPraise = /\b(excellent|amazing|fantastic|outstanding|superb|perfect|brilliant)\b/gi.test(allText);
+    const hasServicePraise = /\b(helpful|friendly|professional|responsive|efficient|quick|attentive)\b/gi.test(allText);
+    const hasValuePraise = /\b(worth|valuable|beneficial|great|good|satisfied|happy|love)\b/gi.test(allText);
+    
+    // Extract specific issues for any industry
+    let specificIssues = [];
+    if (hasTrustIssues) specificIssues.push('trust concerns');
+    if (hasQualityIssues) specificIssues.push('quality problems');
+    if (hasTechnicalIssues) specificIssues.push('technical issues');
+    if (hasPerformanceIssues) specificIssues.push('performance problems');
+    if (hasServiceIssues) specificIssues.push('service issues');
+    if (hasPriceIssues) specificIssues.push('pricing concerns');
+    
+    // Generate industry-agnostic insights
+    if (hasTrustIssues) {
+      return `CRITICAL: Trust issues - ${reviewCount} customers report concerns about ${topic}. Requires immediate attention.`;
+    } else if (hasQualityIssues && hasTechnicalIssues) {
+      return `${topic} quality and technical issues - ${reviewCount} customers report problems with reliability and performance.`;
+    } else if (hasQualityIssues) {
+      return `${topic} quality concerns - ${reviewCount} customers report substandard quality and disappointing experiences.`;
+    } else if (hasTechnicalIssues) {
+      return `${topic} technical problems - ${reviewCount} customers experiencing bugs, crashes, and system issues.`;
+    } else if (hasPerformanceIssues) {
+      return `${topic} performance issues - ${reviewCount} customers report slow, unresponsive, or delayed service.`;
+    } else if (hasServiceIssues) {
+      return `${topic} service problems - ${reviewCount} customers report unhelpful, rude, or unresponsive support.`;
+    } else if (hasPriceIssues) {
+      return `${topic} pricing concerns - ${reviewCount} customers find service overpriced or unfair.`;
+    } else if (hasQualityPraise && hasServicePraise) {
+      return `${topic} excellence - ${reviewCount} customers praise quality and service.`;
+    } else if (hasQualityPraise) {
+      return `${topic} quality praised - ${reviewCount} customers satisfied with excellent quality.`;
+    } else if (hasServicePraise) {
+      return `${topic} service praised - ${reviewCount} customers appreciate helpful and professional support.`;
+    } else if (hasValuePraise) {
+      return `${topic} positive feedback - ${reviewCount} customers satisfied with value and experience.`;
     }
 
-    // Enhanced generic analysis with more detailed patterns
+    // Fallback generic analysis for any remaining cases
     const positiveWords = /\b(good|great|excellent|amazing|fantastic|smooth|easy|quick|reliable|satisfied|happy|love)\b/gi;
     const negativeWords = /\b(bad|terrible|poor|awful|slow|difficult|problem|issue|error|disappointed|frustrated|hate)\b/gi;
     const urgentWords = /\b(urgent|critical|emergency|immediate|serious)\b/gi;
-    const scamWords = /\b(scam|fraud|fake|dishonest|untrustworthy|rigged|cheating)\b/gi;
-    const technicalWords = /\b(bug|glitch|crash|error|broken|unresponsive|freeze)\b/gi;
-    const slowWords = /\b(slow|delay|lag|wait|stuck|processing)\b/gi;
     
     const positiveMatches = allText.match(positiveWords) || [];
     const negativeMatches = allText.match(negativeWords) || [];
     const urgentMatches = allText.match(urgentWords) || [];
-    const scamMatches = allText.match(scamWords) || [];
-    const technicalMatches = allText.match(technicalWords) || [];
-    const slowMatches = allText.match(slowWords) || [];
     
-    // Extract specific issues
-    let specificIssues = [];
-    if (scamMatches.length > 0) specificIssues.push('trust issues');
-    if (technicalMatches.length > 0) specificIssues.push('technical problems');
-    if (slowMatches.length > 0) specificIssues.push('performance issues');
-    
-    // Only show URGENT for negative topics, not positive ones
+    // Fallback analysis
     if (urgentMatches.length > 0 && negativeMatches.length > positiveMatches.length) {
-      const issues = specificIssues.length > 0 ? ` - ${specificIssues.join(', ')}` : '';
-      return `URGENT: Critical issues for ${topic}${issues} - ${reviewCount} customers need immediate attention.`;
+      return `URGENT: Critical issues for ${topic} - ${reviewCount} customers need immediate attention.`;
     } else if (positiveMatches.length > negativeMatches.length * 2) {
       return `${topic} positive: ${reviewCount} customers satisfied with service.`;
     } else if (negativeMatches.length > positiveMatches.length * 2) {
-      const issues = specificIssues.length > 0 ? `: ${specificIssues.join(', ')}` : ' concerns';
-      return `${topic}${issues} - ${reviewCount} customers report problems needing attention.`;
+      return `${topic} concerns - ${reviewCount} customers report problems needing attention.`;
     } else {
-      const issues = specificIssues.length > 0 ? `: ${specificIssues.join(', ')}` : ' mixed feedback';
-      return `${topic}${issues} - ${reviewCount} customers have varied experiences.`;
+      return `${topic} mixed feedback - ${reviewCount} customers have varied experiences.`;
     }
   };
 
