@@ -1485,7 +1485,7 @@ export default function ReportPageContent({
     return `Analysis of ${topic} shows ${sentiment === 'positive' ? 'generally positive feedback' : sentiment === 'negative' ? 'significant concerns that need attention' : 'mixed customer sentiment'}.`;
   };
 
-  // Enhanced topic analysis function
+  // Enhanced topic analysis function with detailed pattern analysis
   const analyzeTopicInsights = (topic: string, rawMentions: string[]): string => {
     if (!rawMentions || rawMentions.length === 0) {
       return `No specific feedback available for ${topic}.`;
@@ -1493,61 +1493,100 @@ export default function ReportPageContent({
 
     const allText = rawMentions.join(' ').toLowerCase();
     const topicLower = topic.toLowerCase();
+    const reviewCount = rawMentions.length;
 
-    // Specific analysis for different topics
+    // Enhanced pattern analysis for different topics
     if (topicLower.includes('deposit')) {
-      const hasDelays = /\b(delay|pending|wait|slow|stuck)\b/gi.test(allText);
-      const hasErrors = /\b(error|failed|rejected|problem|issue)\b/gi.test(allText);
-      const hasSuccess = /\b(easy|quick|fast|smooth|instant)\b/gi.test(allText);
+      const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
+      const hasErrors = /\b(error|failed|rejected|problem|issue|declined)\b/gi.test(allText);
+      const hasSuccess = /\b(easy|quick|fast|smooth|instant|convenient)\b/gi.test(allText);
+      const hasFees = /\b(fee|charge|cost|expensive)\b/gi.test(allText);
       
       if (hasDelays || hasErrors) {
-        return `Users are experiencing deposit issues, primarily ${hasDelays ? 'delays and processing times' : ''}${hasDelays && hasErrors ? ' and ' : ''}${hasErrors ? 'technical errors and failures' : ''}. This is affecting customer satisfaction and trust.`;
+        let issues = [];
+        if (hasDelays) issues.push('processing delays');
+        if (hasErrors) issues.push('technical failures');
+        if (hasFees) issues.push('unexpected fees');
+        
+        return `Users are experiencing deposit issues across ${reviewCount} reviews. Primary concerns: ${issues.join(', ')}. This is significantly affecting customer satisfaction and trust in the platform.`;
       } else if (hasSuccess) {
-        return `Deposit process is working well for most users, with positive feedback about speed and reliability.`;
+        return `Deposit process is working well across ${reviewCount} reviews. Users consistently praise the speed, reliability, and ease of the process.`;
       }
     } else if (topicLower.includes('withdrawal')) {
-      const hasDelays = /\b(delay|pending|wait|slow|stuck)\b/gi.test(allText);
-      const hasErrors = /\b(error|failed|rejected|problem|issue)\b/gi.test(allText);
-      const hasScam = /\b(scam|fraud|dishonest|untrustworthy)\b/gi.test(allText);
+      const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
+      const hasErrors = /\b(error|failed|rejected|problem|issue|declined)\b/gi.test(allText);
+      const hasScam = /\b(scam|fraud|dishonest|untrustworthy|fake|rigged)\b/gi.test(allText);
+      const hasLimits = /\b(limit|restriction|minimum|maximum)\b/gi.test(allText);
       
       if (hasScam) {
-        return `Serious concerns about withdrawal reliability. Users are reporting trust issues and potential fraudulent behavior. This requires immediate investigation and resolution.`;
+        return `CRITICAL: Serious trust issues detected across ${reviewCount} reviews. Users are reporting potential fraudulent behavior and lack of transparency. This requires immediate investigation and resolution.`;
       } else if (hasDelays || hasErrors) {
-        return `Withdrawal problems are significant, with users experiencing ${hasDelays ? 'delays and processing issues' : ''}${hasDelays && hasErrors ? ' and ' : ''}${hasErrors ? 'technical failures' : ''}. This is damaging customer trust.`;
+        let issues = [];
+        if (hasDelays) issues.push('processing delays');
+        if (hasErrors) issues.push('technical failures');
+        if (hasLimits) issues.push('unreasonable restrictions');
+        
+        return `Withdrawal problems are significant across ${reviewCount} reviews. Users experiencing: ${issues.join(', ')}. This is severely damaging customer trust and retention.`;
       }
     } else if (topicLower.includes('loyalty') || topicLower.includes('reward')) {
-      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor)\b/gi.test(allText);
-      const hasGood = /\b(good|great|valuable|worth|beneficial)\b/gi.test(allText);
+      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing)\b/gi.test(allText);
+      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent)\b/gi.test(allText);
+      const hasComplex = /\b(complicated|confusing|difficult|complex)\b/gi.test(allText);
       
       if (hasUnfair) {
-        return `Loyalty program is criticized for being unfair or poorly structured. Users feel the rewards are not valuable or the system is rigged against them.`;
+        return `Loyalty program is heavily criticized across ${reviewCount} reviews. Users feel the rewards are not valuable, the system is rigged, or the benefits are misleading.`;
+      } else if (hasComplex) {
+        return `Loyalty program is confusing across ${reviewCount} reviews. Users find the system too complicated or difficult to understand and use effectively.`;
       } else if (hasGood) {
-        return `Loyalty program receives positive feedback. Users appreciate the rewards and find them valuable.`;
+        return `Loyalty program receives positive feedback across ${reviewCount} reviews. Users appreciate the rewards and find them valuable and worthwhile.`;
       }
-    } else if (topicLower.includes('service')) {
-      const hasUnhelpful = /\b(unhelpful|unresponsive|rude|useless|ignored)\b/gi.test(allText);
-      const hasHelpful = /\b(helpful|responsive|friendly|professional)\b/gi.test(allText);
+    } else if (topicLower.includes('service') || topicLower.includes('support')) {
+      const hasUnhelpful = /\b(unhelpful|unresponsive|rude|useless|ignored|slow)\b/gi.test(allText);
+      const hasHelpful = /\b(helpful|responsive|friendly|professional|quick|efficient)\b/gi.test(allText);
+      const hasLongWait = /\b(wait|hold|queue|busy|unavailable)\b/gi.test(allText);
       
-      if (hasUnhelpful) {
-        return `Customer service is problematic. Users report unresponsive and unhelpful support, which is affecting customer satisfaction.`;
+      if (hasUnhelpful || hasLongWait) {
+        let issues = [];
+        if (hasUnhelpful) issues.push('unresponsive support');
+        if (hasLongWait) issues.push('long wait times');
+        
+        return `Customer service is problematic across ${reviewCount} reviews. Users report: ${issues.join(', ')}. This is significantly impacting customer satisfaction.`;
       } else if (hasHelpful) {
-        return `Customer service is well-received. Users appreciate the helpful and responsive support.`;
+        return `Customer service is well-received across ${reviewCount} reviews. Users appreciate the helpful, responsive, and professional support.`;
+      }
+    } else if (topicLower.includes('app') || topicLower.includes('mobile')) {
+      const hasBugs = /\b(bug|crash|glitch|error|problem|issue)\b/gi.test(allText);
+      const hasSlow = /\b(slow|lag|freeze|unresponsive)\b/gi.test(allText);
+      const hasGood = /\b(smooth|fast|easy|intuitive|user-friendly)\b/gi.test(allText);
+      
+      if (hasBugs || hasSlow) {
+        let issues = [];
+        if (hasBugs) issues.push('technical bugs and crashes');
+        if (hasSlow) issues.push('performance issues');
+        
+        return `Mobile app has significant issues across ${reviewCount} reviews. Users experiencing: ${issues.join(', ')}. This is affecting user experience and satisfaction.`;
+      } else if (hasGood) {
+        return `Mobile app receives positive feedback across ${reviewCount} reviews. Users praise the smooth, fast, and user-friendly experience.`;
       }
     }
 
-    // Generic analysis for other topics
-    const positiveWords = /\b(good|great|excellent|amazing|fantastic|smooth|easy|quick|reliable)\b/gi;
-    const negativeWords = /\b(bad|terrible|poor|awful|slow|difficult|problem|issue|error)\b/gi;
+    // Enhanced generic analysis with more detailed patterns
+    const positiveWords = /\b(good|great|excellent|amazing|fantastic|smooth|easy|quick|reliable|satisfied|happy|love)\b/gi;
+    const negativeWords = /\b(bad|terrible|poor|awful|slow|difficult|problem|issue|error|disappointed|frustrated|hate)\b/gi;
+    const urgentWords = /\b(urgent|critical|emergency|immediate|serious)\b/gi;
     
     const positiveMatches = allText.match(positiveWords) || [];
     const negativeMatches = allText.match(negativeWords) || [];
+    const urgentMatches = allText.match(urgentWords) || [];
     
-    if (positiveMatches.length > negativeMatches.length * 2) {
-      return `Users are generally satisfied with ${topic}. Positive feedback outweighs concerns.`;
+    if (urgentMatches.length > 0) {
+      return `URGENT: Critical issues detected across ${reviewCount} reviews for ${topic}. Users are reporting serious problems that require immediate attention.`;
+    } else if (positiveMatches.length > negativeMatches.length * 2) {
+      return `Users are generally satisfied with ${topic} across ${reviewCount} reviews. Positive feedback significantly outweighs concerns.`;
     } else if (negativeMatches.length > positiveMatches.length * 2) {
-      return `Users have significant concerns about ${topic}. Negative feedback indicates problems that need attention.`;
+      return `Users have significant concerns about ${topic} across ${reviewCount} reviews. Negative feedback indicates problems that need immediate attention.`;
     } else {
-      return `Mixed feedback for ${topic}. Some users are satisfied while others have concerns. Further analysis needed.`;
+      return `Mixed feedback for ${topic} across ${reviewCount} reviews. Some users are satisfied while others have concerns. Further analysis needed to identify specific improvement areas.`;
     }
   };
 
@@ -2120,9 +2159,8 @@ export default function ReportPageContent({
                                       (topic.positive + topic.negative)) *
                                       100,
                                   );
-                                  const example =
-                                    topic.rawMentions?.[0] ||
-                                    "Positive feedback about this topic";
+                                  // Generate proper insight instead of raw review
+                                  const insight = analyzeTopicInsights(topic.topic, topic.rawMentions || []);
                                   return (
                                     <div
                                       key={index}
@@ -2136,8 +2174,8 @@ export default function ReportPageContent({
                                           {percentage}% positive
                                         </span>
                                       </div>
-                                      <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                        "{example.substring(0, 100)}..."
+                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
+                                        {insight}
                                       </div>
                                     </div>
                                   );
@@ -2157,8 +2195,8 @@ export default function ReportPageContent({
                                     0% positive
                                   </span>
                                 </div>
-                                <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                  "No significant positive feedback found"
+                                <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
+                                  No significant positive feedback found in the analyzed reviews.
                                 </div>
                               </div>
                             </div>
@@ -2225,9 +2263,8 @@ export default function ReportPageContent({
                                       (topic.positive + topic.negative)) *
                                       100,
                                   );
-                                  const example =
-                                    topic.rawMentions?.[0] ||
-                                    "Negative feedback about this topic";
+                                  // Generate proper insight instead of raw review
+                                  const insight = analyzeTopicInsights(topic.topic, topic.rawMentions || []);
                                   return (
                                     <div
                                       key={index}
@@ -2241,8 +2278,8 @@ export default function ReportPageContent({
                                           {percentage}% negative
                                         </span>
                                       </div>
-                                      <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                        "{example.substring(0, 100)}..."
+                                      <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors">
+                                        {insight}
                                       </div>
                                     </div>
                                   );
@@ -2262,8 +2299,8 @@ export default function ReportPageContent({
                                     0% negative
                                   </span>
                                 </div>
-                                <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                  "No significant negative feedback found"
+                                <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors">
+                                  No significant negative feedback found in the analyzed reviews.
                                 </div>
                               </div>
                             </div>
@@ -2344,10 +2381,11 @@ export default function ReportPageContent({
                           (topic.negative / (topic.positive + topic.negative)) *
                             100,
                         );
+                        const insight = analyzeTopicInsights(topic.topic, topic.rawMentions || []);
                         alerts.push({
                           type: "critical",
                           metric: topic.topic,
-                          message: `High negative sentiment (${percentage}%) about ${topic.topic.toLowerCase()} affecting customer satisfaction`,
+                          message: insight,
                         });
                       });
 
@@ -2357,10 +2395,11 @@ export default function ReportPageContent({
                           (topic.negative / (topic.positive + topic.negative)) *
                             100,
                         );
+                        const insight = analyzeTopicInsights(topic.topic, topic.rawMentions || []);
                         alerts.push({
                           type: "warning",
                           metric: topic.topic,
-                          message: `Moderate negative sentiment (${percentage}%) about ${topic.topic.toLowerCase()} needs attention`,
+                          message: insight,
                         });
                       });
 
