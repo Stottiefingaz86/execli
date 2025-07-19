@@ -127,7 +127,7 @@ export class EnhancedVOCScraper {
             }
           ],
           max_tokens: 500,
-          temperature: 0.3
+          temperature: 0.7
         })
       })
 

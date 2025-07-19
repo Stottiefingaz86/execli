@@ -467,52 +467,46 @@ export default function ReportPageContent({
     const lowerText = text.toLowerCase();
     const lowerTopic = topic.toLowerCase();
 
-    // Topic-specific keywords
+    // Topic-specific keywords with more precise matching
     const topicKeywords: { [key: string]: string[] } = {
       "sports betting": [
-        "sports",
-        "betting",
-        "bet",
-        "wager",
+        "sports betting",
+        "sport betting", 
+        "bet on",
+        "betting on",
         "odds",
         "parlay",
         "spread",
         "line",
-        "sport",
-        "football",
-        "basketball",
-        "baseball",
-        "soccer",
-        "tennis",
-        "golf",
-        "hockey",
-        "mma",
-        "boxing",
-        "racing",
-        "nfl",
-        "nba",
-        "mlb",
-        "nhl",
-        "ufc",
+        "football bet",
+        "basketball bet",
+        "baseball bet",
+        "soccer bet",
+        "tennis bet",
+        "golf bet",
+        "hockey bet",
+        "mma bet",
+        "boxing bet",
+        "racing bet",
+        "nfl bet",
+        "nba bet",
+        "mlb bet",
+        "nhl bet",
+        "ufc bet",
       ],
       "casino games": [
-        "casino",
-        "slot",
-        "poker",
-        "blackjack",
-        "roulette",
-        "craps",
-        "baccarat",
-        "keno",
-        "bingo",
-        "game",
-        "gaming",
-        "gambling",
-        "card",
-        "table",
-        "machine",
+        "casino game",
+        "slot machine",
+        "poker game",
+        "blackjack game",
+        "roulette game",
+        "craps game",
+        "baccarat game",
+        "keno game",
+        "bingo game",
+        "card game",
+        "table game",
         "jackpot",
-        "win",
         "spin",
         "deal",
       ],
@@ -1499,18 +1493,18 @@ export default function ReportPageContent({
     if (topicLower.includes('deposit')) {
       const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
       const hasErrors = /\b(error|failed|rejected|problem|issue|declined)\b/gi.test(allText);
-      const hasSuccess = /\b(easy|quick|fast|smooth|instant|convenient)\b/gi.test(allText);
+      const hasSuccess = /\b(easy|quick|fast|smooth|instant|convenient|simple|reliable)\b/gi.test(allText);
       const hasFees = /\b(fee|charge|cost|expensive)\b/gi.test(allText);
       
       if (hasDelays || hasErrors) {
         let issues = [];
-        if (hasDelays) issues.push('processing delays');
-        if (hasErrors) issues.push('technical failures');
-        if (hasFees) issues.push('unexpected fees');
+        if (hasDelays) issues.push('delays');
+        if (hasErrors) issues.push('failures');
+        if (hasFees) issues.push('fees');
         
-        return `Users are experiencing deposit issues across ${reviewCount} reviews. Primary concerns: ${issues.join(', ')}. This is significantly affecting customer satisfaction and trust in the platform.`;
+        return `Deposit issues: ${issues.join(', ')} affecting ${reviewCount} customers. Users frustrated with processing problems.`;
       } else if (hasSuccess) {
-        return `Deposit process is working well across ${reviewCount} reviews. Users consistently praise the speed, reliability, and ease of the process.`;
+        return `Deposits working well: fast and reliable for ${reviewCount} customers. Users praise speed and convenience.`;
       }
     } else if (topicLower.includes('withdrawal')) {
       const hasDelays = /\b(delay|pending|wait|slow|stuck|processing)\b/gi.test(allText);
@@ -1519,26 +1513,47 @@ export default function ReportPageContent({
       const hasLimits = /\b(limit|restriction|minimum|maximum)\b/gi.test(allText);
       
       if (hasScam) {
-        return `CRITICAL: Serious trust issues detected across ${reviewCount} reviews. Users are reporting potential fraudulent behavior and lack of transparency. This requires immediate investigation and resolution.`;
+        return `CRITICAL: Trust issues - ${reviewCount} customers report potential fraud. Requires immediate investigation.`;
       } else if (hasDelays || hasErrors) {
         let issues = [];
-        if (hasDelays) issues.push('processing delays');
-        if (hasErrors) issues.push('technical failures');
-        if (hasLimits) issues.push('unreasonable restrictions');
+        if (hasDelays) issues.push('delays');
+        if (hasErrors) issues.push('failures');
+        if (hasLimits) issues.push('limits');
         
-        return `Withdrawal problems are significant across ${reviewCount} reviews. Users experiencing: ${issues.join(', ')}. This is severely damaging customer trust and retention.`;
+        return `Withdrawal problems: ${issues.join(', ')} affecting ${reviewCount} customers. Damaging trust and retention.`;
       }
     } else if (topicLower.includes('loyalty') || topicLower.includes('reward')) {
-      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing)\b/gi.test(allText);
-      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent)\b/gi.test(allText);
-      const hasComplex = /\b(complicated|confusing|difficult|complex)\b/gi.test(allText);
+      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing|bad|terrible)\b/gi.test(allText);
+      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent|amazing|fantastic)\b/gi.test(allText);
+      const hasComplex = /\b(complicated|confusing|difficult|complex|hard)\b/gi.test(allText);
+      const hasPoints = /\b(points|rewards|benefits|bonuses|cashback|perks)\b/gi.test(allText);
+      const hasEasy = /\b(easy|simple|straightforward|clear)\b/gi.test(allText);
       
       if (hasUnfair) {
-        return `Loyalty program is heavily criticized across ${reviewCount} reviews. Users feel the rewards are not valuable, the system is rigged, or the benefits are misleading.`;
+        return `Loyalty program criticized: ${reviewCount} customers find rewards worthless or rigged.`;
       } else if (hasComplex) {
-        return `Loyalty program is confusing across ${reviewCount} reviews. Users find the system too complicated or difficult to understand and use effectively.`;
+        return `Loyalty program confusing: ${reviewCount} customers struggle with complex system.`;
+      } else if (hasGood && hasPoints) {
+        return `Loyalty program praised: ${reviewCount} customers appreciate points and rewards.`;
+      } else if (hasEasy && hasPoints) {
+        return `Loyalty program well-designed: ${reviewCount} customers find system easy and valuable.`;
       } else if (hasGood) {
-        return `Loyalty program receives positive feedback across ${reviewCount} reviews. Users appreciate the rewards and find them valuable and worthwhile.`;
+        return `Loyalty program positive: ${reviewCount} customers appreciate rewards and benefits.`;
+      }
+    } else if (topicLower.includes('sports') || topicLower.includes('betting')) {
+      const hasUnfair = /\b(unfair|rigged|worthless|useless|poor|disappointing|bad|terrible|scam|fraud)\b/gi.test(allText);
+      const hasGood = /\b(good|great|valuable|worth|beneficial|excellent|amazing|fantastic)\b/gi.test(allText);
+      const hasOdds = /\b(odds|lines|spreads|payouts|winnings)\b/gi.test(allText);
+      const hasVariety = /\b(variety|selection|options|games|sports)\b/gi.test(allText);
+      
+      if (hasUnfair) {
+        return `Sports betting criticized: ${reviewCount} customers report unfair odds and rigged systems.`;
+      } else if (hasGood && hasOdds) {
+        return `Sports betting praised: ${reviewCount} customers appreciate fair odds and good payouts.`;
+      } else if (hasGood && hasVariety) {
+        return `Sports betting positive: ${reviewCount} customers like variety and betting options.`;
+      } else if (hasGood) {
+        return `Sports betting satisfied: ${reviewCount} customers happy with betting experience.`;
       }
     } else if (topicLower.includes('service') || topicLower.includes('support')) {
       const hasUnhelpful = /\b(unhelpful|unresponsive|rude|useless|ignored|slow)\b/gi.test(allText);
@@ -1547,12 +1562,12 @@ export default function ReportPageContent({
       
       if (hasUnhelpful || hasLongWait) {
         let issues = [];
-        if (hasUnhelpful) issues.push('unresponsive support');
-        if (hasLongWait) issues.push('long wait times');
+        if (hasUnhelpful) issues.push('unresponsive');
+        if (hasLongWait) issues.push('long waits');
         
-        return `Customer service is problematic across ${reviewCount} reviews. Users report: ${issues.join(', ')}. This is significantly impacting customer satisfaction.`;
+        return `Customer service problems: ${issues.join(', ')} affecting ${reviewCount} customers.`;
       } else if (hasHelpful) {
-        return `Customer service is well-received across ${reviewCount} reviews. Users appreciate the helpful, responsive, and professional support.`;
+        return `Customer service praised: ${reviewCount} customers appreciate helpful support.`;
       }
     } else if (topicLower.includes('app') || topicLower.includes('mobile')) {
       const hasBugs = /\b(bug|crash|glitch|error|problem|issue)\b/gi.test(allText);
@@ -1561,12 +1576,12 @@ export default function ReportPageContent({
       
       if (hasBugs || hasSlow) {
         let issues = [];
-        if (hasBugs) issues.push('technical bugs and crashes');
-        if (hasSlow) issues.push('performance issues');
+        if (hasBugs) issues.push('bugs');
+        if (hasSlow) issues.push('slow');
         
-        return `Mobile app has significant issues across ${reviewCount} reviews. Users experiencing: ${issues.join(', ')}. This is affecting user experience and satisfaction.`;
+        return `Mobile app issues: ${issues.join(', ')} affecting ${reviewCount} customers.`;
       } else if (hasGood) {
-        return `Mobile app receives positive feedback across ${reviewCount} reviews. Users praise the smooth, fast, and user-friendly experience.`;
+        return `Mobile app praised: ${reviewCount} customers like smooth experience.`;
       }
     }
 
@@ -1579,14 +1594,15 @@ export default function ReportPageContent({
     const negativeMatches = allText.match(negativeWords) || [];
     const urgentMatches = allText.match(urgentWords) || [];
     
-    if (urgentMatches.length > 0) {
-      return `URGENT: Critical issues detected across ${reviewCount} reviews for ${topic}. Users are reporting serious problems that require immediate attention.`;
+    // Only show URGENT for negative topics, not positive ones
+    if (urgentMatches.length > 0 && negativeMatches.length > positiveMatches.length) {
+      return `URGENT: Critical issues for ${topic} - ${reviewCount} customers need immediate attention.`;
     } else if (positiveMatches.length > negativeMatches.length * 2) {
-      return `Users are generally satisfied with ${topic} across ${reviewCount} reviews. Positive feedback significantly outweighs concerns.`;
+      return `${topic} positive: ${reviewCount} customers satisfied with service.`;
     } else if (negativeMatches.length > positiveMatches.length * 2) {
-      return `Users have significant concerns about ${topic} across ${reviewCount} reviews. Negative feedback indicates problems that need immediate attention.`;
+      return `${topic} concerns: ${reviewCount} customers report problems needing attention.`;
     } else {
-      return `Mixed feedback for ${topic} across ${reviewCount} reviews. Some users are satisfied while others have concerns. Further analysis needed to identify specific improvement areas.`;
+      return `${topic} mixed: ${reviewCount} customers have varied experiences.`;
     }
   };
 

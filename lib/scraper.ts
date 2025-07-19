@@ -307,7 +307,7 @@ async function analyzeWithAI(prompt: string) {
         body: JSON.stringify({
           model: 'gpt-4',
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.1,
+          temperature: 0.7,
           max_tokens: 6000 // Increased for larger reports
         })
       })
