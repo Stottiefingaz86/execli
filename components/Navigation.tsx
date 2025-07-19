@@ -15,7 +15,7 @@ export default function Navigation() {
   }
 
   return (
-    <nav className="sticky top-0 z-[100] bg-[#0a0a0f]/80 backdrop-blur-2xl border-b border-white/10 shadow-lg">
+    <nav className="sticky top-0 z-[100] bg-[#0a0a0f]/40 backdrop-blur-3xl border-b border-white/20 shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -30,19 +30,19 @@ export default function Navigation() {
             <div className="flex items-center space-x-8">
               <button 
                 onClick={() => scrollToSection('how-it-works')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
               >
                 How it works
               </button>
               <button 
                 onClick={() => scrollToSection('pricing')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
               >
                 Pricing
               </button>
               <button 
                 onClick={() => scrollToSection('blog')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium cursor-pointer px-4 py-2 rounded-lg"
               >
                 Blog
               </button>
@@ -51,10 +51,10 @@ export default function Navigation() {
             
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4 flex-shrink-0">
-            <Link href="/login" className="border border-white bg-transparent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors duration-200">
+            <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
               Login
             </Link>
-            <Link href="/signup" className="bg-white text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors duration-200 flex items-center gap-2">
+            <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
@@ -102,19 +102,19 @@ export default function Navigation() {
               <div className="space-y-2 mb-4">
                 <button 
                   onClick={() => scrollToSection('how-it-works')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
                 >
                   How it works
                 </button>
                 <button 
                   onClick={() => scrollToSection('pricing')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
                 >
                   Pricing
                 </button>
                 <button 
                   onClick={() => scrollToSection('blog')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  className="text-white/90 hover:text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300 text-sm font-medium block py-2 w-full text-left px-3 rounded-lg"
                 >
                   Blog
                 </button>
@@ -122,10 +122,10 @@ export default function Navigation() {
               
               {/* Auth Buttons */}
               <div className="space-y-2">
-                <Link href="/login" className="border border-white bg-transparent text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors duration-200 block text-center">
+                <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 block text-center">
                   Login
                 </Link>
-                <Link href="/signup" className="bg-white text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center gap-2">
+                <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
