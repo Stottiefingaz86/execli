@@ -1659,11 +1659,6 @@ export default function ReportPageContent({
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-white">
-      {/* Header */}
-      <div className="bg-[#181a20]/70 border-b border-white/20">
-        {/* Business header removed to match production */}
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
         {/* Report Info */}
         <div className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
