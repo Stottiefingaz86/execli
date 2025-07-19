@@ -3,7 +3,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-export default function Navigation() {
+interface NavigationProps {
+  hideLinks?: boolean;
+}
+
+export default function Navigation({ hideLinks = false }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const scrollToSection = (sectionId: string) => {
@@ -26,28 +30,30 @@ export default function Navigation() {
           </div>
 
           {/* Desktop Navigation - Centered Main Links */}
-          <div className="hidden md:flex items-center justify-center flex-1">
-            <div className="flex items-center space-x-8">
-              <button 
-                onClick={() => scrollToSection('how-it-works')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
-              >
-                How it works
-              </button>
-              <button 
-                onClick={() => scrollToSection('pricing')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
-              >
-                Pricing
-              </button>
-              <button 
-                onClick={() => scrollToSection('blog')}
-                className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
-              >
-                Blog
-              </button>
+          {!hideLinks && (
+            <div className="hidden md:flex items-center justify-center flex-1">
+              <div className="flex items-center space-x-8">
+                <button 
+                  onClick={() => scrollToSection('how-it-works')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                >
+                  How it works
+                </button>
+                <button 
+                  onClick={() => scrollToSection('pricing')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                >
+                  Pricing
+                </button>
+                <button 
+                  onClick={() => scrollToSection('blog')}
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                >
+                  Blog
+                </button>
+              </div>
             </div>
-          </div>
+          )}
             
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4 flex-shrink-0">
@@ -99,26 +105,28 @@ export default function Navigation() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-white/10 mt-4">
               {/* Main Navigation Links */}
-              <div className="space-y-2 mb-4">
-                <button 
-                  onClick={() => scrollToSection('how-it-works')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
-                >
-                  How it works
-                </button>
-                <button 
-                  onClick={() => scrollToSection('pricing')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
-                >
-                  Pricing
-                </button>
-                <button 
-                  onClick={() => scrollToSection('blog')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
-                >
-                  Blog
-                </button>
-              </div>
+              {!hideLinks && (
+                <div className="space-y-2 mb-4">
+                  <button 
+                    onClick={() => scrollToSection('how-it-works')}
+                    className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  >
+                    How it works
+                  </button>
+                  <button 
+                    onClick={() => scrollToSection('pricing')}
+                    className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  >
+                    Pricing
+                  </button>
+                  <button 
+                    onClick={() => scrollToSection('blog')}
+                    className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
+                  >
+                    Blog
+                  </button>
+                </div>
+              )}
               
               {/* Auth Buttons */}
               <div className="space-y-2">

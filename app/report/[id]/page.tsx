@@ -7,6 +7,7 @@ import ReportPageContent from '../../../components/ReportPageContent'
 import Image from 'next/image';
 import ReportProgressStepper from '../../../components/ReportProgressStepper'; // Added import
 import SourceCard from '../../../components/SourceCard'; // Added import
+import Navigation from '@/components/Navigation';
 import { RefreshCw } from 'lucide-react';
 
 // Force dynamic rendering to prevent build-time errors
@@ -227,6 +228,7 @@ export default function ReportPage() {
   if ((loading || polling) && !minProgressTimeElapsed) {
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex flex-col">
+        <Navigation hideLinks={true} />
         {/* Glassmorphic Main Card */}
         <main className="flex flex-1 items-center justify-center">
           <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
@@ -302,6 +304,7 @@ export default function ReportPage() {
   // Show the full report using ReportPageContent component
   return (
     <div className="min-h-screen bg-[#0f1117] text-white">
+      <Navigation hideLinks={true} />
       <ReportPageContent reportData={reportData} reportId={Array.isArray(params.id) ? params.id[0] : params.id} />
     </div>
   )
