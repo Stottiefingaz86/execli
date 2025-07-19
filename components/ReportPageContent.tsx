@@ -460,317 +460,122 @@ export default function ReportPageContent({
     }
   };
 
-  // Topic relevance filtering function
-  const isTopicRelevant = (text: string, topic: string): boolean => {
-    if (!text || !topic) return false;
-
+  // AI-powered topic classification function
+  const classifyTopic = (text: string): string => {
+    if (!text) return "other";
+    
     const lowerText = text.toLowerCase();
-    const lowerTopic = topic.toLowerCase();
-
-    // Topic-specific keywords with more precise matching
-    const topicKeywords: { [key: string]: string[] } = {
-      "sports betting": [
-        "sports betting",
-        "sport betting", 
-        "bet on",
-        "betting on",
-        "odds",
-        "parlay",
-        "spread",
-        "line",
-        "football bet",
-        "basketball bet",
-        "baseball bet",
-        "soccer bet",
-        "tennis bet",
-        "golf bet",
-        "hockey bet",
-        "mma bet",
-        "boxing bet",
-        "racing bet",
-        "nfl bet",
-        "nba bet",
-        "mlb bet",
-        "nhl bet",
-        "ufc bet",
-      ],
-      "casino games": [
-        "casino game",
-        "slot machine",
-        "poker game",
-        "blackjack game",
-        "roulette game",
-        "craps game",
-        "baccarat game",
-        "keno game",
-        "bingo game",
-        "card game",
-        "table game",
-        "jackpot",
-        "spin",
-        "deal",
-      ],
-      withdrawals: [
-        "withdraw",
-        "withdrawal",
-        "cash out",
-        "payout",
-        "money",
-        "fund",
-        "bank",
-        "account",
-        "transfer",
-        "deposit",
-        "balance",
-        "wallet",
-        "payment",
-        "credit",
-        "debit",
-      ],
-      "customer service": [
-        "service",
-        "support",
-        "help",
-        "assist",
-        "contact",
-        "call",
-        "email",
-        "chat",
-        "live",
-        "agent",
-        "representative",
-        "staff",
-        "team",
-        "response",
-        "reply",
-        "answer",
-      ],
-      "deposit fees": [
-        "fee",
-        "charge",
-        "cost",
-        "price",
-        "deposit",
-        "payment",
-        "transaction",
-        "bank",
-        "credit",
-        "debit",
-        "card",
-        "transfer",
-        "wire",
-        "ach",
-      ],
-      "verification process": [
-        "verify",
-        "verification",
-        "id",
-        "identity",
-        "document",
-        "proof",
-        "photo",
-        "passport",
-        "license",
-        "ssn",
-        "social",
-        "security",
-        "number",
-        "address",
-        "utility",
-        "bill",
-      ],
-      "loyalty rewards": [
-        "loyalty",
-        "reward",
-        "bonus",
-        "point",
-        "credit",
-        "cashback",
-        "promotion",
-        "offer",
-        "deal",
-        "discount",
-        "vip",
-        "member",
-        "program",
-        "benefit",
-        "perk",
-      ],
-      "mobile app": [
-        "app",
-        "mobile",
-        "phone",
-        "android",
-        "ios",
-        "iphone",
-        "smartphone",
-        "tablet",
-        "download",
-        "install",
-        "update",
-        "version",
-        "interface",
-        "ui",
-        "ux",
-        "design",
-      ],
-      website: [
-        "website",
-        "site",
-        "web",
-        "online",
-        "internet",
-        "browser",
-        "page",
-        "link",
-        "url",
-        "domain",
-        "www",
-        "http",
-        "https",
-      ],
-      bonuses: [
-        "bonus",
-        "promotion",
-        "offer",
-        "deal",
-        "discount",
-        "free",
-        "credit",
-        "cashback",
-        "reward",
-        "point",
-        "vip",
-        "member",
-        "program",
-      ],
-      poker: [
-        "poker",
-        "texas",
-        "holdem",
-        "omaha",
-        "tournament",
-        "cash",
-        "game",
-        "table",
-        "card",
-        "hand",
-        "flop",
-        "turn",
-        "river",
-        "bluff",
-        "fold",
-        "call",
-        "raise",
-        "all-in",
-      ],
-      slots: [
-        "slot",
-        "machine",
-        "reel",
-        "spin",
-        "jackpot",
-        "win",
-        "line",
-        "pay",
-        "symbol",
-        "wild",
-        "scatter",
-        "bonus",
-        "feature",
-        "progressive",
-      ],
-      blackjack: [
-        "blackjack",
-        "21",
-        "card",
-        "dealer",
-        "hit",
-        "stand",
-        "double",
-        "split",
-        "ace",
-        "face",
-        "bust",
-        "natural",
-        "insurance",
-      ],
-      roulette: [
-        "roulette",
-        "wheel",
-        "number",
-        "red",
-        "black",
-        "even",
-        "odd",
-        "high",
-        "low",
-        "dozen",
-        "column",
-        "straight",
-        "split",
-        "corner",
-        "line",
-      ],
-      "live dealer": [
-        "live",
-        "dealer",
-        "real",
-        "person",
-        "human",
-        "camera",
-        "stream",
-        "video",
-        "interactive",
-        "chat",
-        "table",
-        "game",
-        "experience",
-      ],
-      security: [
-        "security",
-        "safe",
-        "secure",
-        "protection",
-        "encryption",
-        "ssl",
-        "firewall",
-        "hack",
-        "breach",
-        "fraud",
-        "scam",
-        "trust",
-        "reliable",
-        "authentic",
-      ],
-      "payment methods": [
-        "payment",
-        "method",
-        "credit",
-        "debit",
-        "card",
-        "bank",
-        "transfer",
-        "wire",
-        "ach",
-        "paypal",
-        "venmo",
-        "crypto",
-        "bitcoin",
-        "ethereum",
-        "wallet",
-      ],
+    
+    // Define precise topic categories with context-aware keywords
+    const topicCategories = {
+      "sports betting": {
+        primary: ["sports betting", "bet on sports", "sport betting", "football betting", "basketball betting"],
+        secondary: ["odds", "parlay", "spread", "line", "nfl", "nba", "mlb", "nhl", "ufc"],
+        exclude: ["casino", "poker", "slot", "birthday", "gift", "loyalty", "deposit", "withdraw"]
+      },
+      "poker": {
+        primary: ["poker game", "texas holdem", "holdem", "omaha", "poker tournament", "cash game"],
+        secondary: ["poker", "card game", "table game", "hand", "flop", "turn", "river"],
+        exclude: ["slot", "casino game", "sports", "betting"]
+      },
+      "casino games": {
+        primary: ["slot machine", "blackjack game", "roulette game", "craps game", "baccarat game"],
+        secondary: ["casino game", "slot", "jackpot", "spin", "reel"],
+        exclude: ["poker game", "sports", "betting", "birthday", "gift"]
+      },
+      "deposits": {
+        primary: ["deposit money", "add funds", "put money", "fund account"],
+        secondary: ["deposit", "fund", "add money", "load account"],
+        exclude: ["withdraw", "cash out", "payout", "birthday", "gift"]
+      },
+      "withdrawals": {
+        primary: ["withdraw money", "cash out", "get payout", "withdrawal"],
+        secondary: ["withdraw", "payout", "cash out", "get money"],
+        exclude: ["deposit", "add money", "birthday", "gift"]
+      },
+      "loyalty rewards": {
+        primary: ["loyalty program", "reward program", "vip program", "member benefits"],
+        secondary: ["loyalty", "reward", "bonus", "point", "vip", "member"],
+        exclude: ["sports", "betting", "poker", "casino"]
+      },
+      "customer service": {
+        primary: ["customer service", "support team", "help desk", "contact support"],
+        secondary: ["service", "support", "help", "contact", "agent"],
+        exclude: ["sports", "betting", "poker", "casino", "deposit", "withdraw"]
+      },
+      "mobile app": {
+        primary: ["mobile app", "phone app", "android app", "ios app"],
+        secondary: ["app", "mobile", "phone", "android", "ios"],
+        exclude: ["website", "desktop", "computer"]
+      },
+      "website": {
+        primary: ["website", "web site", "online site"],
+        secondary: ["site", "web", "online", "browser"],
+        exclude: ["app", "mobile", "phone"]
+      },
+      "fees": {
+        primary: ["deposit fee", "withdrawal fee", "transaction fee", "service fee"],
+        secondary: ["fee", "charge", "cost", "price"],
+        exclude: ["free", "no fee", "no charge"]
+      },
+      "verification": {
+        primary: ["verification process", "id verification", "identity verification"],
+        secondary: ["verify", "verification", "id", "identity", "document"],
+        exclude: ["sports", "betting", "poker", "casino"]
+      }
     };
 
-    // Check if topic has specific keywords
-    if (topicKeywords[lowerTopic]) {
-      const keywords = topicKeywords[lowerTopic];
-      return keywords.some((keyword) => lowerText.includes(keyword));
+    // Score each topic based on keyword matches
+    const scores: { [key: string]: number } = {};
+    
+    for (const [topic, config] of Object.entries(topicCategories)) {
+      let score = 0;
+      
+      // Check primary keywords (highest weight)
+      for (const keyword of config.primary) {
+        if (lowerText.includes(keyword)) {
+          score += 10;
+        }
+      }
+      
+      // Check secondary keywords (medium weight)
+      for (const keyword of config.secondary) {
+        if (lowerText.includes(keyword)) {
+          score += 5;
+        }
+      }
+      
+      // Penalize for excluded keywords
+      for (const keyword of config.exclude) {
+        if (lowerText.includes(keyword)) {
+          score -= 3;
+        }
+      }
+      
+      scores[topic] = score;
     }
+    
+    // Find the topic with the highest score
+    let bestTopic = "other";
+    let bestScore = 0;
+    
+    for (const [topic, score] of Object.entries(scores)) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestTopic = topic;
+      }
+    }
+    
+    // Only return a topic if it has a significant score
+    return bestScore >= 5 ? bestTopic : "other";
+  };
 
-    // Fallback: check if topic words appear in text
-    const topicWords = lowerTopic.split(" ");
-    return topicWords.some((word) => lowerText.includes(word));
+  // Topic relevance filtering function (now uses AI classification)
+  const isTopicRelevant = (text: string, topic: string): boolean => {
+    if (!text || !topic) return false;
+    
+    const classifiedTopic = classifyTopic(text);
+    return classifiedTopic === topic.toLowerCase();
   };
 
   // Enhanced deduplication with sentiment and topic filtering
