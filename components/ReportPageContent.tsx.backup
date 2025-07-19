@@ -211,8 +211,264 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   console.log('ReportPageContent received data:', reportData);
 
+  // Enhanced sentiment analysis function
+  const analyzeSentiment = (text: string): 'positive' | 'negative' | 'neutral' => {
+    if (!text) return 'neutral';
+    
+    const lowerText = text.toLowerCase();
+    
+    // Strong negative indicators
+    const negativeWords = [
+      'scam', 'fraud', 'fake', 'terrible', 'awful', 'horrible', 'worst', 'bad', 'poor', 'disappointed',
+      'hate', 'dislike', 'angry', 'furious', 'mad', 'upset', 'frustrated', 'annoyed', 'irritated',
+      'waste', 'useless', 'broken', 'defective', 'faulty', 'problem', 'issue', 'error', 'bug',
+      'slow', 'unreliable', 'untrustworthy', 'suspicious', 'doubtful', 'questionable',
+      'expensive', 'overpriced', 'costly', 'pricey', 'rip-off', 'overcharged',
+      'difficult', 'complicated', 'confusing', 'unclear', 'vague', 'misleading',
+      'rude', 'unhelpful', 'unresponsive', 'ignored', 'neglected', 'abandoned',
+      'dangerous', 'risky', 'unsafe', 'harmful', 'damaging', 'destructive',
+      'stay away', 'avoid', 'never', 'don\'t', 'won\'t', 'can\'t', 'impossible',
+      'fail', 'failed', 'failure', 'broken', 'crash', 'error', 'bug', 'glitch'
+    ];
+    
+    // Strong positive indicators
+    const positiveWords = [
+      'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'outstanding', 'superb', 'perfect',
+      'love', 'like', 'enjoy', 'satisfied', 'happy', 'pleased', 'delighted', 'thrilled',
+      'good', 'nice', 'fine', 'okay', 'alright', 'decent', 'acceptable', 'satisfactory',
+      'fast', 'quick', 'efficient', 'effective', 'reliable', 'trustworthy', 'dependable',
+      'helpful', 'supportive', 'responsive', 'attentive', 'caring', 'professional',
+      'easy', 'simple', 'straightforward', 'clear', 'obvious', 'intuitive',
+      'affordable', 'cheap', 'inexpensive', 'reasonable', 'fair', 'worth', 'value',
+      'recommend', 'suggest', 'endorse', 'approve', 'support', 'back', 'stand by',
+      'success', 'successful', 'working', 'functioning', 'operational', 'active'
+    ];
+    
+    // Count negative and positive words
+    let negativeCount = 0;
+    let positiveCount = 0;
+    
+    negativeWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        negativeCount += (lowerText.match(new RegExp(word, 'g')) || []).length;
+      }
+    });
+    
+    positiveWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        positiveCount += (lowerText.match(new RegExp(word, 'g')) || []).length;
+      }
+    });
+    
+    // Additional negative patterns
+    const negativePatterns = [
+      /\b(no|not|never|don't|won't|can't|isn't|aren't|wasn't|weren't)\b/gi,
+      /\b(bad|poor|terrible|awful|horrible)\b/gi,
+      /\b(problem|issue|error|bug|fail|broken)\b/gi,
+      /\b(scam|fraud|fake|dishonest)\b/gi,
+      /\b(expensive|overpriced|rip-off)\b/gi,
+      /\b(slow|unreliable|untrustworthy)\b/gi
+    ];
+    
+    negativePatterns.forEach(pattern => {
+      const matches = lowerText.match(pattern);
+      if (matches) {
+        negativeCount += matches.length;
+      }
+    });
+    
+    // Determine sentiment based on word counts and context
+    if (negativeCount > positiveCount * 2) {
+      return 'negative';
+    } else if (positiveCount > negativeCount * 2) {
+      return 'positive';
+    } else {
+      return 'neutral';
+    }
+  };
+
+  // Topic relevance filtering function
+  const isTopicRelevant = (text: string, topic: string): boolean => {
+    if (!text || !topic) return false;
+    
+    const lowerText = text.toLowerCase();
+    const lowerTopic = topic.toLowerCase();
+    
+    // Topic-specific keywords
+    const topicKeywords: { [key: string]: string[] } = {
+      'sports betting': ['sports', 'betting', 'bet', 'wager', 'odds', 'parlay', 'spread', 'line', 'sport', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf', 'hockey', 'mma', 'boxing', 'racing', 'nfl', 'nba', 'mlb', 'nhl', 'ufc'],
+      'casino games': ['casino', 'slot', 'poker', 'blackjack', 'roulette', 'craps', 'baccarat', 'keno', 'bingo', 'game', 'gaming', 'gambling', 'card', 'table', 'machine', 'jackpot', 'win', 'spin', 'deal'],
+      'withdrawals': ['withdraw', 'withdrawal', 'cash out', 'payout', 'money', 'fund', 'bank', 'account', 'transfer', 'deposit', 'balance', 'wallet', 'payment', 'credit', 'debit'],
+      'customer service': ['service', 'support', 'help', 'assist', 'contact', 'call', 'email', 'chat', 'live', 'agent', 'representative', 'staff', 'team', 'response', 'reply', 'answer'],
+      'deposit fees': ['fee', 'charge', 'cost', 'price', 'deposit', 'payment', 'transaction', 'bank', 'credit', 'debit', 'card', 'transfer', 'wire', 'ach'],
+      'verification process': ['verify', 'verification', 'id', 'identity', 'document', 'proof', 'photo', 'passport', 'license', 'ssn', 'social', 'security', 'number', 'address', 'utility', 'bill'],
+      'loyalty rewards': ['loyalty', 'reward', 'bonus', 'point', 'credit', 'cashback', 'promotion', 'offer', 'deal', 'discount', 'vip', 'member', 'program', 'benefit', 'perk'],
+      'mobile app': ['app', 'mobile', 'phone', 'android', 'ios', 'iphone', 'smartphone', 'tablet', 'download', 'install', 'update', 'version', 'interface', 'ui', 'ux', 'design'],
+      'website': ['website', 'site', 'web', 'online', 'internet', 'browser', 'page', 'link', 'url', 'domain', 'www', 'http', 'https'],
+      'bonuses': ['bonus', 'promotion', 'offer', 'deal', 'discount', 'free', 'credit', 'cashback', 'reward', 'point', 'vip', 'member', 'program'],
+      'poker': ['poker', 'texas', 'holdem', 'omaha', 'tournament', 'cash', 'game', 'table', 'card', 'hand', 'flop', 'turn', 'river', 'bluff', 'fold', 'call', 'raise', 'all-in'],
+      'slots': ['slot', 'machine', 'reel', 'spin', 'jackpot', 'win', 'line', 'pay', 'symbol', 'wild', 'scatter', 'bonus', 'feature', 'progressive'],
+      'blackjack': ['blackjack', '21', 'card', 'dealer', 'hit', 'stand', 'double', 'split', 'ace', 'face', 'bust', 'natural', 'insurance'],
+      'roulette': ['roulette', 'wheel', 'number', 'red', 'black', 'even', 'odd', 'high', 'low', 'dozen', 'column', 'straight', 'split', 'corner', 'line'],
+      'live dealer': ['live', 'dealer', 'real', 'person', 'human', 'camera', 'stream', 'video', 'interactive', 'chat', 'table', 'game', 'experience'],
+      'security': ['security', 'safe', 'secure', 'protection', 'encryption', 'ssl', 'firewall', 'hack', 'breach', 'fraud', 'scam', 'trust', 'reliable', 'authentic'],
+      'payment methods': ['payment', 'method', 'credit', 'debit', 'card', 'bank', 'transfer', 'wire', 'ach', 'paypal', 'venmo', 'crypto', 'bitcoin', 'ethereum', 'wallet']
+    };
+    
+    // Check if topic has specific keywords
+    if (topicKeywords[lowerTopic]) {
+      const keywords = topicKeywords[lowerTopic];
+      return keywords.some(keyword => lowerText.includes(keyword));
+    }
+    
+    // Fallback: check if topic words appear in text
+    const topicWords = lowerTopic.split(' ');
+    return topicWords.some(word => lowerText.includes(word));
+  };
+
+  // Enhanced deduplication with sentiment and topic filtering
+  const deduplicateComments = (comments: string[]): string[] => {
+    if (!comments || !Array.isArray(comments)) return [];
+    return [...new Set(comments)].filter(comment => comment && comment.trim().length > 0);
+  };
+
+  // Filter comments by topic and sentiment
+  const filterCommentsByTopicAndSentiment = (comments: string[], topic: string, targetSentiment: 'positive' | 'negative' | 'neutral'): string[] => {
+    if (!comments || !Array.isArray(comments)) return [];
+    
+    return comments.filter(comment => {
+      // Check topic relevance
+      const isRelevant = isTopicRelevant(comment, topic);
+      if (!isRelevant) return false;
+      
+      // Check sentiment
+      const sentiment = analyzeSentiment(comment);
+      return sentiment === targetSentiment;
+    });
+  };
+
+  // Highlight keywords in text
+  const highlightKeywords = (text: string, topic: string): string => {
+    if (!text || !topic) return text;
+    
+    const lowerTopic = topic.toLowerCase();
+    const topicKeywords: { [key: string]: string[] } = {
+      'sports betting': ['sports', 'betting', 'bet', 'wager', 'odds', 'parlay', 'spread', 'line', 'sport', 'football', 'basketball', 'baseball', 'soccer', 'tennis', 'golf', 'hockey', 'mma', 'boxing', 'racing', 'nfl', 'nba', 'mlb', 'nhl', 'ufc'],
+      'casino games': ['casino', 'slot', 'poker', 'blackjack', 'roulette', 'craps', 'baccarat', 'keno', 'bingo', 'game', 'gaming', 'gambling', 'card', 'table', 'machine', 'jackpot', 'win', 'spin', 'deal'],
+      'withdrawals': ['withdraw', 'withdrawal', 'cash out', 'payout', 'money', 'fund', 'bank', 'account', 'transfer', 'deposit', 'balance', 'wallet', 'payment', 'credit', 'debit'],
+      'customer service': ['service', 'support', 'help', 'assist', 'contact', 'call', 'email', 'chat', 'live', 'agent', 'representative', 'staff', 'team', 'response', 'reply', 'answer'],
+      'deposit fees': ['fee', 'charge', 'cost', 'price', 'deposit', 'payment', 'transaction', 'bank', 'credit', 'debit', 'card', 'transfer', 'wire', 'ach'],
+      'verification process': ['verify', 'verification', 'id', 'identity', 'document', 'proof', 'photo', 'passport', 'license', 'ssn', 'social', 'security', 'number', 'address', 'utility', 'bill'],
+      'loyalty rewards': ['loyalty', 'reward', 'bonus', 'point', 'credit', 'cashback', 'promotion', 'offer', 'deal', 'discount', 'vip', 'member', 'program', 'benefit', 'perk'],
+      'mobile app': ['app', 'mobile', 'phone', 'android', 'ios', 'iphone', 'smartphone', 'tablet', 'download', 'install', 'update', 'version', 'interface', 'ui', 'ux', 'design'],
+      'website': ['website', 'site', 'web', 'online', 'internet', 'browser', 'page', 'link', 'url', 'domain', 'www', 'http', 'https'],
+      'bonuses': ['bonus', 'promotion', 'offer', 'deal', 'discount', 'free', 'credit', 'cashback', 'reward', 'point', 'vip', 'member', 'program'],
+      'poker': ['poker', 'texas', 'holdem', 'omaha', 'tournament', 'cash', 'game', 'table', 'card', 'hand', 'flop', 'turn', 'river', 'bluff', 'fold', 'call', 'raise', 'all-in'],
+      'slots': ['slot', 'machine', 'reel', 'spin', 'jackpot', 'win', 'line', 'pay', 'symbol', 'wild', 'scatter', 'bonus', 'feature', 'progressive'],
+      'blackjack': ['blackjack', '21', 'card', 'dealer', 'hit', 'stand', 'double', 'split', 'ace', 'face', 'bust', 'natural', 'insurance'],
+      'roulette': ['roulette', 'wheel', 'number', 'red', 'black', 'even', 'odd', 'high', 'low', 'dozen', 'column', 'straight', 'split', 'corner', 'line'],
+      'live dealer': ['live', 'dealer', 'real', 'person', 'human', 'camera', 'stream', 'video', 'interactive', 'chat', 'table', 'game', 'experience'],
+      'security': ['security', 'safe', 'secure', 'protection', 'encryption', 'ssl', 'firewall', 'hack', 'breach', 'fraud', 'scam', 'trust', 'reliable', 'authentic'],
+      'payment methods': ['payment', 'method', 'credit', 'debit', 'card', 'bank', 'transfer', 'wire', 'ach', 'paypal', 'venmo', 'crypto', 'bitcoin', 'ethereum', 'wallet']
+    };
+    
+    let highlightedText = text;
+    const keywords = topicKeywords[lowerTopic] || [topic];
+    
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+      highlightedText = highlightedText.replace(regex, `<mark class="bg-yellow-200 text-black px-1 rounded">$&</mark>`);
+    });
+    
+    return highlightedText;
+  };
+
+  // Function to process and deduplicate data with enhanced filtering
+  const processAndDeduplicateData = (data: any) => {
+    if (!data) return data;
+    
+    // Process mentions by topic with proper filtering
+    if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
+      data.mentionsByTopic = data.mentionsByTopic.map((topic: any) => {
+        const allMentions = deduplicateComments(topic.rawMentions || []);
+        
+        // Filter mentions by topic relevance
+        const relevantMentions = allMentions.filter((mention: string) => 
+          isTopicRelevant(mention, topic.topic)
+        );
+        
+        // Separate positive and negative mentions
+        const positiveMentions = filterCommentsByTopicAndSentiment(relevantMentions, topic.topic, 'positive');
+        const negativeMentions = filterCommentsByTopicAndSentiment(relevantMentions, topic.topic, 'negative');
+        
+        // Recalculate percentages based on actual sentiment analysis
+        const totalRelevant = relevantMentions.length;
+        const positivePercentage = totalRelevant > 0 ? Math.round((positiveMentions.length / totalRelevant) * 100) : 0;
+        const negativePercentage = totalRelevant > 0 ? Math.round((negativeMentions.length / totalRelevant) * 100) : 0;
+        
+        return {
+          ...topic,
+          rawMentions: relevantMentions,
+          positive: positivePercentage,
+          negative: negativePercentage,
+          total: totalRelevant,
+          positiveMentions,
+          negativeMentions
+        };
+      });
+    }
+    
+    // Process executive summary with proper sentiment filtering
+    if (data.executiveSummary?.praisedSections) {
+      data.executiveSummary.praisedSections = data.executiveSummary.praisedSections.map((section: any) => {
+        const allExamples = deduplicateComments(section.examples || []);
+        const positiveExamples = allExamples.filter((example: string) => 
+          analyzeSentiment(example) === 'positive' && isTopicRelevant(example, section.topic)
+        );
+        
+        return {
+          ...section,
+          examples: positiveExamples,
+          percentage: positiveExamples.length > 0 ? Math.round((positiveExamples.length / allExamples.length) * 100) : 0
+        };
+      });
+    }
+    
+    if (data.executiveSummary?.painPoints) {
+      data.executiveSummary.painPoints = data.executiveSummary.painPoints.map((point: any) => {
+        const allExamples = deduplicateComments(point.examples || []);
+        const negativeExamples = allExamples.filter((example: string) => 
+          analyzeSentiment(example) === 'negative' && isTopicRelevant(example, point.topic)
+        );
+        
+        return {
+          ...point,
+          examples: negativeExamples,
+          percentage: negativeExamples.length > 0 ? Math.round((negativeExamples.length / allExamples.length) * 100) : 0
+        };
+      });
+    }
+    
+    // Process key insights with proper filtering
+    if (data.keyInsights && Array.isArray(data.keyInsights)) {
+      data.keyInsights = data.keyInsights.map((insight: any) => {
+        const allMentions = deduplicateComments(insight.rawMentions || []);
+        const relevantMentions = allMentions.filter((mention: string) => 
+          isTopicRelevant(mention, insight.insight)
+        );
+        
+        return {
+          ...insight,
+          rawMentions: relevantMentions
+        };
+      });
+    }
+    
+    return data;
+  };
+
   // Handle data structure - analysis might be nested or spread
-  const processedData = {
+  const processedData = processAndDeduplicateData({
     ...reportData,
     // If analysis is nested, spread it out
     ...(reportData.analysis || {}),
@@ -230,7 +486,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
     advancedMetrics: reportData.advancedMetrics || reportData.analysis?.advancedMetrics,
     suggestedActions: reportData.suggestedActions || reportData.analysis?.suggestedActions || [],
     vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
-  };
+  });
 
   console.log('Processed data:', processedData);
 
@@ -245,33 +501,32 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const handleTopicClick = (topicName: string, rawMentions?: string[], topicData?: any) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Use the backend sentiment data to ensure consistency
-      const totalReviews = rawMentions.length;
-      const positivePercentage = topicData?.positive || 0;
-      const negativePercentage = topicData?.negative || 0;
+      // Filter mentions by topic relevance and analyze sentiment properly
+      const relevantMentions = rawMentions.filter((mention: string) => 
+        isTopicRelevant(mention, topicName)
+      );
       
-      // Calculate actual counts based on backend percentages
-      const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
-      const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
-      
-      // Create reviews with sentiment analysis based on backend percentages
-      const reviews = rawMentions.map((text, index) => {
-        let sentiment = 'neutral'; // Default to neutral
-        
-        // Distribute positive and negative reviews based on backend percentages
-        if (index < positiveCount) {
-          sentiment = 'positive';
-        } else if (index < positiveCount + negativeCount) {
-          sentiment = 'negative';
-        } else {
-          sentiment = 'neutral';
-        }
-        
-        return { text, sentiment, topic: topicName };
+      // Create reviews with proper sentiment analysis
+      const reviews = relevantMentions.map((text: string) => {
+        const sentiment = analyzeSentiment(text);
+        return { 
+          text, 
+          sentiment, 
+          topic: topicName,
+          highlightedText: highlightKeywords(text, topicName)
+        };
       });
       
+      // Separate by sentiment for better organization
+      const positiveReviews = reviews.filter(r => r.sentiment === 'positive');
+      const negativeReviews = reviews.filter(r => r.sentiment === 'negative');
+      const neutralReviews = reviews.filter(r => r.sentiment === 'neutral');
+      
+      // Combine with positive first, then negative, then neutral
+      const organizedReviews = [...positiveReviews, ...negativeReviews, ...neutralReviews];
+      
       setSelectedTopic(topicName);
-      setSelectedReviews(reviews);
+      setSelectedReviews(organizedReviews);
       setShowReviewModal(true);
     }
   };
@@ -405,8 +660,6 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
 
   const insights = generateInsights();
 
-
-
   // Generate chart data for sentiment over time
   const sentimentChartData = processedData.sentimentOverTime?.length > 0 
     ? processedData.sentimentOverTime 
@@ -456,8 +709,23 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
           <div className="relative z-10">
             <div className="mb-6">
-              <h2 className="text-3xl font-bold text-white">Voice of Customer Report</h2>
-              <p className="text-[#B0B0C0] mt-2">Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Voice of Customer Report</h2>
+                  <p className="text-[#B0B0C0] mt-2">Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-semibold">{reportData.business_name?.charAt(0) || 'B'}</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">{reportData.business_name || 'Unknown Brand'}</div>
+                      <div className="text-xs text-[#B0B0C0]">{reportData.business_url || 'Unknown URL'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Active Sources */}
@@ -746,13 +1014,13 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       </div>
                     )) || (() => {
                       // Generate real data from mentions by topic
-                      const positiveTopics = processedData.mentionsByTopic?.filter(topic => topic.positive > topic.negative) || [];
+                      const positiveTopics = processedData.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative) || [];
                       const topPositiveTopics = positiveTopics.slice(0, 3);
                       
                       if (topPositiveTopics.length > 0) {
                         return (
                           <div className="text-green-300">
-                            {topPositiveTopics.map((topic, index) => {
+                            {topPositiveTopics.map((topic: any, index: number) => {
                               const percentage = Math.round((topic.positive / (topic.positive + topic.negative)) * 100);
                               const example = topic.rawMentions?.[0] || "Positive feedback about this topic";
                               return (
@@ -774,20 +1042,11 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                           <div className="text-green-300">
                             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
                               <div className="flex justify-between items-center mb-2">
-                                <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">Customer Service</span>
-                                <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">85% positive</span>
+                                <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">No positive feedback detected</span>
+                                <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">0% positive</span>
                               </div>
                               <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                "Great customer service, very responsive and helpful"
-                              </div>
-                            </div>
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">Withdrawals</span>
-                                <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">78% positive</span>
-                              </div>
-                              <div className="text-sm text-green-200 italic group-hover:text-green-100 transition-colors">
-                                "Fast withdrawals, no issues with payouts"
+                                "No significant positive feedback found"
                               </div>
                             </div>
                           </div>
@@ -826,13 +1085,13 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                       </div>
                     )) || (() => {
                       // Generate real data from mentions by topic
-                      const negativeTopics = processedData.mentionsByTopic?.filter(topic => topic.negative > topic.positive) || [];
+                      const negativeTopics = processedData.mentionsByTopic?.filter((topic: any) => topic.negative > topic.positive) || [];
                       const topNegativeTopics = negativeTopics.slice(0, 3);
                       
                       if (topNegativeTopics.length > 0) {
                         return (
                           <div className="text-red-300">
-                            {topNegativeTopics.map((topic, index) => {
+                            {topNegativeTopics.map((topic: any, index: number) => {
                               const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
                               const example = topic.rawMentions?.[0] || "Negative feedback about this topic";
                               return (
@@ -854,20 +1113,11 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                           <div className="text-red-300">
                             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
                               <div className="flex justify-between items-center mb-2">
-                                <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">Deposit Fees</span>
-                                <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">65% negative</span>
+                                <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">No concerns detected</span>
+                                <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">0% negative</span>
                               </div>
                               <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                "Ridiculous charge on credit card deposits"
-                              </div>
-                            </div>
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-3 group-hover:bg-red-500/15 transition-colors">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-red-300 font-medium group-hover:text-red-200 transition-colors">Verification Process</span>
-                                <span className="text-red-400 font-semibold group-hover:text-red-300 transition-colors">45% negative</span>
-                              </div>
-                              <div className="text-sm text-red-200 italic group-hover:text-red-100 transition-colors">
-                                "Verification process is too complicated"
+                                "No significant negative feedback found"
                               </div>
                             </div>
                           </div>
@@ -909,17 +1159,17 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     </div>
                   )) || (() => {
                     // Generate real alerts from mentions by topic
-                    const criticalTopics = processedData.mentionsByTopic?.filter(topic => 
+                    const criticalTopics = processedData.mentionsByTopic?.filter((topic: any) => 
                       topic.negative > topic.positive && (topic.negative / (topic.positive + topic.negative)) > 0.6
                     ) || [];
-                    const warningTopics = processedData.mentionsByTopic?.filter(topic => 
+                    const warningTopics = processedData.mentionsByTopic?.filter((topic: any) => 
                       topic.negative > topic.positive && (topic.negative / (topic.positive + topic.negative)) > 0.4
                     ) || [];
                     
-                    const alerts = [];
+                    const alerts: any[] = [];
                     
                     // Add critical alerts
-                    criticalTopics.slice(0, 2).forEach(topic => {
+                    criticalTopics.slice(0, 2).forEach((topic: any) => {
                       const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
                       alerts.push({
                         type: 'critical',
@@ -929,7 +1179,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                     });
                     
                     // Add warning alerts
-                    warningTopics.slice(0, 2).forEach(topic => {
+                    warningTopics.slice(0, 2).forEach((topic: any) => {
                       const percentage = Math.round((topic.negative / (topic.positive + topic.negative)) * 100);
                       alerts.push({
                         type: 'warning',
@@ -963,24 +1213,13 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
                         <>
                           <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
                             <div className="flex items-center space-x-2 mb-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">
-                                CRITICAL
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">
+                                INFO
                               </span>
-                              <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">Deposit Fees</span>
+                              <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">No immediate actions required</span>
                             </div>
                             <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">
-                              High negative sentiment about deposit fees affecting customer acquisition
-                            </div>
-                          </div>
-                          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 group-hover:bg-orange-500/15 transition-colors">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
-                                WARNING
-                              </span>
-                              <span className="text-orange-300 font-medium group-hover:text-orange-200 transition-colors">Verification</span>
-                            </div>
-                            <div className="text-sm text-orange-200 group-hover:text-orange-100 transition-colors">
-                              Complex verification process causing customer frustration
+                              No critical issues detected that require immediate attention
                             </div>
                           </div>
                         </>
@@ -2478,7 +2717,7 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               </div>
             </div>
           </div>
-        )}
+        </div>
       )}
 
       {/* Review Modal */}
@@ -2553,7 +2792,16 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
               {selectedReviews.map((review, index) => {
                 return (
                   <div key={index} className="bg-[#181a20] border border-white/10 rounded-xl p-4">
-                    <p className="text-white mb-3 leading-relaxed">{review.text}</p>
+                    <div className="mb-3 leading-relaxed">
+                      {review.highlightedText ? (
+                        <div 
+                          className="text-white"
+                          dangerouslySetInnerHTML={{ __html: review.highlightedText }}
+                        />
+                      ) : (
+                        <p className="text-white">{review.text}</p>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -2768,7 +3016,6 @@ export default function ReportPageContent({ reportData, reportId, isRegenerating
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

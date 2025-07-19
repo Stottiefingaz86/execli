@@ -19,16 +19,15 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div>
+          <div className="flex-shrink-0">
             <Link href="/" className="flex items-center space-x-4">
               <img src="/logo.svg" alt="Execli Logo" className="w-[120px] h-[70px] block" />
             </Link>
           </div>
 
-          {/* Desktop Navigation - Main Links and Auth */}
-          <div className="hidden md:flex items-center space-x-6">
-            {/* Main Navigation Links */}
-            <div className="flex items-center space-x-6">
+          {/* Desktop Navigation - Centered Main Links */}
+          <div className="hidden md:flex items-center justify-center flex-1">
+            <div className="flex items-center space-x-8">
               <button 
                 onClick={() => scrollToSection('how-it-works')}
                 className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
@@ -48,23 +47,23 @@ export default function Navigation() {
                 Blog
               </button>
             </div>
+          </div>
             
-            {/* Auth Buttons */}
-            <div className="flex items-center space-x-4">
-              <Link href="/login" className="border border-white bg-transparent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors duration-200">
-                Login
-              </Link>
-              <Link href="/signup" className="bg-white text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors duration-200 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-                Create Account
-              </Link>
-            </div>
+          {/* Auth Buttons */}
+          <div className="flex items-center space-x-4 flex-shrink-0">
+            <Link href="/login" className="border border-white bg-transparent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors duration-200">
+              Login
+            </Link>
+            <Link href="/signup" className="bg-white text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors duration-200 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Create Account
+            </Link>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex-shrink-0">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="text-[#B0B0C0] hover:text-white p-2 rounded-md transition-colors duration-200"
