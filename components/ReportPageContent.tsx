@@ -4518,16 +4518,7 @@ export default function ReportPageContent({
                     className="bg-[#181a20] border border-white/10 rounded-xl p-4"
                   >
                     <div className="mb-3 leading-relaxed">
-                      {review.highlightedText ? (
-                        <div
-                          className="text-white"
-                          dangerouslySetInnerHTML={{
-                            __html: review.highlightedText,
-                          }}
-                        />
-                      ) : (
-                        <p className="text-white">{review.text}</p>
-                      )}
+                      <p className="text-white">{review.text}</p>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-3">
