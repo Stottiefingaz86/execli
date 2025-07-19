@@ -1145,22 +1145,16 @@ export default function ReportPageContent({
           "negative",
         );
 
-        // Recalculate percentages based on actual sentiment analysis
+        // Recalculate counts based on actual sentiment analysis
         const totalRelevant = relevantMentions.length;
-        const positivePercentage =
-          totalRelevant > 0
-            ? Math.round((positiveMentions.length / totalRelevant) * 100)
-            : 0;
-        const negativePercentage =
-          totalRelevant > 0
-            ? Math.round((negativeMentions.length / totalRelevant) * 100)
-            : 0;
+        const positiveCount = positiveMentions.length;
+        const negativeCount = negativeMentions.length;
 
         return {
           ...topic,
           rawMentions: relevantMentions,
-          positive: positivePercentage,
-          negative: negativePercentage,
+          positive: positiveCount,
+          negative: negativeCount,
           total: totalRelevant,
           positiveMentions,
           negativeMentions,
@@ -1265,6 +1259,8 @@ export default function ReportPageContent({
   });
 
   console.log("Processed data:", processedData);
+  console.log("Mentions by topic:", processedData.mentionsByTopic);
+  console.log("Positive topics:", processedData.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
 
   if (!processedData) {
     return (
@@ -2161,7 +2157,7 @@ export default function ReportPageContent({
                         // Generate real data from mentions by topic
                         const positiveTopics =
                           processedData.mentionsByTopic?.filter(
-                            (topic: any) => topic.positive > topic.negative,
+                            (topic: any) => topic.positive > 0 && topic.positive >= topic.negative,
                           ) || [];
                         const topPositiveTopics = positiveTopics.slice(0, 3);
 
@@ -2200,23 +2196,60 @@ export default function ReportPageContent({
                             </div>
                           );
                         } else {
-                          return (
-                            <div className="text-green-300">
-                              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">
-                                    No positive feedback detected
-                                  </span>
-                                  <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">
-                                    0% positive
-                                  </span>
-                                </div>
-                                <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
-                                  No significant positive feedback found in the analyzed reviews.
+                          // Fallback: show any topics with positive mentions
+                          const topicsWithPositiveMentions = processedData.mentionsByTopic?.filter(
+                            (topic: any) => topic.positive > 0
+                          ) || [];
+                          const fallbackTopics = topicsWithPositiveMentions.slice(0, 3);
+
+                          if (fallbackTopics.length > 0) {
+                            return (
+                              <div className="text-green-300">
+                                {fallbackTopics.map((topic: any, index: number) => {
+                                  const percentage = Math.round(
+                                    (topic.positive / (topic.positive + topic.negative)) * 100
+                                  );
+                                  const insight = analyzeTopicInsights(topic.topic, topic.rawMentions || []);
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors"
+                                    >
+                                      <div className="flex justify-between items-center mb-2">
+                                        <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">
+                                          {topic.topic}
+                                        </span>
+                                        <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">
+                                          {topic.positive} positive mentions
+                                        </span>
+                                      </div>
+                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
+                                        {insight}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="text-green-300">
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-3 group-hover:bg-green-500/15 transition-colors">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <span className="text-green-300 font-medium group-hover:text-green-200 transition-colors">
+                                      No positive feedback detected
+                                    </span>
+                                    <span className="text-green-400 font-semibold group-hover:text-green-300 transition-colors">
+                                      0% positive
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
+                                    No significant positive feedback found in the analyzed reviews.
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
+                            );
+                          }
                         }
                       })()}
                   </div>
