@@ -3135,7 +3135,7 @@ export default function ReportPageContent({
                                   <div className="mt-2">
                                     <p className="text-xs text-red-400 font-medium">Key Issues:</p>
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                      {topic.specificIssues.slice(0, 3).map((issue, idx) => (
+                                      {topic.specificIssues?.slice(0, 3).map((issue: string, idx: number) => (
                                         <span key={idx} className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">
                                           {issue}
                                         </span>
