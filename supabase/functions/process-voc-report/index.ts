@@ -2470,52 +2470,123 @@ function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: nu
 }
 
 function generateMentionsByTopic(reviews: Review[], businessName: string): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}> {
-  const coreTopicsData = mapToCoreTopics(reviews, businessName);
+  console.log(`generateMentionsByTopic: Processing ${reviews.length} reviews for ${businessName}`);
   
-  // Enhanced topic analysis with specific issues
-  return coreTopicsData.map(topic => {
-    const topicReviews = reviews.filter(r => 
-      r.text.toLowerCase().includes(topic.topic.toLowerCase()) ||
-      topic.keywords.some(keyword => r.text.toLowerCase().includes(keyword.toLowerCase()))
-    );
+  // Define core topics with enhanced keywords
+  const coreTopics = [
+    'Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 
+    'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 
+    'Trust', 'Security', 'Payment Methods', 'Games', 'Support'
+  ];
+  
+  // Process each core topic with comprehensive analysis
+  return coreTopics.map(topicName => {
+    const topicReviews = reviews.filter(r => {
+      const text = r.text.toLowerCase();
+      const topicLower = topicName.toLowerCase();
+      
+      // Enhanced matching for each topic
+      if (topicName === 'Deposits') {
+        return text.includes('deposit') || text.includes('payment') || text.includes('pay') || 
+               text.includes('fund') || text.includes('add money') || text.includes('credit');
+      } else if (topicName === 'Withdrawals') {
+        return text.includes('withdrawal') || text.includes('payout') || text.includes('cash out') || 
+               text.includes('get money') || text.includes('receive money') || text.includes('money out');
+      } else if (topicName === 'Poker') {
+        return text.includes('poker') || text.includes('texas hold') || text.includes('tournament') || 
+               text.includes('cash game') || text.includes('poker room') || text.includes('holdem');
+      } else if (topicName === 'Casino Games') {
+        return text.includes('casino') || text.includes('slot') || text.includes('game') || 
+               text.includes('blackjack') || text.includes('roulette') || text.includes('baccarat');
+      } else if (topicName === 'Sports Betting') {
+        return text.includes('sport') || text.includes('betting') || text.includes('bet') || 
+               text.includes('football') || text.includes('basketball') || text.includes('odds');
+      } else if (topicName === 'Customer Service') {
+        return text.includes('service') || text.includes('support') || text.includes('help') || 
+               text.includes('assistance') || text.includes('staff') || text.includes('agent');
+      } else if (topicName === 'Bonuses') {
+        return text.includes('bonus') || text.includes('promotion') || text.includes('reward') || 
+               text.includes('offer') || text.includes('deal') || text.includes('free');
+      } else if (topicName === 'Mobile App') {
+        return text.includes('mobile') || text.includes('app') || text.includes('phone') || 
+               text.includes('android') || text.includes('ios') || text.includes('download');
+      } else if (topicName === 'Website') {
+        return text.includes('website') || text.includes('site') || text.includes('platform') || 
+               text.includes('interface') || text.includes('navigation') || text.includes('design');
+      } else if (topicName === 'Verification') {
+        return text.includes('verification') || text.includes('kyc') || text.includes('identity') || 
+               text.includes('document') || text.includes('proof') || text.includes('verified');
+      } else if (topicName === 'Trust') {
+        return text.includes('trust') || text.includes('reliable') || text.includes('honest') || 
+               text.includes('legitimate') || text.includes('reputable') || text.includes('credible');
+      } else if (topicName === 'Security') {
+        return text.includes('secure') || text.includes('safe') || text.includes('protection') || 
+               text.includes('fraud') || text.includes('scam') || text.includes('hack');
+      } else if (topicName === 'Payment Methods') {
+        return text.includes('payment') || text.includes('method') || text.includes('option') || 
+               text.includes('card') || text.includes('paypal') || text.includes('bank');
+      } else if (topicName === 'Games') {
+        return text.includes('game') || text.includes('play') || text.includes('gaming') || 
+               text.includes('entertainment') || text.includes('fun') || text.includes('enjoy');
+      } else if (topicName === 'Support') {
+        return text.includes('support') || text.includes('help') || text.includes('assistance') || 
+               text.includes('contact') || text.includes('service') || text.includes('staff');
+      }
+      
+      return text.includes(topicLower);
+    });
+    
+    console.log(`Topic ${topicName}: Found ${topicReviews.length} reviews`);
+    
+    // Calculate sentiment
+    const positiveReviews = topicReviews.filter(r => (r.rating || 0) >= 4);
+    const negativeReviews = topicReviews.filter(r => (r.rating || 0) <= 2);
+    const neutralReviews = topicReviews.filter(r => (r.rating || 0) === 3);
+    
+    const positive = positiveReviews.length;
+    const negative = negativeReviews.length;
+    const total = topicReviews.length;
+    
+    // Calculate percentages
+    const positivePercent = total > 0 ? Math.round((positive / total) * 100) : 0;
+    const negativePercent = total > 0 ? Math.round((negative / total) * 100) : 0;
     
     // Extract specific issues for this topic
     const specificIssues: string[] = [];
-    const negativeReviews = topicReviews.filter(r => (r.rating || 0) <= 2);
     
     negativeReviews.forEach(review => {
       const text = review.text.toLowerCase();
       
       // Topic-specific issue detection
-      if (topic.topic.toLowerCase() === 'poker') {
+      if (topicName.toLowerCase() === 'poker') {
         if (text.includes('bot') || text.includes('fraud')) specificIssues.push('bots and fraud');
         if (text.includes('rigged') || text.includes('fixed')) specificIssues.push('rigged games');
         if (text.includes('selection') || text.includes('variety')) specificIssues.push('limited game selection');
-      } else if (topic.topic.toLowerCase() === 'withdrawal') {
+      } else if (topicName.toLowerCase() === 'withdrawals') {
         if (text.includes('slow') || text.includes('delay')) specificIssues.push('slow processing');
         if (text.includes('fee') || text.includes('charge')) specificIssues.push('high fees');
         if (text.includes('limit') || text.includes('restriction')) specificIssues.push('withdrawal limits');
-      } else if (topic.topic.toLowerCase() === 'deposit') {
+      } else if (topicName.toLowerCase() === 'deposits') {
         if (text.includes('fee') || text.includes('charge')) specificIssues.push('deposit fees');
         if (text.includes('decline') || text.includes('reject')) specificIssues.push('payment declines');
         if (text.includes('method') || text.includes('option')) specificIssues.push('limited payment methods');
-      } else if (topic.topic.toLowerCase() === 'customer service') {
+      } else if (topicName.toLowerCase() === 'customer service') {
         if (text.includes('slow') || text.includes('wait')) specificIssues.push('slow response times');
         if (text.includes('unhelpful') || text.includes('useless')) specificIssues.push('unhelpful support');
         if (text.includes('unavailable') || text.includes('busy')) specificIssues.push('unavailable support');
-      } else if (topic.topic.toLowerCase() === 'bonus') {
+      } else if (topicName.toLowerCase() === 'bonuses') {
         if (text.includes('hidden') || text.includes('terms')) specificIssues.push('hidden terms');
         if (text.includes('wagering') || text.includes('requirement')) specificIssues.push('high wagering requirements');
         if (text.includes('expire') || text.includes('time')) specificIssues.push('short expiration times');
-      } else if (topic.topic.toLowerCase() === 'mobile app') {
+      } else if (topicName.toLowerCase() === 'mobile app') {
         if (text.includes('crash') || text.includes('bug')) specificIssues.push('app crashes');
         if (text.includes('slow') || text.includes('lag')) specificIssues.push('slow performance');
         if (text.includes('update') || text.includes('version')) specificIssues.push('update issues');
-      } else if (topic.topic.toLowerCase() === 'payment methods') {
+      } else if (topicName.toLowerCase() === 'payment methods') {
         if (text.includes('limited') || text.includes('few')) specificIssues.push('limited payment options');
         if (text.includes('fee') || text.includes('charge')) specificIssues.push('payment fees');
         if (text.includes('decline') || text.includes('reject')) specificIssues.push('payment declines');
-      } else if (topic.topic.toLowerCase() === 'verification') {
+      } else if (topicName.toLowerCase() === 'verification') {
         if (text.includes('slow') || text.includes('delay')) specificIssues.push('slow verification');
         if (text.includes('reject') || text.includes('deny')) specificIssues.push('verification rejections');
         if (text.includes('document') || text.includes('proof')) specificIssues.push('documentation issues');
@@ -2529,33 +2600,33 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
     let context = '';
     let mainConcern = '';
     
-    if (topic.negative > topic.positive) {
+    if (negativePercent > positivePercent) {
       if (uniqueIssues.length > 0) {
-        context = `${topic.topic} is a significant pain point with ${topic.negative}% negative mentions, indicating ${uniqueIssues.slice(0, 3).join(', ')}.`;
+        context = `${topicName} is a significant pain point with ${negativePercent}% negative mentions, indicating ${uniqueIssues.slice(0, 3).join(', ')}.`;
         mainConcern = uniqueIssues[0] || 'general dissatisfaction';
       } else {
-        context = `${topic.topic} shows concerning negative sentiment with ${topic.negative}% negative mentions.`;
+        context = `${topicName} shows concerning negative sentiment with ${negativePercent}% negative mentions.`;
         mainConcern = 'general dissatisfaction';
       }
-    } else if (topic.positive > topic.negative) {
-      context = `${topic.topic} receives positive feedback with ${topic.positive}% positive mentions, indicating strong performance in this area.`;
+    } else if (positivePercent > negativePercent) {
+      context = `${topicName} receives positive feedback with ${positivePercent}% positive mentions, indicating strong performance in this area.`;
       mainConcern = 'positive feedback';
     } else {
-      context = `${topic.topic} shows mixed sentiment with ${topic.positive}% positive and ${topic.negative}% negative mentions.`;
+      context = `${topicName} shows mixed sentiment with ${positivePercent}% positive and ${negativePercent}% negative mentions.`;
       mainConcern = 'mixed feedback';
     }
     
     return {
-      topic: topic.topic,
-      positive: topic.positive,
-      negative: topic.negative,
-      total: topic.total,
-      rawMentions: topic.rawMentions,
+      topic: topicName,
+      positive: positivePercent,
+      negative: negativePercent,
+      total: total,
+      rawMentions: topicReviews.slice(0, 5).map(r => r.text),
       context: context,
       mainConcern: mainConcern,
       specificIssues: uniqueIssues
     };
-  });
+  }).filter(topic => topic.total > 0); // Only return topics with reviews
 }
 
 // Helper function to generate advanced metrics
@@ -3982,6 +4053,9 @@ async function processReportInBackground(report_id: string, company_id: string, 
 
     // 3. Analyze reviews with AI
     let analysis;
+    console.log(`Total reviews to analyze: ${allReviews.length}`);
+    console.log('Sample reviews:', allReviews.slice(0, 3).map(r => ({ text: r.text.substring(0, 100), rating: r.rating, source: r.source })));
+    
     if (allReviews.length > 0) {
       await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
       
