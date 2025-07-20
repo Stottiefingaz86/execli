@@ -3407,10 +3407,34 @@ serve(async (req) => {
     const report_id = report.id;
     const company_id = company.id;
     
+    // Return immediately with success response
+    const response = new Response(JSON.stringify({ 
+      success: true, 
+      report_id: report_id,
+      company_id: company_id
+    }), { status: 200 });
+    
+    // Continue processing in the background (don't await this)
+    processReportInBackground(report_id, company_id, business_name, business_url, supabase);
+    
+    return response;
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message || String(err) }), { status: 500 });
+  }
+});
+
+// Background processing function
+async function processReportInBackground(report_id: string, company_id: string, business_name: string, business_url: string, supabase: any) {
+  let allReviews: Review[] = [];
+  let scrapingResults: ScrapingResult[] = [];
+  
+  try {
     async function updateProgress(message: string, status: string = 'processing') {
       await supabase.from('voc_reports').update({ progress_message: message, status }).eq('id', report_id);
     }
+    
     await updateProgress('Initializing report...');
+    
     // 1. Use OpenAI to get review source URLs
     await updateProgress('Finding review sources with AI...');
     let reviewSourceUrls: { [platform: string]: string | null } = {};
@@ -3420,13 +3444,14 @@ serve(async (req) => {
     } catch (err) {
       console.error('Error with OpenAI review source discovery:', err);
       await updateProgress('Error finding review sources: ' + (err.message || err), 'error');
-      return new Response(JSON.stringify({ error: 'Error finding review sources' }), { status: 500 });
+      return;
     }
+    
     // 2. Scrape reviews using Apify for Trustpilot (and future sources)
     const APIFY_TOKEN = Deno.env.get('APIFY_TOKEN');
     if (!APIFY_TOKEN) {
       await updateProgress('Missing Apify API token', 'error');
-      return new Response(JSON.stringify({ error: 'Missing Apify API token' }), { status: 500 });
+      return;
     }
 
     // Clear existing reviews for this company to ensure fresh data
@@ -3480,16 +3505,15 @@ serve(async (req) => {
         const errorText = await tokenTestRes.text();
         console.error('Apify token validation failed:', tokenTestRes.status, errorText);
         await updateProgress('Invalid Apify API token - please check your configuration', 'error');
-        return new Response(JSON.stringify({ error: 'Invalid Apify API token' }), { status: 500 });
+        return;
       }
       console.log('Apify token validated successfully');
     } catch (err) {
       console.error('Error validating Apify token:', err);
       await updateProgress('Error validating Apify API token', 'error');
-      return new Response(JSON.stringify({ error: 'Error validating Apify API token' }), { status: 500 });
+      return;
     }
-    let allReviews: Review[] = [];
-    let scrapingResults: ScrapingResult[] = [];
+    
     for (const [platform, url] of Object.entries(reviewSourceUrls)) {
       if (!url) continue;
       if (platform === 'Trustpilot' && APIFY_ACTORS[platform]) {
@@ -3535,7 +3559,7 @@ serve(async (req) => {
           })).filter((r: Review) => r.text && r.text.length > 0);
           allReviews = allReviews.concat(mappedReviews);
           scrapingResults.push({
-            platform: platform.name,
+            platform: platform,
             success: true,
             reviews: mappedReviews,
             reviewCount: mappedReviews.length
@@ -3557,7 +3581,7 @@ serve(async (req) => {
         } catch (err) {
           console.error(`Error scraping ${platform} with Apify:`, err);
           scrapingResults.push({
-            platform: platform.name,
+            platform: platform,
             success: false,
             reviews: [],
             reviewCount: 0,
@@ -3567,7 +3591,7 @@ serve(async (req) => {
         }
       } else {
         scrapingResults.push({
-          platform: platform.name,
+          platform: platform,
           success: false,
           reviews: [],
           reviewCount: 0,
@@ -3575,213 +3599,223 @@ serve(async (req) => {
         });
       }
     }
-    
-    // 3. Analyze reviews with OpenAI using batching
-    await updateProgress('Analyzing customer feedback with AI...');
-    let analysis: any = {};
-    try {
-      if (allReviews.length > 0) {
-        console.log(`Processing ${allReviews.length} reviews in batches for better analysis...`);
-        
-        // Use batching for better analysis quality
-        if (allReviews.length > 30) {
-          console.log('Using batch processing for large review set...');
-          await updateProgress(`Processing ${allReviews.length} reviews in batches (this may take 3-5 minutes)...`);
-          analysis = await analyzeReviewsInBatches(allReviews, business_name);
-        } else {
-          console.log('Using single batch for smaller review set...');
-          await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
-          analysis = await analyzeReviewsWithOpenAI(allReviews, business_name);
-        }
-        
-        console.log('Analysis completed successfully:', {
-          hasExecutiveSummary: !!analysis.executiveSummary,
-          hasKeyInsights: !!analysis.keyInsights,
-          hasTrendingTopics: !!analysis.trendingTopics,
-          hasSentimentOverTime: !!analysis.sentimentOverTime,
-          hasMentionsByTopic: !!analysis.mentionsByTopic,
-          hasVolumeOverTime: !!analysis.volumeOverTime,
-          hasMarketGaps: !!analysis.marketGaps,
-          hasAdvancedMetrics: !!analysis.advancedMetrics,
-          hasVocDigest: !!analysis.vocDigest,
-          hasSuggestedActions: !!analysis.suggestedActions,
-          analysisKeys: Object.keys(analysis),
-          analysisSize: JSON.stringify(analysis).length
-        });
-        
-        // Store the analysis data
-        try {
-          console.log('Storing analysis in database...');
-          const { error: updateError } = await supabase
-            .from('voc_reports')
-            .update({ 
-              analysis: analysis,
-              status: 'complete',
-              progress_message: 'Report completed successfully',
-              processed_at: new Date().toISOString()
-            })
-            .eq('id', report_id);
-          
-          if (updateError) {
-            console.error('Failed to store analysis in database:', updateError);
-            throw updateError;
-          }
-          
-          // Verify the analysis was stored correctly
-          console.log('Verifying analysis storage...');
-          const { data: verificationData, error: verificationError } = await supabase
-            .from('voc_reports')
-            .select('analysis, status, processed_at')
-            .eq('id', report_id)
-            .single();
-          
-          if (verificationError) {
-            console.error('Failed to verify analysis storage:', verificationError);
-            throw verificationError;
-          }
-          
-          if (!verificationData.analysis) {
-            console.error('Analysis not found in database after storage attempt');
-            throw new Error('Analysis not properly stored in database');
-          }
-          
-          console.log('Analysis completed and stored successfully:', {
-            hasAnalysis: !!verificationData.analysis,
-            status: verificationData.status,
-            processedAt: verificationData.processed_at,
-            analysisKeys: Object.keys(verificationData.analysis || {}),
-            analysisSize: JSON.stringify(verificationData.analysis).length
-          });
-          
-          // Additional verification: check if analysis has required fields
-          const requiredFields = ['executiveSummary', 'keyInsights', 'mentionsByTopic'];
-          const missingFields = requiredFields.filter(field => !verificationData.analysis[field]);
-          if (missingFields.length > 0) {
-            console.warn('Analysis missing required fields:', missingFields);
-          } else {
-            console.log('Analysis contains all required fields');
-          }
-          
-          // Small delay to ensure database write is committed
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-        } catch (dbError) {
-          console.error('Database storage failed:', dbError);
-          throw dbError;
-        }
+
+    // Update sources in the report
+    await supabase
+      .from('voc_reports')
+      .update({ 
+        sources: scrapingResults.map(r => ({
+          source: r.platform,
+          review_count: r.reviewCount
+        })),
+        progress_message: `Scraped ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).length} sources`
+      })
+      .eq('id', report_id);
+
+    // 3. Analyze reviews with AI
+    let analysis;
+    if (allReviews.length > 0) {
+      await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
+      
+      if (allReviews.length > 1000) {
+        console.log('Using batch processing for large review set...');
+        await updateProgress(`Processing ${allReviews.length} reviews in batches (this may take 3-5 minutes)...`);
+        analysis = await analyzeReviewsInBatches(allReviews, business_name);
       } else {
-        analysis = { summary: 'No reviews found to analyze.' };
-        await supabase
+        console.log('Using single batch for smaller review set...');
+        await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
+        analysis = await analyzeReviewsWithOpenAI(allReviews, business_name);
+      }
+      
+      console.log('Analysis completed successfully:', {
+        hasExecutiveSummary: !!analysis.executiveSummary,
+        hasKeyInsights: !!analysis.keyInsights,
+        hasTrendingTopics: !!analysis.trendingTopics,
+        hasSentimentOverTime: !!analysis.sentimentOverTime,
+        hasMentionsByTopic: !!analysis.mentionsByTopic,
+        hasVolumeOverTime: !!analysis.volumeOverTime,
+        hasMarketGaps: !!analysis.marketGaps,
+        hasAdvancedMetrics: !!analysis.advancedMetrics,
+        hasVocDigest: !!analysis.vocDigest,
+        hasSuggestedActions: !!analysis.suggestedActions,
+        analysisKeys: Object.keys(analysis),
+        analysisSize: JSON.stringify(analysis).length
+      });
+      
+      // Store the analysis data
+      try {
+        console.log('Storing analysis in database...');
+        const { error: updateError } = await supabase
           .from('voc_reports')
           .update({ 
             analysis: analysis,
             status: 'complete',
-            progress_message: 'Report completed (no reviews found)'
+            progress_message: 'Report completed successfully',
+            processed_at: new Date().toISOString()
           })
           .eq('id', report_id);
-      }
-    } catch (err) {
-      console.error('Error during AI analysis:', err);
-      await updateProgress('Error during analysis: ' + (err.message || err), 'error');
-      
-      // Only use fallback if we have reviews but AI analysis failed
-      if (allReviews.length > 0) {
-        console.log('AI analysis failed, generating fallback analysis from real review data...');
-        try {
-          // Generate fallback analysis using real review data
-          const fallbackAnalysis = {
-            executiveSummary: {
-              overview: generateDetailedExecutiveSummary(allReviews, business_name),
-              sentimentChange: calculateRealChanges(allReviews).sentimentChange,
-              volumeChange: calculateRealChanges(allReviews).volumeChange,
-              mostPraised: "Customer Service", // Will be determined by analysis
-              topComplaint: "Product Quality", // Will be determined by analysis
-              praisedSections: [],
-              painPoints: [],
-              alerts: [],
-              context: "Analysis based on real review data due to AI processing error",
-              dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
-              topHighlights: []
-            },
-            keyInsights: generateRealInsights(allReviews, business_name),
-            trendingTopics: [],
-            mentionsByTopic: generateMentionsByTopic(allReviews),
-            sentimentOverTime: generateDailySentimentData(allReviews, 30),
-            volumeOverTime: generateDailyVolumeData(allReviews, 30),
-            marketGaps: [],
-            advancedMetrics: generateAdvancedMetrics(allReviews),
-            suggestedActions: generateSuggestedActions(allReviews, business_name),
-            vocDigest: {
-              summary: generateDetailedExecutiveSummary(allReviews, business_name),
-              highlights: []
-            },
-            fallbackUsed: true,
-            error: err.message || String(err)
-          };
-          
-          console.log('Storing fallback analysis with real data...');
-          const { error: fallbackUpdateError } = await supabase
-            .from('voc_reports')
-            .update({ 
-              analysis: fallbackAnalysis,
-              status: 'complete',
-              progress_message: 'Report completed with fallback analysis (AI processing failed)',
-              processed_at: new Date().toISOString()
-            })
-            .eq('id', report_id);
-          
-          if (fallbackUpdateError) {
-            console.error('Failed to store fallback analysis:', fallbackUpdateError);
-            throw fallbackUpdateError;
-          }
-          
-          console.log('Fallback analysis stored successfully');
-        } catch (fallbackError) {
-          console.error('Failed to generate/store fallback analysis:', fallbackError);
-          throw fallbackError;
+        
+        if (updateError) {
+          console.error('Failed to store analysis in database:', updateError);
+          throw updateError;
         }
-      } else {
-        // No reviews available, store minimal error analysis
-        const errorAnalysis = {
+        
+        // Verify the analysis was stored correctly
+        console.log('Verifying analysis storage...');
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('voc_reports')
+          .select('analysis, status, processed_at')
+          .eq('id', report_id)
+          .single();
+        
+        if (verificationError) {
+          console.error('Failed to verify analysis storage:', verificationError);
+          throw verificationError;
+        }
+        
+        if (!verificationData.analysis) {
+          console.error('Analysis not found in database after storage attempt');
+          throw new Error('Analysis not properly stored in database');
+        }
+        
+        console.log('Analysis completed and stored successfully:', {
+          hasAnalysis: !!verificationData.analysis,
+          status: verificationData.status,
+          processedAt: verificationData.processed_at,
+          analysisKeys: Object.keys(verificationData.analysis || {}),
+          analysisSize: JSON.stringify(verificationData.analysis).length
+        });
+        
+        // Additional verification: check if analysis has required fields
+        const requiredFields = ['executiveSummary', 'keyInsights', 'mentionsByTopic'];
+        const missingFields = requiredFields.filter(field => !verificationData.analysis[field]);
+        if (missingFields.length > 0) {
+          console.warn('Analysis missing required fields:', missingFields);
+        } else {
+          console.log('Analysis contains all required fields');
+        }
+        
+        // Small delay to ensure database write is committed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (dbError) {
+        console.error('Database storage failed:', dbError);
+        throw dbError;
+      }
+    } else {
+      analysis = { summary: 'No reviews found to analyze.' };
+      await supabase
+        .from('voc_reports')
+        .update({ 
+          analysis: analysis,
+          status: 'complete',
+          progress_message: 'Report completed (no reviews found)'
+        })
+        .eq('id', report_id);
+    }
+  } catch (err) {
+    console.error('Error during AI analysis:', err);
+    
+    // Define updateProgress function in catch block scope
+    async function updateProgress(message: string, status: string = 'processing') {
+      await supabase.from('voc_reports').update({ progress_message: message, status }).eq('id', report_id);
+    }
+    
+    await updateProgress('Error during analysis: ' + (err.message || err), 'error');
+    
+    // Only use fallback if we have reviews but AI analysis failed
+    if (allReviews && allReviews.length > 0) {
+      console.log('AI analysis failed, generating fallback analysis from real review data...');
+      try {
+        // Generate fallback analysis using real review data
+        const fallbackAnalysis = {
           executiveSummary: {
-            overview: `No reviews found for ${business_name}. Please check the business name and try again.`,
-            sentimentChange: "+0%",
-            volumeChange: "+0%"
+            overview: generateDetailedExecutiveSummary(allReviews, business_name),
+            sentimentChange: calculateRealChanges(allReviews).sentimentChange,
+            volumeChange: calculateRealChanges(allReviews).volumeChange,
+            mostPraised: "Customer Service", // Will be determined by analysis
+            topComplaint: "Product Quality", // Will be determined by analysis
+            praisedSections: [],
+            painPoints: [],
+            alerts: [],
+            context: "Analysis based on real review data due to AI processing error",
+            dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
+            topHighlights: []
           },
-          keyInsights: [],
+          keyInsights: generateRealInsights(allReviews, business_name),
           trendingTopics: [],
-          mentionsByTopic: [],
-          sentimentOverTime: [],
-          volumeOverTime: [],
+          mentionsByTopic: generateMentionsByTopic(allReviews),
+          sentimentOverTime: generateDailySentimentData(allReviews, 30),
+          volumeOverTime: generateDailyVolumeData(allReviews, 30),
           marketGaps: [],
-          advancedMetrics: {},
-          suggestedActions: [],
+          advancedMetrics: generateAdvancedMetrics(allReviews),
+          suggestedActions: generateSuggestedActions(allReviews, business_name),
           vocDigest: {
-            summary: `No reviews found for ${business_name}.`
+            summary: generateDetailedExecutiveSummary(allReviews, business_name),
+            highlights: []
           },
-          error: "No reviews available for analysis"
+          fallbackUsed: true,
+          error: err.message || String(err)
         };
         
-        await supabase
+        console.log('Storing fallback analysis with real data...');
+        const { error: fallbackUpdateError } = await supabase
           .from('voc_reports')
           .update({ 
-            analysis: errorAnalysis,
-            status: 'error',
-            progress_message: 'No reviews found for analysis'
+            analysis: fallbackAnalysis,
+            status: 'complete',
+            progress_message: 'Report completed with fallback analysis (AI processing failed)',
+            processed_at: new Date().toISOString()
           })
           .eq('id', report_id);
+        
+        if (fallbackUpdateError) {
+          console.error('Failed to store fallback analysis:', fallbackUpdateError);
+          throw fallbackUpdateError;
+        }
+        
+        console.log('Fallback analysis stored successfully');
+      } catch (fallbackError) {
+        console.error('Failed to generate/store fallback analysis:', fallbackError);
+        throw fallbackError;
       }
+    } else {
+      // No reviews available, store minimal error analysis
+      const errorAnalysis = {
+        executiveSummary: {
+          overview: `No reviews found for ${business_name}. Please check the business name and try again.`,
+          sentimentChange: "+0%",
+          volumeChange: "+0%"
+        },
+        keyInsights: [],
+        trendingTopics: [],
+        mentionsByTopic: [],
+        sentimentOverTime: [],
+        volumeOverTime: [],
+        marketGaps: [],
+        advancedMetrics: {},
+        suggestedActions: [],
+        vocDigest: {
+          summary: `No reviews found for ${business_name}.`
+        },
+        error: "No reviews available for analysis"
+      };
       
-      return new Response(JSON.stringify({ error: 'Error during analysis' }), { status: 500 });
+      await supabase
+        .from('voc_reports')
+        .update({ 
+          analysis: errorAnalysis,
+          status: 'error',
+          progress_message: 'No reviews found for analysis'
+        })
+        .eq('id', report_id);
     }
-
-    await updateProgress('Report ready!', 'complete');
-    return new Response(JSON.stringify({ 
-      success: true, 
-      report_id: report_id,
-      company_id: company_id
-    }), { status: 200 });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message || String(err) }), { status: 500 });
   }
-});
+
+  // Define updateProgress function for final call
+  async function updateProgress(message: string, status: string = 'processing') {
+    await supabase.from('voc_reports').update({ progress_message: message, status }).eq('id', report_id);
+  }
+  
+  await updateProgress('Report ready!', 'complete');
+}

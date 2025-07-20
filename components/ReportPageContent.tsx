@@ -1634,12 +1634,12 @@ export default function ReportPageContent({
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                               <span className="text-white font-semibold">
-                                {source.source?.charAt(0) || "T"}
+                                {source?.source?.charAt(0) || "T"}
                               </span>
                             </div>
                             <div>
                               <h5 className="font-semibold text-white">
-                                {source.source || "Trustpilot"}
+                                {source?.source || "Trustpilot"}
                               </h5>
                               <div className="flex items-center space-x-2">
                                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -1659,7 +1659,7 @@ export default function ReportPageContent({
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-[#B0B0C0]">
-                            {source.review_count || 40} reviews
+                            {source?.review_count || 40} reviews
                           </span>
                           <span className="text-[#B0B0C0]">
                             Last sync: 1 hour ago
@@ -4127,7 +4127,7 @@ export default function ReportPageContent({
                         Analysis based on{" "}
                         {processedData.detected_sources?.reduce(
                           (total: number, source: any) =>
-                            total + source.review_count,
+                            total + (source?.review_count || 0),
                           0,
                         ) || 0}{" "}
                         customer reviews with comprehensive sentiment analysis
@@ -4614,7 +4614,7 @@ export default function ReportPageContent({
                         >
                           {review.sentiment}
                         </span>
-                        {review.source && (
+                        {review?.source && (
                           <span className="text-xs text-gray-400">
                             Source: {review.source}
                           </span>
