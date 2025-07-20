@@ -3423,8 +3423,20 @@ Return ONLY valid JSON. NO additional text or explanations.`;
     
     if (!analysis.mentionsByTopic || analysis.mentionsByTopic.length === 0) {
       console.log('Generating mentionsByTopic from reviews...');
-      analysis.mentionsByTopic = generateMentionsByTopic(reviews);
+      analysis.mentionsByTopic = generateMentionsByTopic(reviews, businessName);
       console.log('Generated mentionsByTopic:', analysis.mentionsByTopic);
+    }
+    
+    if (!analysis.trendingTopics || analysis.trendingTopics.length === 0) {
+      console.log('Generating trendingTopics from reviews...');
+      analysis.trendingTopics = generateTrendingTopics(reviews);
+      console.log('Generated trendingTopics:', analysis.trendingTopics);
+    }
+    
+    if (!analysis.marketGaps || analysis.marketGaps.length === 0) {
+      console.log('Generating marketGaps from reviews...');
+      analysis.marketGaps = generateMarketGaps(reviews);
+      console.log('Generated marketGaps:', analysis.marketGaps);
     }
     
     if (!analysis.advancedMetrics || Object.keys(analysis.advancedMetrics).length === 0) {
@@ -3474,7 +3486,9 @@ Return ONLY valid JSON. NO additional text or explanations.`;
     const realTopics = extractTopicsFromReviews(reviews);
     const realSentiment = analyzeSentimentByTopic(reviews);
     const realInsights = generateRealInsights(reviews, businessName);
-    const realMentionsByTopic = generateMentionsByTopic(reviews);
+    const realMentionsByTopic = generateMentionsByTopic(reviews, businessName);
+    const realTrendingTopics = generateTrendingTopics(reviews);
+    const realMarketGaps = generateMarketGaps(reviews);
     const realSentimentOverTime = generateDailySentimentData(reviews, 30);
     const realVolumeOverTime = generateDailyVolumeData(reviews, 30);
     const realAdvancedMetrics = generateAdvancedMetrics(reviews);
@@ -3519,20 +3533,7 @@ Return ONLY valid JSON. NO additional text or explanations.`;
         businessImpact: `Addressing this could improve customer satisfaction and retention.`,
         specificExamples: reviews.filter(r => r.text.toLowerCase().includes(insight.insight.toLowerCase())).slice(0, 3).map(r => r.text)
       })),
-      trendingTopics: realTopics.slice(0, 6).map(topic => ({
-        topic,
-        growth: `${Math.floor(Math.random() * 40) + 10}%`,
-        sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
-        volume: Math.floor(Math.random() * 20) + 5,
-        keyInsights: generateTopicKeyInsights(topic, reviews),
-        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
-        context: `${topic} is trending due to increased customer mentions and feedback.`,
-        mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
-        businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
-        peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
-        trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-      })),
+      trendingTopics: realTrendingTopics,
       mentionsByTopic: realMentionsByTopic.map(topic => ({
         topic: topic.topic,
         positive: topic.positive,
@@ -3546,18 +3547,7 @@ Return ONLY valid JSON. NO additional text or explanations.`;
         specificExamples: topic.rawMentions?.slice(0, 3) || [],
         keyInsight: generateTopicKeyInsight({ topic: topic.topic, ...topic }, reviews)
       })),
-      marketGaps: realTopics.slice(0, 3).map(topic => ({
-        gap: `Improve ${topic}`,
-        mentions: Math.floor(Math.random() * 15) + 5,
-        suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
-        kpiImpact: 'High Impact',
-        rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
-        priority: 'high',
-        context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
-        opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
-        customerImpact: `This gap affects customer retention and satisfaction scores.`,
-        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-      })) as any[],
+      marketGaps: realMarketGaps,
       advancedMetrics: {
         ...realAdvancedMetrics,
         context: `These metrics provide insights into customer trust, satisfaction, and engagement patterns.`,
