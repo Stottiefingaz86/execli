@@ -1784,7 +1784,7 @@ export default function ReportPageContent({
                   </div>
                 ) : (
                   <>
-                    <p>
+                    <p className="text-base leading-relaxed">
                       Based on analysis of customer reviews across multiple
                       platforms, the business shows a{" "}
                       {processedData.executiveSummary?.sentimentChange?.startsWith(
@@ -1794,42 +1794,13 @@ export default function ReportPageContent({
                         : "mixed"}{" "}
                       sentiment trend with{" "}
                       {processedData.executiveSummary?.volumeChange || "+12%"}{" "}
-                      change in review volume over the past 30 days.
-                    </p>
-                    <p>
-                      The most praised aspect is{" "}
+                      change in review volume over the past 30 days. The most praised aspect is{" "}
                       {processedData.executiveSummary?.mostPraised ||
                         "customer service"}
-                      , with customers highlighting{" "}
-                      {processedData.executiveSummary?.praisedSections?.[0]?.examples?.[0]?.substring(
-                        0,
-                        100,
-                      ) || "fast response times and helpful support"}
-                      . However, the primary concern is{" "}
+                      , while the primary concern is{" "}
                       {processedData.executiveSummary?.topComplaint ||
                         "deposit fees"}
-                      , with
-                      {processedData.executiveSummary?.painPoints?.[0]?.examples?.[0]?.substring(
-                        0,
-                        100,
-                      ) || "customers expressing frustration over high charges"}
-                      .
-                    </p>
-                    <p>
-                      Key trends indicate{" "}
-                      {processedData.executiveSummary?.sentimentChange?.startsWith(
-                        "+",
-                      )
-                        ? "improving customer satisfaction"
-                        : "declining satisfaction"}
-                      , with{" "}
-                      {processedData.executiveSummary?.volumeChange?.startsWith(
-                        "+",
-                      )
-                        ? "increased"
-                        : "decreased"}{" "}
-                      customer engagement. The overall rating stands at 4.2/5,
-                      reflecting{" "}
+                      . The overall rating stands at 4.2/5, reflecting{" "}
                       {processedData.executiveSummary?.sentimentChange?.startsWith(
                         "+",
                       )
@@ -1837,19 +1808,26 @@ export default function ReportPageContent({
                         : "moderate"}{" "}
                       customer satisfaction.
                     </p>
-                    <p>
-                      Immediate attention should focus on{" "}
+                    <p className="text-base leading-relaxed">
+                      Key insights reveal that{" "}
+                      {processedData.executiveSummary?.sentimentChange?.startsWith(
+                        "+",
+                      )
+                        ? "customer satisfaction is improving"
+                        : "there are areas requiring attention"}
+                      , with{" "}
+                      {processedData.executiveSummary?.volumeChange?.startsWith(
+                        "+",
+                      )
+                        ? "increased"
+                        : "decreased"}{" "}
+                      customer engagement. Immediate priorities include addressing{" "}
                       {processedData.executiveSummary?.topComplaint ||
-                        "addressing deposit fee concerns"}
-                      to improve customer retention and satisfaction. The data
-                      suggests opportunities for{" "}
+                        "deposit fee concerns"}
+                      , leveraging positive{" "}
                       {processedData.executiveSummary?.mostPraised ||
-                        "enhancing customer service"}
-                      and{" "}
-                      {processedData.executiveSummary?.topComplaint
-                        ? "resolving fee-related issues"
-                        : "improving overall user experience"}
-                      .
+                        "customer service"}
+                      feedback, and implementing continuous monitoring systems to track sentiment trends and identify emerging issues.
                     </p>
                   </>
                 )}
@@ -3149,10 +3127,22 @@ export default function ReportPageContent({
                                 <p className="text-sm text-[#B0B0C0] leading-relaxed">
                                   <TruncatedText
                                     text={topic.context}
-                                    maxLength={80}
+                                    maxLength={120}
                                     title="Topic Context"
                                   />
                                 </p>
+                                {topic.specificIssues && topic.specificIssues.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-red-400 font-medium">Key Issues:</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {topic.specificIssues.slice(0, 3).map((issue, idx) => (
+                                        <span key={idx} className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">
+                                          {issue}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
 
