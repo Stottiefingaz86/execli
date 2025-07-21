@@ -1241,6 +1241,11 @@ export default function ReportPageContent({
         // TEMPORARY: Skip the reprocessing that's breaking the data
         console.log("🔧 TEMPORARY: Skipping processAndDeduplicateData to preserve original data");
         console.log("Final processed data:", data);
+        console.log("🔍 DETAILED DATA INSPECTION:");
+        console.log("mentionsByTopic sample:", data.mentionsByTopic?.[0]);
+        console.log("keyInsights sample:", data.keyInsights?.[0]);
+        console.log("executiveSummary:", data.executiveSummary);
+        console.log("marketGaps sample:", data.marketGaps?.[0]);
         
         // Use the data directly without reprocessing
         setProcessedData(data);
@@ -1259,6 +1264,13 @@ export default function ReportPageContent({
   console.log("Processed data:", processedData);
   console.log("Mentions by topic:", processedData?.mentionsByTopic);
   console.log("Positive topics:", processedData?.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
+  console.log("All topics with their values:", processedData?.mentionsByTopic?.map((topic: any) => ({
+    topic: topic.topic,
+    positive: topic.positive,
+    negative: topic.negative,
+    neutral: topic.neutral,
+    total: topic.total
+  })));
   
   // Add detailed debugging for empty sections
   console.log("=== DEBUGGING EMPTY SECTIONS ===");
