@@ -64,7 +64,9 @@ export async function GET(request: NextRequest) {
         (data.analysis.reviews && data.analysis.reviews.length > 0) ||
         // Check for any meaningful analysis fields
         (data.analysis.sentiment_timeline && data.analysis.sentiment_timeline.length > 0) ||
-        (data.analysis.topic_analysis && data.analysis.topic_analysis.length > 0)
+        (data.analysis.topic_analysis && data.analysis.topic_analysis.length > 0) ||
+        // Allow minimal test analysis for debugging
+        (data.analysis.test === true)
       )
     );
 
