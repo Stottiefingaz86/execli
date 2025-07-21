@@ -5,7 +5,8 @@ async function testEdgeFunction() {
     const response = await fetch('https://efiioacrgwuewmroztth.supabase.co/functions/v1/process-voc-report', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'apikey': `${process.env.SUPABASE_SERVICE_ROLE_KEY}`
       },
       body: JSON.stringify({
         business_name: 'Test Business',
