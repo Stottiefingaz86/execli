@@ -2299,6 +2299,7 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
     // Calculate percentages - ensure we always have some data
     const positivePercent = total > 0 ? Math.round((positive / total) * 100) : 0;
     const negativePercent = total > 0 ? Math.round((negative / total) * 100) : 0;
+    const neutralPercent = total > 0 ? Math.round((neutral / total) * 100) : 0;
     
     // If no reviews found for this topic, try to find any reviews that might be relevant
     if (total === 0) {
@@ -2314,10 +2315,12 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
         const allNegative = allTopicReviews.filter(r => (r.rating || 0) <= 2).length;
         const allTotal = allTopicReviews.length;
         
+        const allNeutral = allTopicReviews.filter(r => (r.rating || 0) === 3).length;
         return {
           topic: topicName,
           positive: allTotal > 0 ? Math.round((allPositive / allTotal) * 100) : 0,
           negative: allTotal > 0 ? Math.round((allNegative / allTotal) * 100) : 0,
+          neutral: allTotal > 0 ? Math.round((allNeutral / allTotal) * 100) : 0,
           total: allTotal,
           rawMentions: allTopicReviews.slice(0, 5).map(r => r.text),
           context: `Found ${allTotal} reviews mentioning ${topicName}`,
@@ -2396,6 +2399,7 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
       topic: topicName,
       positive: positivePercent,
       negative: negativePercent,
+      neutral: neutralPercent,
       total: total,
       rawMentions: topicReviews.slice(0, 5).map(r => r.text),
       context: context,
@@ -3655,39 +3659,45 @@ async function processReportInBackground(report_id: string, company_id: string, 
       console.log(`Starting analysis of ${allReviews.length} reviews using real data processing`);
       
       try {
-        // Bypass AI analysis and use real review data processing directly
-        console.log('Using real review data processing instead of AI analysis');
+        // Use AI analysis now that authentication is fixed
+        console.log('Starting AI analysis of reviews...');
         
-        const analysis = {
-          executiveSummary: {
-            overview: generateDetailedExecutiveSummary(allReviews, business_name),
-            sentimentChange: calculateRealChanges(allReviews).sentimentChange,
-            volumeChange: calculateRealChanges(allReviews).volumeChange,
-            mostPraised: "Customer Service", // Will be determined by analysis
-            topComplaint: "Product Quality", // Will be determined by analysis
-            praisedSections: [],
-            painPoints: [],
-            alerts: [],
-            context: "Analysis based on real review data processing",
-            dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
-            topHighlights: []
-          },
-          keyInsights: generateRealInsights(allReviews, business_name),
-          trendingTopics: generateTrendingTopics(allReviews),
-          mentionsByTopic: generateMentionsByTopic(allReviews, business_name),
-          sentimentOverTime: generateDailySentimentData(allReviews, 30),
-          volumeOverTime: generateDailyVolumeData(allReviews, 30),
-          marketGaps: generateMarketGaps(allReviews),
-          advancedMetrics: generateAdvancedMetrics(allReviews),
-          suggestedActions: generateSuggestedActions(allReviews, business_name),
-          vocDigest: {
-            summary: generateDetailedExecutiveSummary(allReviews, business_name),
-            highlights: []
-          },
-          realTopics: extractTopicsFromReviews(allReviews),
-          realSentiment: analyzeSentimentByTopic(allReviews),
-          realInsights: generateRealInsights(allReviews, business_name)
-        };
+        const analysis = await analyzeReviewsInBatches(allReviews, business_name);
+        console.log('AI Analysis completed successfully');
+        console.log('Analysis object type:', typeof analysis);
+        console.log('Analysis object keys:', analysis ? Object.keys(analysis) : 'null/undefined');
+        console.log('Analysis object preview:', JSON.stringify(analysis, null, 2).substring(0, 500));
+        
+        // If AI analysis fails, fall back to real data processing
+        if (!analysis || Object.keys(analysis).length === 0) {
+          console.log('AI analysis failed, falling back to real data processing');
+          const fallbackAnalysis = {
+            executiveSummary: {
+              overview: generateDetailedExecutiveSummary(allReviews, business_name),
+              sentimentChange: calculateRealChanges(allReviews).sentimentChange,
+              volumeChange: calculateRealChanges(allReviews).volumeChange,
+              mostPraised: "Customer Service",
+              topComplaint: "Product Quality",
+              praisedSections: [],
+              painPoints: [],
+              alerts: [],
+              context: "Analysis based on real review data processing",
+              dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
+              topHighlights: []
+            },
+            keyInsights: generateRealInsights(allReviews, business_name),
+            trendingTopics: generateTrendingTopics(allReviews),
+            mentionsByTopic: generateMentionsByTopic(allReviews, business_name),
+            sentimentOverTime: generateDailySentimentData(allReviews, 30),
+            volumeOverTime: generateDailyVolumeData(allReviews, 30),
+            marketGaps: generateMarketGaps(allReviews),
+            advancedMetrics: generateAdvancedMetrics(allReviews),
+            suggestedActions: generateSuggestedActions(allReviews, business_name)
+          };
+          
+          console.log('Fallback analysis completed');
+          analysis = fallbackAnalysis;
+        }
         
         console.log('Real data analysis completed successfully');
         console.log('Analysis object keys:', Object.keys(analysis));
