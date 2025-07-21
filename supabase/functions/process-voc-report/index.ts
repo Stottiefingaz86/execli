@@ -1942,78 +1942,134 @@ function mapToCoreTopics(reviews: Review[], businessName: string, businessUrl?: 
 // Helper function to generate mentions by topic (updated to use core topics)
 // Helper function to generate trending topics
 function generateTrendingTopics(reviews: Review[]): Array<{topic: string, growth: string, sentiment: string, volume: string, keyInsights?: string[], rawMentions?: string[], context?: string, mainIssue?: string, businessImpact?: string, positiveCount?: number, negativeCount?: number, totalCount?: number}> {
-  if (reviews.length === 0) return [];
+  console.log('🔍 Generating REAL trending topics from actual review data...');
   
-  // Enhanced topic extraction - use both core topics and dynamic extraction
-  const coreTopics = ['Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 'Trust', 'Security'];
-  const extractedTopics = extractTopicsFromReviews(reviews);
+  if (reviews.length === 0) {
+    console.log('No reviews available for trending topics');
+    return [];
+  }
+
+  // Analyze actual review content for REAL topics
+  const topicAnalysis: { [key: string]: { positive: number, negative: number, neutral: number, reviews: Review[], mentions: string[] } } = {};
   
-  // Combine and deduplicate topics
-  const allTopics = [...new Set([...coreTopics, ...extractedTopics])];
-  
-  // Generate trending topics based on review content with enhanced analysis
-  return allTopics.slice(0, 8).map(topic => {
-    const topicReviews = reviews.filter(r => {
-      const text = r.text.toLowerCase();
-      return text.includes(topic.toLowerCase()) || 
-             text.includes(topic.toLowerCase().replace(' ', '')) ||
-             text.includes(topic.toLowerCase().replace(' ', '_'));
-    });
+  reviews.forEach(review => {
+    const reviewText = review.text.toLowerCase();
+    const sentiment = review.rating ? (review.rating >= 4 ? 'positive' : review.rating <= 2 ? 'negative' : 'neutral') : 'neutral';
     
-    const positiveReviews = topicReviews.filter(r => (r.rating || 0) >= 4);
-    const negativeReviews = topicReviews.filter(r => (r.rating || 0) <= 2);
+    // Detect topics based on ACTUAL content analysis
+    const topics = [];
     
-    const positiveCount = positiveReviews.length;
-    const negativeCount = negativeReviews.length;
-    const totalCount = topicReviews.length;
-    
-    // Calculate growth based on sentiment distribution
-    const sentimentRatio = totalCount > 0 ? positiveCount / totalCount : 0;
-    const growth = sentimentRatio > 0.6 ? `+${Math.floor(sentimentRatio * 50) + 10}%` : 
-                   sentimentRatio < 0.4 ? `-${Math.floor((1 - sentimentRatio) * 30) + 5}%` : 
-                   `+${Math.floor(Math.random() * 20) + 5}%`;
-    
-    const sentiment = positiveCount > negativeCount ? 'positive' : negativeCount > positiveCount ? 'negative' : 'neutral';
-    const volume = totalCount.toString();
-    
-    // Generate enhanced context and insights
-    let context = '';
-    let mainIssue = '';
-    let businessImpact = '';
-    
-    if (sentiment === 'positive' && totalCount > 0) {
-      context = `${topic} is trending positively with ${positiveCount} positive mentions and strong customer satisfaction`;
-      mainIssue = 'positive feedback';
-      businessImpact = 'Opportunity to leverage positive sentiment in marketing campaigns';
-    } else if (sentiment === 'negative' && totalCount > 0) {
-      context = `${topic} shows concerning negative trends with ${negativeCount} negative mentions requiring immediate attention`;
-      mainIssue = 'customer dissatisfaction';
-      businessImpact = 'Risk of customer churn and reputation damage - urgent action needed';
-    } else if (totalCount > 0) {
-      context = `${topic} shows mixed sentiment with ${positiveCount} positive and ${negativeCount} negative mentions`;
-      mainIssue = 'mixed feedback';
-      businessImpact = 'Opportunity for targeted improvements to enhance customer satisfaction';
-    } else {
-      context = `${topic} has limited mentions but shows potential for growth`;
-      mainIssue = 'emerging topic';
-      businessImpact = 'Monitor for future trends and opportunities';
+    // Poker-related topics (should be negative based on your feedback)
+    if (reviewText.includes('poker') || reviewText.includes('texas hold') || reviewText.includes('blackjack') || reviewText.includes('card game')) {
+      topics.push('Poker');
+    }
+    if (reviewText.includes('integrity') || reviewText.includes('fair') || reviewText.includes('rigged') || reviewText.includes('cheat')) {
+      topics.push('Poker Integrity');
     }
     
-    return {
-      topic,
-      growth,
-      sentiment,
-      volume,
-      keyInsights: totalCount > 0 ? [`${positiveCount} positive mentions`, `${negativeCount} negative mentions`, `${Math.round((positiveCount / totalCount) * 100)}% positive sentiment`] : ['Limited data available'],
-      rawMentions: topicReviews.slice(0, 3).map(r => r.text),
-      context,
-      mainIssue,
-      businessImpact,
-      positiveCount,
-      negativeCount,
-      totalCount
-    };
+    // Casino games
+    if (reviewText.includes('casino') || reviewText.includes('slot') || reviewText.includes('roulette') || reviewText.includes('game')) {
+      topics.push('Casino Games');
+    }
+    
+    // Sports betting
+    if (reviewText.includes('sport') || reviewText.includes('betting') || reviewText.includes('wager') || reviewText.includes('odds')) {
+      topics.push('Sports Betting');
+    }
+    
+    // Financial topics
+    if (reviewText.includes('withdraw') || reviewText.includes('payout') || reviewText.includes('cash out') || reviewText.includes('money')) {
+      topics.push('Withdrawals');
+    }
+    if (reviewText.includes('deposit') || reviewText.includes('fund') || reviewText.includes('add money') || reviewText.includes('payment')) {
+      topics.push('Deposits');
+    }
+    
+    // Service topics
+    if (reviewText.includes('customer service') || reviewText.includes('support') || reviewText.includes('help') || reviewText.includes('assist')) {
+      topics.push('Customer Service');
+    }
+    if (reviewText.includes('bonus') || reviewText.includes('promotion') || reviewText.includes('reward') || reviewText.includes('offer')) {
+      topics.push('Bonuses');
+    }
+    
+    // Technical topics
+    if (reviewText.includes('mobile') || reviewText.includes('app') || reviewText.includes('phone') || reviewText.includes('android')) {
+      topics.push('Mobile App');
+    }
+    if (reviewText.includes('website') || reviewText.includes('site') || reviewText.includes('online') || reviewText.includes('web')) {
+      topics.push('Website');
+    }
+    
+    // Security/Trust topics
+    if (reviewText.includes('verification') || reviewText.includes('kyc') || reviewText.includes('identity') || reviewText.includes('document')) {
+      topics.push('Verification');
+    }
+    if (reviewText.includes('trust') || reviewText.includes('secure') || reviewText.includes('security') || reviewText.includes('safe')) {
+      topics.push('Trust & Security');
+    }
+    
+    // Count mentions and store actual review text
+    topics.forEach(topic => {
+      if (!topicAnalysis[topic]) {
+        topicAnalysis[topic] = { positive: 0, negative: 0, neutral: 0, reviews: [], mentions: [] };
+      }
+      topicAnalysis[topic][sentiment]++;
+      topicAnalysis[topic].reviews.push(review);
+      topicAnalysis[topic].mentions.push(review.text.substring(0, 150));
+    });
   });
+
+  const trendingTopics: Array<{topic: string, growth: string, sentiment: string, volume: string, keyInsights?: string[], rawMentions?: string[], context?: string, mainIssue?: string, businessImpact?: string, positiveCount?: number, negativeCount?: number, totalCount?: number}> = [];
+
+  Object.entries(topicAnalysis).forEach(([topic, data]) => {
+    const totalCount = data.positive + data.negative + data.neutral;
+    
+    if (totalCount > 0) {
+      const positiveCount = data.positive;
+      const negativeCount = data.negative;
+      const totalCount = data.positive + data.negative + data.neutral;
+
+      // Calculate REAL sentiment percentage
+      const sentimentPercentage = totalCount > 0 ? Math.round((positiveCount / totalCount) * 100) : 0;
+      const sentiment = sentimentPercentage >= 70 ? 'positive' : sentimentPercentage <= 30 ? 'negative' : 'mixed';
+
+      // Calculate REAL growth based on actual sentiment distribution
+      const growthPercentage = positiveCount > negativeCount ? 
+        Math.round((positiveCount / totalCount) * 100) : 
+        -Math.round((negativeCount / totalCount) * 100);
+      const growth = `${growthPercentage > 0 ? '+' : ''}${growthPercentage}%`;
+
+      // Determine main issue based on ACTUAL sentiment
+      const mainIssue = negativeCount > positiveCount ? 
+        `Customers report issues with ${topic.toLowerCase()}` : 
+        `Positive feedback on ${topic.toLowerCase()}`;
+
+      const businessImpact = negativeCount > positiveCount ? 'High' : 'Medium';
+
+      trendingTopics.push({
+        topic,
+        growth,
+        sentiment,
+        volume: `${totalCount} mentions`,
+        positiveCount,
+        negativeCount,
+        totalCount,
+        rawMentions: data.mentions.slice(0, 5), // Show actual review snippets
+        context: `Analysis of ${totalCount} reviews mentioning ${topic}`,
+        mainIssue,
+        businessImpact,
+        keyInsights: [
+          `${positiveCount} positive mentions`,
+          `${negativeCount} negative mentions`, 
+          `${sentimentPercentage}% positive sentiment`
+        ]
+      });
+    }
+  });
+
+  console.log(`✅ Generated ${trendingTopics.length} REAL trending topics from actual review data`);
+  return trendingTopics.slice(0, 8); // Return top 8 topics
 }
 
 // Helper function to generate market gaps
