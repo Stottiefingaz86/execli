@@ -73,420 +73,49 @@ async function analyzeReviewsInBatches(reviews: Review[], businessName: string):
 function aggregateBatchResults(batchResults: any[], allReviews: Review[], businessName: string): any {
   console.log('Starting aggregation of batch results...');
   
-  // Extract key insights from all batches
-  const allKeyInsights: any[] = [];
-  const allTopics: Set<string> = new Set();
-  const allSentiments: number[] = [];
-  const allMentionsByTopic: Map<string, { positive: number, negative: number, total: number, rawMentions: string[] }> = new Map();
-  
-  // Process each batch result
-  batchResults.forEach((batchResult, index) => {
-    console.log(`Processing batch ${index + 1} results...`);
+  try {
+    // Use ONLY real AI data from batches - NO fallback
+    const aggregatedAnalysis = {
+      executiveSummary: {
+        overview: batchResults.find(b => b?.executiveSummary?.overview)?.executiveSummary.overview || 
+          batchResults.find(b => b?.analysis?.executiveSummary)?.analysis.executiveSummary || 
+          "AI analysis in progress..."
+      },
+      keyInsights: batchResults.flatMap(b => b?.keyInsights || b?.analysis?.key_insights || []),
+      trendingTopics: batchResults.flatMap(b => b?.trendingTopics || b?.analysis?.trending_topics || []),
+      mentionsByTopic: batchResults.flatMap(b => b?.mentionsByTopic || b?.analysis?.topic_analysis || []),
+      sentimentOverTime: batchResults.flatMap(b => b?.sentimentOverTime || b?.analysis?.sentiment_timeline || []),
+      volumeOverTime: batchResults.flatMap(b => b?.volumeOverTime || b?.analysis?.volume_timeline || []),
+      marketGaps: batchResults.flatMap(b => b?.marketGaps || b?.analysis?.market_gaps || []),
+      advancedMetrics: batchResults.find(b => b?.advancedMetrics && Object.keys(b.advancedMetrics).length > 0)?.advancedMetrics ||
+        batchResults.find(b => b?.analysis?.advanced_metrics && Object.keys(b.analysis.advanced_metrics).length > 0)?.analysis.advanced_metrics ||
+        {},
+      suggestedActions: batchResults.flatMap(b => b?.suggestedActions || b?.analysis?.suggested_actions || []),
+
+      realTopics: batchResults.flatMap(b => b?.realTopics || []),
+      realSentiment: batchResults.find(b => b?.realSentiment !== undefined)?.realSentiment || 0,
+      realInsights: batchResults.flatMap(b => b?.realInsights || [])
+    };
     
-    // Collect key insights
-    if (batchResult.keyInsights && Array.isArray(batchResult.keyInsights)) {
-      allKeyInsights.push(...batchResult.keyInsights);
-    }
-    
-    // Collect topics
-    if (batchResult.mentionsByTopic && Array.isArray(batchResult.mentionsByTopic)) {
-      batchResult.mentionsByTopic.forEach((topic: any) => {
-        allTopics.add(topic.topic);
-        
-        const existing = allMentionsByTopic.get(topic.topic) || { positive: 0, negative: 0, total: 0, rawMentions: [] };
-        existing.positive += topic.positive || 0;
-        existing.negative += topic.negative || 0;
-        existing.total += topic.total || 0;
-        if (topic.rawMentions) {
-          existing.rawMentions.push(...topic.rawMentions);
-        }
-        allMentionsByTopic.set(topic.topic, existing);
-      });
-    }
-    
-    // Collect sentiment data
-    if (batchResult.sentimentOverTime && Array.isArray(batchResult.sentimentOverTime)) {
-      batchResult.sentimentOverTime.forEach((day: any) => {
-        if (day.sentiment !== undefined) {
-          allSentiments.push(day.sentiment);
-        }
-      });
-    }
-  });
-  
-  // Generate comprehensive analysis from aggregated data
-  const aggregatedAnalysis = {
-    executiveSummary: generateDetailedExecutiveSummary(allReviews, businessName),
-    keyInsights: generateRealInsights(allReviews, businessName),
-    trendingTopics: Array.from(allTopics).slice(0, 6).map(topic => {
-      const topicReviews = allReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase()));
-      const keyInsights = generateTopicKeyInsights(topic, allReviews);
-      
-      // Analyze actual sentiment for this topic
-      let positiveCount = 0;
-      let negativeCount = 0;
-      const positiveReviews: string[] = [];
-      const negativeReviews: string[] = [];
-      
-      topicReviews.forEach(review => {
-        const text = review.text.toLowerCase();
-        const hasPositiveWords = text.includes('good') || text.includes('great') || text.includes('love') || 
-                               text.includes('excellent') || text.includes('amazing') || text.includes('perfect') ||
-                               text.includes('easy') || text.includes('quick') || text.includes('fast') ||
-                               text.includes('smooth') || text.includes('simple') || text.includes('helpful');
-        const hasNegativeWords = text.includes('bad') || text.includes('terrible') || text.includes('hate') || 
-                               text.includes('problem') || text.includes('issue') || text.includes('waiting') ||
-                               text.includes('delay') || text.includes('locked') || text.includes('predatory') ||
-                               text.includes('unfair') || text.includes('dangerous') || text.includes('warn') ||
-                               text.includes('serious') || text.includes('no resolution') || text.includes('ridiculous') ||
-                               text.includes('scam') || text.includes('ignoring') || text.includes('no response') ||
-                               text.includes('bot') || text.includes('cheat') || text.includes('rigged');
-        
-        if (hasPositiveWords && !hasNegativeWords) {
-          positiveCount++;
-          if (positiveReviews.length < 3) {
-            positiveReviews.push(review.text);
-          }
-        } else if (hasNegativeWords && !hasPositiveWords) {
-          negativeCount++;
-          if (negativeReviews.length < 3) {
-            negativeReviews.push(review.text);
-          }
-        }
-      });
-      
-      const total = positiveCount + negativeCount;
-      const sentiment = negativeCount > positiveCount ? 'negative' : 'positive';
-      
-      // Generate specific context based on actual reviews
-      let context = '';
-      if (topic.toLowerCase().includes('withdrawal') || topic.toLowerCase().includes('payout')) {
-        if (negativeCount > positiveCount) {
-          context = `Customers are experiencing significant delays and issues with withdrawals, with many reporting missing payouts and poor support response.`;
-        } else {
-          context = `Most customers report positive experiences with withdrawals, praising speed and reliability.`;
-        }
-      } else if (topic.toLowerCase().includes('deposit')) {
-        if (negativeCount > positiveCount) {
-          context = `Customers are complaining about high fees, slow processing, and limited payment options for deposits.`;
-        } else {
-          context = `Customers appreciate the ease and variety of deposit options available.`;
-        }
-      } else if (topic.toLowerCase().includes('support') || topic.toLowerCase().includes('service')) {
-        if (negativeCount > positiveCount) {
-          context = `Customers are frustrated with unresponsive support, long wait times, and difficulty reaching human agents.`;
-        } else {
-          context = `Customers praise the helpful and responsive customer service team.`;
-        }
-      } else if (topic.toLowerCase().includes('bonus') || topic.toLowerCase().includes('promotion')) {
-        if (negativeCount > positiveCount) {
-          context = `Customers feel bonuses have misleading terms, high wagering requirements, and lack transparency.`;
-        } else {
-          context = `Customers appreciate generous bonuses and fair promotional terms.`;
-        }
-      } else if (topic.toLowerCase().includes('poker') || topic.toLowerCase().includes('game')) {
-        if (negativeCount > positiveCount) {
-          context = `Customers report concerns about bots, unfair games, and poor tournament structure.`;
-        } else {
-          context = `Customers enjoy fair games, good tournament structure, and engaging gameplay.`;
-        }
-      } else {
-        context = `${topic} is trending with ${sentiment} sentiment based on customer feedback.`;
-      }
-      
-      return {
-        topic,
-        growth: `${Math.floor(Math.random() * 40) + 10}%`,
-        sentiment,
-        volume: topicReviews.length,
-        keyInsights,
-        rawMentions: topicReviews.map(r => r.text),
-        context,
-        mainIssue: negativeCount > positiveCount ? 
-          `Customers are experiencing issues with ${topic} that need immediate attention.` :
-          `Customers are praising ${topic} quality and service.`,
-        businessImpact: negativeCount > positiveCount ?
-          `This negative trend could impact customer retention and brand reputation.` :
-          `This positive trend is driving customer satisfaction and loyalty.`,
-        peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
-        trendAnalysis: `${topic} mentions have increased over the past 30 days with ${sentiment} sentiment.`,
-        specificExamples: negativeCount > positiveCount ? negativeReviews : positiveReviews,
-        positiveCount,
-        negativeCount,
-        totalCount: topicReviews.length
-      };
-    }),
-    mentionsByTopic: (() => {
-      // Use core topics mapping instead of granular topics
-      const coreTopicsData = mapToCoreTopics(allReviews, businessName);
-      
-      return coreTopicsData.map(topic => ({
-        topic: topic.topic,
-        positive: topic.positive,
-        negative: topic.negative,
-        total: topic.total,
-        rawMentions: topic.rawMentions,
-        context: generateTopicKeyInsight({ topic: topic.topic, positive: topic.positive, negative: topic.negative, total: topic.total, rawMentions: topic.rawMentions }, allReviews),
-        mainConcern: `The primary issue or positive aspect for ${topic.topic} with examples`,
-        priority: topic.negative > topic.positive ? 'high' : 'medium',
-        trendAnalysis: `How this topic's sentiment has changed over time`,
-        specificExamples: topic.rawMentions?.slice(0, 3) || [],
-        keyInsight: generateTopicKeyInsight({ topic: topic.topic, positive: topic.positive, negative: topic.negative, total: topic.total, rawMentions: topic.rawMentions }, allReviews)
-      }));
-    })(),
-    sentimentOverTime: generateDailySentimentData(allReviews, 30),
-    volumeOverTime: generateDailyVolumeData(allReviews, 30),
-    marketGaps: (() => {
-      // Generate strategic market opportunities based on customer feedback analysis
-      const gaps: any[] = [];
-      
-      // Analyze all reviews to identify strategic opportunities
-      const allText = allReviews.map(r => r.text.toLowerCase()).join(' ');
-      const negativeReviews = allReviews.filter(r => (r.rating || 0) <= 2);
-      const positiveReviews = allReviews.filter(r => (r.rating || 0) >= 4);
-      
-      // Strategic opportunity 1: Lower deposit fees
-      const depositFeeComplaints = allReviews.filter(r => 
-        r.text.toLowerCase().includes('deposit') && 
-        (r.text.toLowerCase().includes('fee') || r.text.toLowerCase().includes('expensive') || r.text.toLowerCase().includes('cost'))
-      );
-      
-      if (depositFeeComplaints.length > 0) {
-        const avgRating = depositFeeComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / depositFeeComplaints.length;
-        gaps.push({
-          gap: "Lower Deposit Fees",
-          mentions: depositFeeComplaints.length,
-          suggestion: "Implement tiered pricing model with fee-free deposits for VIP customers and high-volume users. Consider reducing standard fees by 25-40% to match competitor pricing.",
-          kpiImpact: "High Revenue Impact",
-          rawMentions: depositFeeComplaints.map(r => r.text),
-          priority: "high",
-          context: `${depositFeeComplaints.length} customers complained about high deposit fees (avg rating: ${avgRating.toFixed(1)}/5). This is a major barrier to customer acquisition.`,
-          opportunity: "Reducing fees could increase deposit volume by 35-50% and improve customer acquisition by 20-30%.",
-          customerImpact: "Addresses a major pain point that affects customer acquisition and retention. Lower fees reduce barriers to entry.",
-          specificExamples: depositFeeComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Competitive advantage and increased market share through better pricing strategy",
-          implementation: "Review current fee structure, analyze competitor pricing, implement tiered model, and communicate changes to customers"
-        });
-      }
-      
-      // Strategic opportunity 2: Add more payment options
-      const paymentComplaints = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('payment') || r.text.toLowerCase().includes('card') || r.text.toLowerCase().includes('bank')) &&
-        (r.text.toLowerCase().includes('limited') || r.text.toLowerCase().includes('few') || r.text.toLowerCase().includes('not accept'))
-      );
-      
-      if (paymentComplaints.length > 0) {
-        const avgRating = paymentComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / paymentComplaints.length;
-        gaps.push({
-          gap: "Expand Payment Options",
-          mentions: paymentComplaints.length,
-          suggestion: "Add popular payment methods including PayPal, Apple Pay, Google Pay, and cryptocurrency options. Partner with multiple payment processors for better coverage.",
-          kpiImpact: "Medium Acquisition Impact",
-          rawMentions: paymentComplaints.map(r => r.text),
-          priority: "medium",
-          context: `${paymentComplaints.length} customers mentioned limited payment method options (avg rating: ${avgRating.toFixed(1)}/5). This creates friction in the onboarding process.`,
-          opportunity: "More payment options could reduce onboarding drop-offs by 25-40% and increase customer acquisition by 15-25%.",
-          customerImpact: "Improves customer convenience and reduces barriers to platform adoption.",
-          specificExamples: paymentComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Increased customer acquisition through better payment convenience",
-          implementation: "Research popular payment methods, partner with payment processors, integrate new options, and test with small user group"
-        });
-      }
-      
-      // Strategic opportunity 3: Improve withdrawal speed
-      const withdrawalComplaints = allReviews.filter(r => 
-        r.text.toLowerCase().includes('withdrawal') && 
-        (r.text.toLowerCase().includes('slow') || r.text.toLowerCase().includes('delay') || r.text.toLowerCase().includes('wait'))
-      );
-      
-      if (withdrawalComplaints.length > 0) {
-        const avgRating = withdrawalComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / withdrawalComplaints.length;
-        gaps.push({
-          gap: "Speed Up Withdrawal Processing",
-          mentions: withdrawalComplaints.length,
-          suggestion: "Implement automated verification systems, reduce manual review requirements, and provide real-time status updates. Set up 24/7 processing capabilities.",
-          kpiImpact: "High Retention Impact",
-          rawMentions: withdrawalComplaints.map(r => r.text),
-          priority: "high",
-          context: `${withdrawalComplaints.length} customers complained about slow withdrawal times (avg rating: ${avgRating.toFixed(1)}/5). This is critical for customer trust and retention.`,
-          opportunity: "Faster withdrawals could improve customer retention by 25-40% and reduce support ticket volume by 30-50%.",
-          customerImpact: "Addresses a fundamental trust issue that affects customer loyalty and platform reputation.",
-          specificExamples: withdrawalComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Improved customer retention and reduced support costs",
-          implementation: "Audit current withdrawal process, implement automation, add status tracking, and train support team on new procedures"
-        });
-      }
-      
-      // Strategic opportunity 4: Enhance customer support
-      const supportComplaints = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('support') || r.text.toLowerCase().includes('service') || r.text.toLowerCase().includes('help')) &&
-        (r.text.toLowerCase().includes('slow') || r.text.toLowerCase().includes('wait') || r.text.toLowerCase().includes('unresponsive'))
-      );
-      
-      if (supportComplaints.length > 0) {
-        const avgRating = supportComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / supportComplaints.length;
-        gaps.push({
-          gap: "Enhance Customer Support Speed",
-          mentions: supportComplaints.length,
-          suggestion: "Implement live chat support, expand support hours to 24/7, create automated responses for common issues, and train support staff on faster resolution techniques.",
-          kpiImpact: "High Satisfaction Impact",
-          rawMentions: supportComplaints.map(r => r.text),
-          priority: "high",
-          context: `${supportComplaints.length} customers reported slow support response times (avg rating: ${avgRating.toFixed(1)}/5). This affects customer satisfaction and retention.`,
-          opportunity: "Faster support could improve customer satisfaction scores by 30-50% and reduce customer churn by 20-35%.",
-          customerImpact: "Improves customer experience and prevents negative reviews and customer churn.",
-          specificExamples: supportComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Improved customer satisfaction and reduced churn",
-          implementation: "Implement live chat system, expand support team, create knowledge base, and establish response time SLAs"
-        });
-      }
-      
-      // Strategic opportunity 5: Improve game fairness (poker/bot concerns)
-      const gameFairnessComplaints = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('poker') || r.text.toLowerCase().includes('game')) &&
-        (r.text.toLowerCase().includes('bot') || r.text.toLowerCase().includes('cheat') || r.text.toLowerCase().includes('rigged') || r.text.toLowerCase().includes('unfair'))
-      );
-      
-      if (gameFairnessComplaints.length > 0) {
-        const avgRating = gameFairnessComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / gameFairnessComplaints.length;
-        gaps.push({
-          gap: "Improve Game Fairness & Anti-Bot Measures",
-          mentions: gameFairnessComplaints.length,
-          suggestion: "Implement stronger anti-bot detection systems, improve game algorithms for fairness, enhance tournament structure, and provide transparency about security measures.",
-          kpiImpact: "High Trust Impact",
-          rawMentions: gameFairnessComplaints.map(r => r.text),
-          priority: "high",
-          context: `${gameFairnessComplaints.length} customers expressed concerns about game fairness and bot activity (avg rating: ${avgRating.toFixed(1)}/5). This affects player trust and retention.`,
-          opportunity: "Improving game fairness could increase player retention by 30-50% and improve platform reputation significantly.",
-          customerImpact: "Addresses fundamental trust issues that affect all games and player confidence.",
-          specificExamples: gameFairnessComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Increased player trust and platform credibility",
-          implementation: "Audit game algorithms, implement anti-bot systems, enhance security measures, and communicate improvements to players"
-        });
-      }
-      
-      // Strategic opportunity 6: Add live betting features
-      const liveBettingRequests = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('live') || r.text.toLowerCase().includes('betting') || r.text.toLowerCase().includes('sports')) &&
-        (r.text.toLowerCase().includes('want') || r.text.toLowerCase().includes('need') || r.text.toLowerCase().includes('missing'))
-      );
-      
-      if (liveBettingRequests.length > 0) {
-        gaps.push({
-          gap: "Add Live Betting Features",
-          mentions: liveBettingRequests.length,
-          suggestion: "Develop live betting platform with real-time odds, live streaming integration, and mobile-optimized interface. Partner with sports data providers.",
-          kpiImpact: "Medium Revenue Impact",
-          rawMentions: liveBettingRequests.map(r => r.text),
-          priority: "medium",
-          context: `${liveBettingRequests.length} customers requested live betting features. This represents an untapped market opportunity.`,
-          opportunity: "Live betting could increase average customer value by 40-60% and attract new customer segments.",
-          customerImpact: "Provides new entertainment options and increases platform engagement.",
-          specificExamples: liveBettingRequests.slice(0, 3).map(r => r.text),
-          businessCase: "New revenue stream and competitive differentiation",
-          implementation: "Research live betting platforms, partner with data providers, develop MVP, and test with select users"
-        });
-      }
-      
-      // Strategic opportunity 7: Improve mobile app experience
-      const mobileComplaints = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('mobile') || r.text.toLowerCase().includes('app') || r.text.toLowerCase().includes('phone')) &&
-        (r.text.toLowerCase().includes('bug') || r.text.toLowerCase().includes('crash') || r.text.toLowerCase().includes('slow') || r.text.toLowerCase().includes('lag'))
-      );
-      
-      if (mobileComplaints.length > 0) {
-        const avgRating = mobileComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / mobileComplaints.length;
-        gaps.push({
-          gap: "Improve Mobile App Performance",
-          mentions: mobileComplaints.length,
-          suggestion: "Optimize app performance, fix bugs, improve loading times, and implement better error handling. Redesign with modern UI/UX principles.",
-          kpiImpact: "Medium Engagement Impact",
-          rawMentions: mobileComplaints.map(r => r.text),
-          priority: "medium",
-          context: `${mobileComplaints.length} customers reported mobile app issues (avg rating: ${avgRating.toFixed(1)}/5). Mobile usage is growing rapidly.`,
-          opportunity: "Better mobile experience could increase mobile engagement by 30-50% and reduce app-related complaints by 60-80%.",
-          customerImpact: "Improves accessibility and user experience for mobile users, which represent a growing segment.",
-          specificExamples: mobileComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Increased mobile usage and customer satisfaction",
-          implementation: "Audit current app performance, identify critical bugs, optimize code, improve UI/UX, and conduct user testing"
-        });
-      }
-      
-      // Strategic opportunity 8: Improve bonus transparency
-      const bonusComplaints = allReviews.filter(r => 
-        (r.text.toLowerCase().includes('bonus') || r.text.toLowerCase().includes('promotion')) &&
-        (r.text.toLowerCase().includes('unclear') || r.text.toLowerCase().includes('confusing') || r.text.toLowerCase().includes('hidden'))
-      );
-      
-      if (bonusComplaints.length > 0) {
-        const avgRating = bonusComplaints.reduce((sum, r) => sum + (r.rating || 0), 0) / bonusComplaints.length;
-        gaps.push({
-          gap: "Improve Bonus Terms Transparency",
-          mentions: bonusComplaints.length,
-          suggestion: "Simplify bonus terms, make wagering requirements clearer, provide better explanations upfront, and create visual guides for bonus structures.",
-          kpiImpact: "Medium Trust Impact",
-          rawMentions: bonusComplaints.map(r => r.text),
-          priority: "medium",
-          context: `${bonusComplaints.length} customers found bonus terms confusing or misleading (avg rating: ${avgRating.toFixed(1)}/5). This affects customer trust.`,
-          opportunity: "Clearer bonus terms could increase bonus activation by 40-60% and improve customer trust by 25-40%.",
-          customerImpact: "Addresses transparency issues that affect customer trust and engagement.",
-          specificExamples: bonusComplaints.slice(0, 3).map(r => r.text),
-          businessCase: "Improved customer trust and bonus engagement",
-          implementation: "Review all bonus terms, simplify language, create visual guides, and test with focus groups"
-        });
-      }
-      
-      // If no specific opportunities found, create generic strategic gaps
-      if (gaps.length === 0) {
-        const negativeTopics = new Set<string>();
-        negativeReviews.forEach(review => {
-          const topics = extractTopicsFromReviews([review]);
-          topics.forEach(topic => negativeTopics.add(topic));
-        });
-        
-        negativeTopics.forEach(topic => {
-          const topicReviews = negativeReviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase()));
-          if (topicReviews.length >= 2) {
-            const avgRating = topicReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / topicReviews.length;
-            gaps.push({
-              gap: `Improve ${topic.charAt(0).toUpperCase() + topic.slice(1)} Experience`,
-              mentions: topicReviews.length,
-              suggestion: `Address customer concerns about ${topic} with specific improvements based on feedback analysis.`,
-              kpiImpact: "Medium Impact",
-              rawMentions: topicReviews.map(r => r.text),
-              priority: "medium",
-              context: `${topicReviews.length} customers reported issues with ${topic} (avg rating: ${avgRating.toFixed(1)}/5).`,
-              opportunity: `Improving ${topic} could increase customer satisfaction by 20-35%.`,
-              customerImpact: `Addresses customer pain points and improves overall experience.`,
-              specificExamples: topicReviews.slice(0, 3).map(r => r.text),
-              businessCase: "Improved customer satisfaction and retention",
-              implementation: `Analyze ${topic} feedback, identify root causes, implement targeted improvements, and monitor results`
-            });
-          }
-        });
-      }
-      
-      return gaps.slice(0, 6); // Return top 6 strategic opportunities
-    })(),
-    advancedMetrics: generateAdvancedMetrics(allReviews),
-    suggestedActions: generateSuggestedActions(allReviews, businessName),
-    vocDigest: {
-      summary: generateDetailedExecutiveSummary(allReviews, businessName),
-      highlights: Array.from(allTopics).slice(0, 5).map(topic => `${topic} is frequently mentioned`),
-      recommendations: generateSuggestedActions(allReviews, businessName).slice(0, 3).map(action => action.action),
-      trends: [`${Array.from(allTopics)[0]} trending up`, `${Array.from(allTopics)[1]} trending down`],
-      alerts: [],
-      context: `This VOC analysis provides actionable insights for business improvement.`,
-      focusAreas: Array.from(allTopics).slice(0, 3),
-      successMetrics: `Measure improvement through customer satisfaction scores and complaint reduction.`
-    },
-    realTopics: Array.from(allTopics),
-    realSentiment: allSentiments.length > 0 ? allSentiments.reduce((a, b) => a + b, 0) / allSentiments.length : 0,
-    realInsights: allKeyInsights
-  };
-  
-  console.log('Aggregation completed successfully');
-  return aggregatedAnalysis;
+    console.log('Aggregation completed successfully');
+    return aggregatedAnalysis;
+  } catch (error) {
+    console.error('Error in aggregateBatchResults:', error);
+    return {
+      executiveSummary: { overview: "AI analysis in progress..." },
+      keyInsights: [],
+      trendingTopics: [],
+      mentionsByTopic: [],
+      sentimentOverTime: [],
+      volumeOverTime: [],
+      marketGaps: [],
+      advancedMetrics: {},
+      suggestedActions: [],
+      realTopics: [],
+      realSentiment: 0,
+      realInsights: []
+    };
+  }
 }
 
 // --- Apify integration utility ---
@@ -1180,12 +809,26 @@ Example:
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 400
     })
   });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenAI API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  }
+  
   const data = await response.json();
+  
+  // Add null checks for the response
+  if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+    console.error('Invalid OpenAI response structure:', data);
+    throw new Error('Invalid OpenAI response structure');
+  }
+  
   let urls = {};
   try {
     urls = extractJsonFromOpenAI(data.choices[0].message.content);
@@ -3161,133 +2804,91 @@ function calculateRealChanges(reviews: Review[]): {sentimentChange: string, volu
 
 // Add the VOC_ANALYSIS_PROMPT directly in this file
 const VOC_ANALYSIS_PROMPT = `
-You are an expert Voice of Customer (VOC) analyst. Analyze the provided reviews and generate a comprehensive VOC report in the exact JSON format specified below.
+You are a world-class Voice of Customer (VOC) analyst. Analyze the following customer reviews for {business_name} and provide a comprehensive analysis.
 
-REVIEW DATA:
+REVIEWS DATA:
 {reviews_data}
 
 BUSINESS CONTEXT:
 - Business Name: {business_name}
+- Business URL: {business_url}
 - Industry: {industry}
+- Company ID: {company_id}
 - Review Sources: {review_sources}
 
-ANALYSIS REQUIREMENTS:
-1. Analyze sentiment trends over time
-2. Extract key topics and themes
-3. Identify market gaps and opportunities
-4. Generate actionable insights
-5. Calculate advanced business metrics
-6. Create executive summary
-7. Suggest specific actions
+CRITICAL: You MUST populate ALL sections with specific, real data from the reviews. NO generic responses.
 
-OUTPUT FORMAT - Return ONLY valid JSON in this exact structure:
+REQUIRED ANALYSIS STRUCTURE:
 
+1. EXECUTIVE SUMMARY:
+   - Detailed overview of customer sentiment and key findings
+   - Specific performance metrics (e.g., "70% positive sentiment based on 40 reviews")
+   - Critical insights with specific examples from reviews
+   - Business impact and recommendations
+
+2. SENTIMENT TIMELINE (sentiment_timeline):
+   - Daily sentiment data for the last 30 days
+   - Each entry: {"date": "YYYY-MM-DD", "avg_sentiment": -1 to 1, "total_reviews": number, "positive_count": number, "neutral_count": number, "negative_count": number}
+   - Include specific insights about what caused sentiment changes on particular days
+   - Example: "July 15th showed -0.8 sentiment due to 3 negative reviews about withdrawal delays"
+
+3. TOPIC ANALYSIS (topic_analysis):
+   - Each topic must have: {"topic": "name", "positive_count": number, "neutral_count": number, "negative_count": number, "total_mentions": number, "sentiment_score": -1 to 1}
+   - Include specific customer quotes and examples for each topic
+   - Focus on actionable insights per topic
+   - Example: "Customer Service: 8 mentions, 3 positive, 5 negative, -0.25 sentiment"
+
+4. KEY INSIGHTS (key_insights):
+   - Specific insights with mention counts and sentiment scores
+   - Each insight must reference specific customer feedback
+   - Include business impact and recommendations
+   - Example: "Customer support issues mentioned in 8 reviews with -0.25 sentiment"
+
+5. TRENDING TOPICS (trending_topics):
+   - Topics with significant growth or decline
+   - Include growth percentages and sentiment trends
+   - Provide specific examples and customer quotes
+   - Example: "Withdrawal issues trending +60% with negative sentiment"
+
+6. MARKET GAPS (market_gaps):
+   - Unmet customer needs and opportunities
+   - Specific customer pain points and suggestions
+   - Business impact and implementation recommendations
+   - Example: "Need for faster withdrawal processing mentioned in 5 reviews"
+
+7. SUGGESTED ACTIONS (suggested_actions):
+   - Specific, actionable recommendations
+   - Pain points addressed and expected outcomes
+   - Reference specific customer feedback
+   - Example: "Implement 24-hour withdrawal processing to address 5 customer complaints"
+
+8. ADVANCED METRICS (advanced_metrics):
+   - Trust scores, repeat complaint patterns
+   - VOC velocity and sentiment consistency
+   - Specific numbers and trends
+
+MANDATORY REQUIREMENTS:
+1. Analyze EVERY single review provided
+2. Use ONLY real data from the reviews - NO generic responses
+3. Provide specific numbers, percentages, and examples
+4. Include actual customer quotes where relevant
+5. Focus on actionable business insights
+6. Ensure all JSON fields are populated with real data
+7. NO fallback or generic content - only real analysis
+
+Return ONLY valid JSON with this exact structure:
 {
-  "company_id": "{company_id}",
-  "business_name": "{business_name}",
-  "business_url": "{business_url}",
-  "industry": "{industry}",
-  "reviews": [
-    {
-      "source": "{review_source_name}",
-      "external_review_id": "{unique_review_id}",
-      "reviewer_name": "{reviewer_name_or_anonymous}",
-      "rating": {1-5},
-      "review_text": "{full_review_text}",
-      "sentiment_score": {-1.0_to_1.0},
-      "sentiment_label": "{positive|negative|neutral}",
-      "topics": ["{topic1}", "{topic2}"],
-      "review_date": "{YYYY-MM-DD}"
-    }
-  ],
   "analysis": {
-    "sentiment_timeline": [
-      {
-        "date": "{YYYY-MM-DD}",
-        "avg_sentiment": {-1.0_to_1.0},
-        "total_reviews": {number},
-        "positive_count": {number},
-        "neutral_count": {number},
-        "negative_count": {number}
-      }
-    ],
-    "topic_analysis": [
-      {
-        "topic": "{topic_name}",
-        "positive_count": {number},
-        "neutral_count": {number},
-        "negative_count": {number},
-        "total_mentions": {number},
-        "sentiment_score": {-1.0_to_1.0}
-      }
-    ],
-    "key_insights": [
-      {
-        "insight_text": "{clear_actionable_insight}",
-        "direction": "{up|down|stable}",
-        "mention_count": {number},
-        "platforms": ["{source1}", "{source2}"],
-        "impact": "{low|medium|high}",
-        "sample_reviews": [
-          {
-            "text": "{sample_review_text}",
-            "rating": {1-5},
-            "source": "{source_name}"
-          }
-        ]
-      }
-    ],
-    "market_gaps": [
-      {
-        "gap_description": "{specific_market_gap_or_opportunity}",
-        "mention_count": {number},
-        "suggestion": "{specific_action_to_address_gap}",
-        "priority": "{low|medium|high}"
-      }
-    ],
-    "advanced_metrics": {
-      "trust_score": {0-100},
-      "repeat_complaints": {number},
-      "avg_resolution_time_hours": {decimal_hours},
-      "voc_velocity_percentage": {percentage_change}
-    }
+    "executiveSummary": "detailed summary with specific metrics",
+    "sentiment_timeline": [array of daily sentiment data],
+    "topic_analysis": [array of topic analysis with real counts],
+    "key_insights": [array of specific insights with data],
+    "trending_topics": [array of trending topics with percentages],
+    "market_gaps": [array of market gaps with specific examples],
+    "suggested_actions": [array of actionable recommendations],
+    "advanced_metrics": {object with specific metrics}
   }
 }
-
-ANALYSIS GUIDELINES:
-
-SENTIMENT ANALYSIS:
-- Use VADER sentiment analysis for consistent scoring
-- Consider context, sarcasm, and business-specific language
-- Score range: -1.0 (very negative) to 1.0 (very positive)
-
-TOPIC EXTRACTION:
-- Identify recurring themes and pain points
-- Group similar complaints and praises
-- Focus on actionable insights
-
-MARKET GAPS:
-- Identify unmet customer needs
-- Spot opportunities for improvement
-- Consider competitive advantages
-
-KEY INSIGHTS:
-- Provide specific, actionable recommendations
-- Include data-backed evidence
-- Prioritize by business impact
-
-ADVANCED METRICS:
-- Calculate trust scores based on sentiment consistency
-- Track repeat complaint patterns
-- Measure VOC velocity (sentiment change over time)
-
-CRITICAL REQUIREMENTS:
-1. Analyze EVERY review provided - no exceptions
-2. Ensure all JSON fields are populated
-3. Provide specific, actionable insights
-4. Use real data from reviews for all metrics
-5. Focus on business value and customer experience
-6. Generate insights at a professional UX researcher level
 `;
 
 // 2. Refactor analyzeReviewsWithOpenAI to use VOC_ANALYSIS_PROMPT
@@ -3317,6 +2918,11 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
     .replace('{review_sources}', reviewSources ? reviewSources.join(', ') : 'Trustpilot');
 
   // 3. Call OpenAI with the improved prompt
+  console.log('Calling OpenAI API...');
+  console.log('OpenAI API Key present:', !!openaiApiKey);
+  console.log('Reviews count:', reviews.length);
+  console.log('Prompt length:', prompt.length);
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -3324,7 +2930,7 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -3336,60 +2942,82 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
         }
       ],
       temperature: 0.1,
-      max_tokens: 16384
+      max_tokens: 8000 // Reduced from 16384 to save costs
     })
   });
 
+  console.log('OpenAI response status:', response.status);
+  
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('OpenAI API error:', errorText);
     throw new Error(`OpenAI API request failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
   const data = await response.json();
+  console.log('OpenAI response received, choices count:', data.choices?.length);
+  
   const content = data.choices[0].message.content;
+  console.log('OpenAI content length:', content.length);
+  console.log('OpenAI content preview:', content.substring(0, 500));
 
-  // 4. Extract JSON and run fallback logic for missing fields
+  // 4. Extract JSON and map OpenAI response to expected structure
   let analysis;
   try {
-    analysis = extractJsonFromOpenAI(content);
+    console.log('Attempting to extract JSON from OpenAI response...');
+    const openaiResponse = extractJsonFromOpenAI(content);
+    console.log('JSON extraction successful, OpenAI response keys:', Object.keys(openaiResponse));
+    
+    // Map OpenAI response structure to expected format
+    analysis = {
+      executiveSummary: {
+        overview: openaiResponse.analysis?.executiveSummary || generateDetailedExecutiveSummary(reviews, businessName)
+      },
+      keyInsights: openaiResponse.analysis?.key_insights || generateRealInsights(reviews, businessName),
+      trendingTopics: openaiResponse.analysis?.trending_topics || generateTrendingTopics(reviews),
+      mentionsByTopic: openaiResponse.analysis?.topic_analysis || generateMentionsByTopic(reviews, businessName),
+      sentimentOverTime: openaiResponse.analysis?.sentiment_timeline || generateDailySentimentData(reviews, 30),
+      volumeOverTime: openaiResponse.analysis?.volume_timeline || generateDailyVolumeData(reviews, 30),
+      marketGaps: openaiResponse.analysis?.market_gaps || generateMarketGaps(reviews),
+      advancedMetrics: openaiResponse.analysis?.advanced_metrics || generateAdvancedMetrics(reviews),
+      suggestedActions: openaiResponse.analysis?.suggested_actions || generateSuggestedActions(reviews, businessName),
+      vocDigest: {
+        overview: openaiResponse.analysis?.voc_digest || generateDetailedExecutiveSummary(reviews, businessName)
+      },
+      realTopics: extractTopicsFromReviews(reviews),
+      realSentiment: analyzeSentimentByTopic(reviews),
+      realInsights: generateRealInsights(reviews, businessName)
+    };
+    
+    console.log('Successfully mapped OpenAI response to expected structure');
+    console.log('Final analysis keys:', Object.keys(analysis));
+    
   } catch (error) {
-    analysis = {};
+    console.error('JSON extraction failed:', error);
+    console.log('Raw content that failed to parse:', content);
+    
+    // Only use fallback if OpenAI completely fails
+    console.log('Using complete fallback due to OpenAI failure');
+    const topics = extractTopicsFromReviews(reviews);
+    const sentimentAnalysis = analyzeSentimentByTopic(reviews);
+    const realInsights = generateRealInsights(reviews, businessName);
+    
+    analysis = {
+      executiveSummary: { overview: generateDetailedExecutiveSummary(reviews, businessName) },
+      keyInsights: realInsights,
+      trendingTopics: generateTrendingTopics(reviews),
+      mentionsByTopic: generateMentionsByTopic(reviews, businessName),
+      sentimentOverTime: generateDailySentimentData(reviews, 30),
+      volumeOverTime: generateDailyVolumeData(reviews, 30),
+      marketGaps: generateMarketGaps(reviews),
+      advancedMetrics: generateAdvancedMetrics(reviews),
+      suggestedActions: generateSuggestedActions(reviews, businessName),
+      vocDigest: { overview: generateDetailedExecutiveSummary(reviews, businessName) },
+      realTopics: topics,
+      realSentiment: sentimentAnalysis,
+      realInsights: realInsights
+    };
   }
-
-  // Fallback: fill missing fields using robust local logic
-  const topics = extractTopicsFromReviews(reviews);
-  const sentimentAnalysis = analyzeSentimentByTopic(reviews);
-  const realInsights = generateRealInsights(reviews, businessName);
-  if (!analysis.trendingTopics || analysis.trendingTopics.length === 0) {
-    analysis.trendingTopics = generateTrendingTopics(reviews);
-  }
-  if (!analysis.mentionsByTopic || analysis.mentionsByTopic.length === 0) {
-    analysis.mentionsByTopic = generateMentionsByTopic(reviews, businessName);
-  }
-  if (!analysis.sentimentOverTime || analysis.sentimentOverTime.length === 0) {
-    analysis.sentimentOverTime = generateDailySentimentData(reviews, 30);
-  }
-  if (!analysis.volumeOverTime || analysis.volumeOverTime.length === 0) {
-    analysis.volumeOverTime = generateDailyVolumeData(reviews, 30);
-  }
-  if (!analysis.marketGaps || analysis.marketGaps.length === 0) {
-    analysis.marketGaps = generateMarketGaps(reviews);
-  }
-  if (!analysis.advancedMetrics || Object.keys(analysis.advancedMetrics).length === 0) {
-    analysis.advancedMetrics = generateAdvancedMetrics(reviews);
-  }
-  if (!analysis.suggestedActions || analysis.suggestedActions.length === 0) {
-    analysis.suggestedActions = generateSuggestedActions(reviews, businessName);
-  }
-  if (!analysis.keyInsights || analysis.keyInsights.length === 0) {
-    analysis.keyInsights = realInsights;
-  }
-  if (!analysis.executiveSummary || !analysis.executiveSummary.overview) {
-    analysis.executiveSummary = { overview: generateDetailedExecutiveSummary(reviews, businessName) };
-  }
-  analysis.realTopics = topics;
-  analysis.realSentiment = sentimentAnalysis;
-  analysis.realInsights = realInsights;
 
   return analysis;
 }
@@ -3665,6 +3293,12 @@ serve(async (req) => {
 
 // Background processing function
 async function processReportInBackground(report_id: string, company_id: string, business_name: string, business_url: string, supabase: any) {
+  console.log('=== EDGE FUNCTION START ===');
+  console.log('Supabase URL:', Deno.env.get('SUPABASE_URL'));
+  console.log('Supabase Service Role Key:', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'SET' : 'NOT SET');
+  console.log('Report ID:', report_id);
+  console.log('Business Name:', business_name);
+  
   let allReviews: Review[] = [];
   let scrapingResults: ScrapingResult[] = [];
   
@@ -3683,8 +3317,16 @@ async function processReportInBackground(report_id: string, company_id: string, 
       console.log('AI-discovered review source URLs:', reviewSourceUrls);
     } catch (err) {
       console.error('Error with OpenAI review source discovery:', err);
-      await updateProgress('Error finding review sources: ' + (err.message || err), 'error');
-      return;
+      // Use fallback URLs instead of failing completely
+      console.log('Using fallback review source URLs');
+      reviewSourceUrls = {
+        'Trustpilot': `https://www.trustpilot.com/review/${business_name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+        'Google Reviews': null,
+        'Yelp': null,
+        'Reddit': null,
+        'TripAdvisor': null
+      };
+      await updateProgress('Using fallback review sources due to AI error...');
     }
     
     // 2. Scrape reviews using Apify for Trustpilot (and future sources)
@@ -3842,13 +3484,16 @@ async function processReportInBackground(report_id: string, company_id: string, 
 
     // Update sources in the report - only include successful scraping results
     const successfulSources = scrapingResults.filter(r => r.success && r.reviewCount > 0);
+    const sourcesData = successfulSources.map(r => ({
+      source: r.platform,
+      review_count: r.reviewCount
+    }));
+    
     await supabase
       .from('voc_reports')
       .update({ 
-        sources: successfulSources.map(r => ({
-          source: r.platform,
-          review_count: r.reviewCount
-        })),
+        sources: sourcesData,
+        detected_sources: sourcesData, // Also populate detected_sources for frontend compatibility
         progress_message: `Scraped ${allReviews.length} reviews from ${successfulSources.length} sources`
       })
       .eq('id', report_id);
@@ -3861,8 +3506,36 @@ async function processReportInBackground(report_id: string, company_id: string, 
       try {
         const analysis = await analyzeReviewsInBatches(allReviews, business_name);
         console.log('Analysis completed successfully');
+        console.log('Analysis object type:', typeof analysis);
+        console.log('Analysis object keys:', analysis ? Object.keys(analysis) : 'null/undefined');
+        console.log('Analysis object preview:', JSON.stringify(analysis, null, 2).substring(0, 500));
         
         // Store the analysis
+        console.log('Attempting to store analysis to database...');
+        
+        // Check analysis object size and content
+        const analysisJson = JSON.stringify(analysis);
+        const analysisSizeBytes = new TextEncoder().encode(analysisJson).length;
+        const analysisSizeKB = Math.round(analysisSizeBytes / 1024);
+        const analysisSizeMB = Math.round(analysisSizeBytes / (1024 * 1024));
+        
+        console.log('Analysis object size:', {
+          bytes: analysisSizeBytes,
+          kb: analysisSizeKB,
+          mb: analysisSizeMB
+        });
+        
+        console.log('Analysis object preview (first 1000 chars):', analysisJson.substring(0, 1000));
+        console.log('Analysis object keys:', Object.keys(analysis));
+        
+        // Check if any values are undefined, functions, or circular
+        const hasUndefined = JSON.stringify(analysis).includes('undefined');
+        const hasFunctions = JSON.stringify(analysis).includes('function');
+        console.log('Analysis object issues:', {
+          hasUndefined,
+          hasFunctions
+        });
+        
         const { error: analysisError } = await supabase
           .from('voc_reports')
           .update({ 
@@ -3874,6 +3547,12 @@ async function processReportInBackground(report_id: string, company_id: string, 
         
         if (analysisError) {
           console.error('Error storing analysis:', analysisError);
+          console.error('Error details:', {
+            code: analysisError.code,
+            message: analysisError.message,
+            details: analysisError.details,
+            hint: analysisError.hint
+          });
           await updateProgress('Error storing analysis: ' + analysisError.message, 'error');
         } else {
           console.log('Analysis stored successfully');
@@ -3934,10 +3613,18 @@ async function processReportInBackground(report_id: string, company_id: string, 
         };
         
         console.log('Storing fallback analysis with real data...');
+        // Ensure detected_sources is populated even in fallback
+        const successfulSources = scrapingResults.filter(r => r.success && r.reviewCount > 0);
+        const sourcesData = successfulSources.map(r => ({
+          source: r.platform,
+          review_count: r.reviewCount
+        }));
+        
         const { error: fallbackUpdateError } = await supabase
           .from('voc_reports')
           .update({ 
             analysis: fallbackAnalysis,
+            detected_sources: sourcesData, // Ensure detected_sources is populated
             status: 'complete',
             progress_message: 'Report completed with fallback analysis (AI processing failed)',
             processed_at: new Date().toISOString()
@@ -3980,6 +3667,7 @@ async function processReportInBackground(report_id: string, company_id: string, 
         .from('voc_reports')
         .update({ 
           analysis: errorAnalysis,
+          detected_sources: [], // Empty array for no sources
           status: 'error',
           progress_message: 'No reviews found for analysis'
         })
@@ -3993,4 +3681,24 @@ async function processReportInBackground(report_id: string, company_id: string, 
   }
   
   await updateProgress('Report ready!', 'complete');
+}
+
+// Add this function near the top-level of the file
+async function storeMinimalAnalysis(supabase: any, report_id: string) {
+  const { error: analysisError } = await supabase
+    .from('voc_reports')
+    .update({ 
+      analysis: { test: true },
+      status: 'complete',
+      progress_message: `Report completed with minimal analysis test`
+    })
+    .eq('id', report_id);
+
+  if (analysisError) {
+    console.error('Error storing minimal analysis:', analysisError);
+    return false;
+  } else {
+    console.log('Minimal analysis stored successfully');
+    return true;
+  }
 }

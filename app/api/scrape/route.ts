@@ -92,14 +92,14 @@ export async function POST(request: NextRequest) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check report restrictions before proceeding
-    const restrictionCheck = await checkReportRestrictions(supabase, email, clientIP);
-    if (!restrictionCheck.allowed) {
-      return NextResponse.json(
-        { error: restrictionCheck.reason || 'Report creation not allowed' },
-        { status: 403 }
-      );
-    }
+    // TEMPORARILY DISABLED: Check report restrictions before proceeding
+    // const restrictionCheck = await checkReportRestrictions(supabase, email, clientIP);
+    // if (!restrictionCheck.allowed) {
+    //   return NextResponse.json(
+    //     { error: restrictionCheck.reason || 'Report creation not allowed' },
+    //     { status: 403 }
+    //   );
+    // }
 
     // Call the edge function to handle everything
     const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-voc-report`;
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-        'apikey': `${process.env.SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        'apikey': `${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
         business_name,

@@ -35,6 +35,8 @@ import {
   ArrowUp,
   User,
   MoreVertical,
+  Upload,
+  QrCode,
 } from "lucide-react";
 import MinimalLoadingState from './MinimalLoadingState';
 import { DynamicOrbLoader } from "./OrbLoader";
@@ -116,8 +118,8 @@ interface ReportData {
   mentionsByTopic?: Array<{
     topic: string;
     positive: number;
+    neutral: number;
     negative: number;
-    total: number;
     rawMentions?: string[];
     context?: string;
     mainConcern?: string;
@@ -222,6 +224,16 @@ const TruncatedText = ({
   );
 };
 
+// Helper: highlight keywords/phrases in review text
+function highlightKeywords(text: string, keyword: string): string {
+  if (!keyword || !text) return text;
+  // Escape regex special chars
+  const safeKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Match whole words, case-insensitive
+  const regex = new RegExp(`(${safeKeyword})`, 'gi');
+  return text.replace(regex, '<mark style="background: #ffe066; color: #222; font-weight: bold; border-radius: 3px; padding: 0 2px;">$1</mark>');
+}
+
 export default function ReportPageContent({
   reportData,
   reportId,
@@ -230,7 +242,7 @@ export default function ReportPageContent({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState("");
   const [selectedReviews, setSelectedReviews] = useState<
-    Array<{ text: string; sentiment: string; topic: string; source?: string }>
+    Array<{ text: string; sentiment: string; topic: string; source?: string; highlightedText?: string }>
   >([]);
 
   const [showTrendingModal, setShowTrendingModal] = useState(false);
@@ -1353,7 +1365,7 @@ export default function ReportPageContent({
           }
         }
 
-        return { text, sentiment, topic: insight.insight };
+        return { text, sentiment, topic: insight.insight, highlightedText: highlightKeywords(text, insight.insight) };
       });
 
       setSelectedTopic(insight.insight);
@@ -1576,7 +1588,7 @@ export default function ReportPageContent({
       if (processedTopics.has(topic.topic)) return;
       processedTopics.add(topic.topic);
 
-      const totalMentions = topic.total || 0;
+      const totalMentions = (topic.positive || 0) + (topic.neutral || 0) + (topic.negative || 0);
       const positiveMentions = topic.positive || 0;
       const negativeMentions = topic.negative || 0;
       const rawMentions = topic.rawMentions || [];
@@ -1760,6 +1772,17 @@ export default function ReportPageContent({
     
     return gaps;
   };
+
+  // Helper to calculate sentiment counts for a topic
+  function getSentimentCounts(reviews: Array<{ sentiment: string }>) {
+    let positive = 0, neutral = 0, negative = 0;
+    for (const r of reviews) {
+      if (r.sentiment === 'positive') positive++;
+      else if (r.sentiment === 'negative') negative++;
+      else neutral++;
+    }
+    return { positive, neutral, negative };
+  }
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-white">
@@ -3550,14 +3573,14 @@ export default function ReportPageContent({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-6">
               {processedData.marketGaps &&
               Array.isArray(processedData.marketGaps) &&
               processedData.marketGaps.length > 0 ? (
                 processedData.marketGaps.map((gap: any, index: number) => (
                   <div
                     key={index}
-                    className="bg-[#181a20]/60 border border-purple-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-4 relative overflow-hidden hover:border-purple-500/30 transition-all group"
+                    className="bg-[#181a20]/60 border border-purple-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-purple-500/30 transition-all group"
                   >
                     {/* Glassmorphic overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/5 rounded-xl pointer-events-none" />
@@ -3565,87 +3588,84 @@ export default function ReportPageContent({
 
                     <div className="relative z-10">
                       {/* Header */}
-                      <div className="flex items-start space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
-                          <Target className="w-4 h-4 text-white" />
+                      <div className="flex items-start space-x-4 mb-6">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                          <Target className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-white text-lg mb-1 group-hover:text-white/90 transition-colors">
+                          <h4 className="font-bold text-white text-xl mb-2 group-hover:text-white/90 transition-colors break-words">
                             {gap.gap}
                           </h4>
-                          <div className="flex items-center space-x-3 text-xs">
+                          <div className="flex items-center space-x-4 text-sm">
                             <span className="text-[#B0B0C0] group-hover:text-white/80 transition-colors">
                               {gap.mentions} mentions
                             </span>
                             <span className="text-blue-400 font-semibold group-hover:text-blue-300 transition-colors">
                               {gap.kpiImpact}
                             </span>
+                            {gap.priority && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                gap.priority === 'High' ? 'bg-red-500/20 text-red-400' :
+                                gap.priority === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-green-500/20 text-green-400'
+                              }`}>
+                                {gap.priority} Priority
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Content Cards - Compact 2x2 Grid */}
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* Content Cards - Larger 2x2 Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* User */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
-                              <User className="w-2.5 h-2.5 text-white" />
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center flex-shrink-0">
+                              <User className="w-3 h-3 text-white" />
                             </div>
-                            <div>
-                              <span className="text-blue-400 font-semibold text-xs">
-                                User:
+                            <div className="flex-1">
+                              <span className="text-blue-400 font-semibold text-sm">
+                                User Action:
                               </span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText
-                                  text={gap.suggestion || "N/A"}
-                                  maxLength={60}
-                                  title="User Action"
-                                />
+                              <p className="text-[#B0B0C0] text-sm mt-2 leading-relaxed group-hover:text-white/80 transition-colors break-words">
+                                {gap.suggestion || "N/A"}
                               </p>
                             </div>
                           </div>
                         </div>
 
                         {/* Consider */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
-                              <Lightbulb className="w-2.5 h-2.5 text-white" />
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
+                              <Lightbulb className="w-3 h-3 text-white" />
                             </div>
-                            <div>
-                              <span className="text-green-400 font-semibold text-xs">
+                            <div className="flex-1">
+                              <span className="text-green-400 font-semibold text-sm">
                                 Consider:
                               </span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText
-                                  text={gap.opportunity || "N/A"}
-                                  maxLength={60}
-                                  title="Consideration"
-                                />
+                              <p className="text-[#B0B0C0] text-sm mt-2 leading-relaxed group-hover:text-white/80 transition-colors break-words">
+                                {gap.opportunity || "N/A"}
                               </p>
                             </div>
                           </div>
                         </div>
 
                         {/* Customers are saying */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center flex-shrink-0">
-                              <MessageSquare className="w-2.5 h-2.5 text-white" />
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center flex-shrink-0">
+                              <MessageSquare className="w-3 h-3 text-white" />
                             </div>
-                            <div>
-                              <span className="text-orange-400 font-semibold text-xs">
+                            <div className="flex-1">
+                              <span className="text-orange-400 font-semibold text-sm">
                                 Customers are saying:
                               </span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
+                              <p className="text-[#B0B0C0] text-sm mt-2 leading-relaxed group-hover:text-white/80 transition-colors break-words">
                                 {gap.specificExamples &&
                                 gap.specificExamples.length > 0 ? (
-                                  <TruncatedText
-                                    text={`"${gap.specificExamples[0]}"`}
-                                    maxLength={60}
-                                    title="Customer Feedback"
-                                  />
+                                  `"${gap.specificExamples[0]}"`
                                 ) : (
                                   <span>No specific feedback</span>
                                 )}
@@ -3655,21 +3675,17 @@ export default function ReportPageContent({
                         </div>
 
                         {/* Business case */}
-                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-3 group-hover:border-white/20 transition-colors">
-                          <div className="flex items-start space-x-2">
-                            <div className="w-4 h-4 bg-purple-500 rounded flex items-center justify-center flex-shrink-0">
-                              <BarChart3 className="w-2.5 h-2.5 text-white" />
+                        <div className="bg-[#181a20]/60 border border-white/10 rounded-lg p-4 group-hover:border-white/20 transition-colors">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-purple-500 rounded flex items-center justify-center flex-shrink-0">
+                              <BarChart3 className="w-3 h-3 text-white" />
                             </div>
-                            <div>
-                              <span className="text-purple-400 font-semibold text-xs">
+                            <div className="flex-1">
+                              <span className="text-purple-400 font-semibold text-sm">
                                 Business case:
                               </span>
-                              <p className="text-[#B0B0C0] text-xs mt-1 leading-relaxed group-hover:text-white/80 transition-colors">
-                                <TruncatedText
-                                  text={gap.businessCase || "N/A"}
-                                  maxLength={60}
-                                  title="Business Case"
-                                />
+                              <p className="text-[#B0B0C0] text-sm mt-2 leading-relaxed group-hover:text-white/80 transition-colors break-words">
+                                {gap.businessCase || "N/A"}
                               </p>
                             </div>
                           </div>
@@ -3677,22 +3693,22 @@ export default function ReportPageContent({
                       </div>
 
                       {/* CTA Button */}
-                      <div className="mt-4">
+                      <div className="mt-6">
                         <button
                           onClick={() =>
                             handleTopicClick(gap.gap, gap.rawMentions, gap)
                           }
-                          className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105 text-sm"
+                          className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg flex items-center justify-center space-x-2 group-hover:scale-105 text-sm"
                         >
                           <span>View {gap.mentions} Reviews</span>
-                          <ChevronRight className="w-3 h-3" />
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="col-span-2 text-center py-8">
+                <div className="text-center py-8">
                   <p className="text-[#B0B0C0]">
                     No market gaps identified from the available data.
                   </p>
@@ -4027,339 +4043,386 @@ export default function ReportPageContent({
           </section>
         )}
 
-        {/* VOC Digest */}
-        {processedData.vocDigest && (
-          <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/10 via-transparent to-[#8b5cf6]/10 rounded-3xl pointer-events-none" />
 
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-bold text-white">VOC Digest</h3>
-                <div className="flex items-center space-x-2 text-sm text-[#B0B0C0]">
-                  <Info className="w-4 h-4" />
-                  <span>
-                    Context: Summary of key customer feedback themes and
-                    insights.
+              </div>
+
+        {/* CSAT Section */}
+        <section className="bg-[#181a20]/70 border border-white/20 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.10)] p-10 backdrop-blur-2xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 rounded-3xl pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-green-400/10 via-transparent to-emerald-500/10 rounded-3xl pointer-events-none" />
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-bold text-white">CSAT - Customer Satisfaction</h3>
+              <div className="flex items-center space-x-2 text-sm text-[#B0B0C0]">
+                <Info className="w-4 h-4" />
+                <span>
+                  Context: Collect and analyze customer satisfaction data through surveys and QR codes.
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Import Survey */}
+              <div className="bg-[#181a20]/60 border border-green-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-green-500/30 transition-all group">
+                {/* Glassmorphic overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-emerald-500/5 rounded-xl pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-green-400/10 via-transparent to-emerald-500/10 rounded-xl pointer-events-none" />
+
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-start space-x-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                      <Upload className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-white text-lg mb-1 group-hover:text-white/90 transition-colors">
+                        Import Voice Data
+                      </h4>
+                      <p className="text-[#B0B0C0] text-sm">
+                        Upload existing voice feedback for analysis
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Upload Area */}
+                  <div className="border-2 border-dashed border-green-500/30 rounded-lg p-6 text-center hover:border-green-500/50 transition-colors cursor-pointer group">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Upload className="w-6 h-6 text-green-400" />
+                    </div>
+                    <p className="text-white font-medium mb-2">Drop voice feedback file here</p>
+                    <p className="text-[#B0B0C0] text-sm">Audio, CSV, Excel, or JSON format</p>
+                    <button className="mt-3 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                      Browse Files
+                    </button>
+                  </div>
+
+                  {/* Recent Imports */}
+                  <div className="mt-4">
+                    <h5 className="text-white font-medium mb-2">Recent Imports</h5>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-[#B0B0C0]">No surveys imported yet</span>
+                        <span className="text-green-400">0 responses</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Generate QR Code */}
+              <div className="bg-[#181a20]/60 border border-blue-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-blue-500/30 transition-all group">
+                {/* Glassmorphic overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5 rounded-xl pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-400/10 via-transparent to-purple-500/10 rounded-xl pointer-events-none" />
+
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-start space-x-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                      <QrCode className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-white text-lg mb-1 group-hover:text-white/90 transition-colors">
+                        Generate QR Code
+                      </h4>
+                      <p className="text-[#B0B0C0] text-sm">
+                        Create QR code for voice feedback collection
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* QR Code Display */}
+                  <div className="bg-white rounded-lg p-4 flex items-center justify-center mb-4">
+                    <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <QrCode className="w-16 h-16 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* QR Code Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#B0B0C0]">Report ID:</span>
+                      <span className="text-white font-mono">{reportId}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#B0B0C0]">Company ID:</span>
+                      <span className="text-white font-mono">{processedData.company_id || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#B0B0C0]">Business:</span>
+                      <span className="text-white">{processedData.business_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#B0B0C0]">Feedback URL:</span>
+                      <span className="text-blue-400 text-xs">/feedback/{processedData.company_id}/{reportId}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#B0B0C0]">Status:</span>
+                      <span className="text-green-400">Ready for Display</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="mt-4 space-y-2">
+                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                      Download QR Code
+                    </button>
+                    <button className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                      Preview Feedback Page
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CSAT Analytics */}
+              <div className="bg-[#181a20]/60 border border-orange-500/20 rounded-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-6 relative overflow-hidden hover:border-orange-500/30 transition-all group">
+                {/* Glassmorphic overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-red-500/5 rounded-xl pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-orange-400/10 via-transparent to-red-500/10 rounded-xl pointer-events-none" />
+
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-start space-x-4 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                      <BarChart3 className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-white text-lg mb-1 group-hover:text-white/90 transition-colors">
+                        Voice CSAT Analytics
+                      </h4>
+                      <p className="text-[#B0B0C0] text-sm">
+                        AI-powered voice feedback analysis
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Voice Processing Status */}
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-white font-medium">Voice Processing</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span className="text-green-400 text-xs">Live</span>
+                      </div>
+                    </div>
+                    
+                    {/* Processing Steps */}
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="text-[#B0B0C0] text-xs">Voice → Text Transcription</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-[#B0B0C0] text-xs">AI Sentiment Analysis</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                        <span className="text-[#B0B0C0] text-xs">CSAT Report Generation</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CSAT Score */}
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium">Overall CSAT</span>
+                      <span className="text-orange-400 font-bold text-xl">--</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className="bg-orange-500 h-2 rounded-full" style={{ width: '0%' }}></div>
+                    </div>
+                    <p className="text-[#B0B0C0] text-xs mt-2">No voice feedback processed yet</p>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <div className="text-white font-bold text-lg">0</div>
+                      <div className="text-[#B0B0C0] text-xs">Voice Responses</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-white font-bold text-lg">0</div>
+                      <div className="text-[#B0B0C0] text-xs">Topics Analyzed</div>
+                    </div>
+                  </div>
+
+                  {/* Voice Transcription Preview */}
+                  <div className="mt-4 bg-[#181a20]/40 border border-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">🎤</span>
+                      </div>
+                      <span className="text-white font-medium text-sm">Latest Transcription</span>
+                    </div>
+                    <div className="bg-[#181a20]/60 border border-purple-500/20 rounded p-2">
+                      <p className="text-[#B0B0C0] text-xs italic">
+                        "The coffee was excellent and the staff was very friendly. The atmosphere is perfect for working. Would definitely recommend!"
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-xs">
+                      <span className="text-[#B0B0C0]">Sentiment: <span className="text-green-400">Positive</span></span>
+                      <span className="text-[#B0B0C0]">Topics: <span className="text-blue-400">Service, Quality</span></span>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <button className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                    View Detailed Analytics
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Future Features Info */}
+            <div className="mt-6 bg-[#181a20]/40 border border-white/10 rounded-xl p-6">
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-sm">🚀</span>
+                </div>
+                <div>
+                  <span className="text-blue-400 font-semibold text-lg">
+                    Voice-First CSAT Workflow:
+                  </span>
+                  <span className="text-[#B0B0C0] ml-2">
+                    Customers scan QR codes, record voice feedback, and AI analyzes responses to update CSAT reports in real-time.
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#181a20]/60 border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.08)] backdrop-blur-2xl p-8">
-                {/* VOC Analysis Summary */}
-                <div className="space-y-8">
-                  {/* Overall Performance */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">✓</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Overall Performance
-                      </h4>
+              {/* Workflow Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="bg-[#181a20]/60 border border-blue-500/20 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">1</span>
                     </div>
-                    <div className="ml-11 space-y-3">
-                      <p className="text-[#B0B0C0] leading-relaxed">
-                        {processedData.vocDigest.summary ||
-                          "Customer satisfaction analysis shows mixed performance with opportunities for improvement."}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span className="text-sm text-green-400 font-medium">
-                          GOOD PERFORMANCE
-                        </span>
-                      </div>
-                    </div>
+                    <h4 className="text-white font-semibold">Scan QR Code</h4>
                   </div>
+                  <p className="text-[#B0B0C0] text-sm">
+                    Customers scan QR code to access feedback page for {processedData.business_name || 'Business'}
+                  </p>
+                </div>
 
-                  {/* Key Findings */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">🔍</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Key Findings
-                      </h4>
+                <div className="bg-[#181a20]/60 border border-green-500/20 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">2</span>
                     </div>
-                    <div className="ml-11 space-y-4">
-                      {processedData.executiveSummary?.praisedSections &&
-                        processedData.executiveSummary.praisedSections.length >
-                          0 && (
-                          <div className="space-y-2">
-                            <p className="text-[#B0B0C0] leading-relaxed">
-                              <span className="text-green-400 font-medium">
-                                Strength:
-                              </span>{" "}
-                              {processedData.executiveSummary.praisedSections[0]
-                                ?.topic || "Customer service"}{" "}
-                              is the most praised aspect (
-                              {processedData.executiveSummary.praisedSections[0]
-                                ?.examples?.length || 0}{" "}
-                              positive mentions, avg rating:{" "}
-                              {processedData.executiveSummary.praisedSections[0]
-                                ?.percentage || "4.0"}
-                              /5).
-                            </p>
-                          </div>
-                        )}
-                      {processedData.executiveSummary?.painPoints &&
-                        processedData.executiveSummary.painPoints.length >
-                          0 && (
-                          <div className="space-y-2">
-                            <p className="text-[#B0B0C0] leading-relaxed">
-                              <span className="text-red-400 font-medium">
-                                Concern:
-                              </span>{" "}
-                              {processedData.executiveSummary.painPoints[0]
-                                ?.topic || "Service quality"}{" "}
-                              is the biggest pain point (
-                              {processedData.executiveSummary.painPoints[0]
-                                ?.examples?.length || 0}{" "}
-                              negative mentions, avg rating:{" "}
-                              {processedData.executiveSummary.painPoints[0]
-                                ?.percentage || "3.0"}
-                              /5).
-                            </p>
-                          </div>
-                        )}
-                    </div>
+                    <h4 className="text-white font-semibold">Voice Recording</h4>
                   </div>
+                  <p className="text-[#B0B0C0] text-sm">
+                    WhatsApp-style tap-to-speak interface for voice feedback
+                  </p>
+                </div>
 
-                  {/* Detailed Insights */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">✓</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Detailed Insights
-                      </h4>
+                <div className="bg-[#181a20]/60 border border-orange-500/20 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">3</span>
                     </div>
-                    <div className="ml-11">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {processedData.mentionsByTopic &&
-                          processedData.mentionsByTopic
-                            .slice(0, 9)
-                            .map((topic: any, index: number) => (
-                              <div
-                                key={index}
-                                className="bg-[#181a20]/40 border border-white/10 rounded-lg p-4"
-                              >
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="text-sm font-medium text-white">
-                                    {topic.topic}
-                                  </span>
-                                  <span className="text-xs text-[#B0B0C0]">
-                                    avg rating:{" "}
-                                    {(
-                                      (topic.positive /
-                                        (topic.positive + topic.negative)) *
-                                      5
-                                    ).toFixed(1)}
-                                    /5
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-green-400">
-                                    {topic.positive} positive
-                                  </span>
-                                  <span className="text-red-400">
-                                    {topic.negative} negative
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-xs text-[#B0B0C0] mt-1">
-                                  <span>
-                                    {Math.round(
-                                      (topic.positive /
-                                        (topic.positive + topic.negative)) *
-                                        100,
-                                    )}
-                                    % positive
-                                  </span>
-                                  <span>
-                                    {Math.round(
-                                      (topic.negative /
-                                        (topic.positive + topic.negative)) *
-                                        100,
-                                    )}
-                                    % negative
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                      </div>
-                    </div>
+                    <h4 className="text-white font-semibold">Upload & Analyze</h4>
                   </div>
+                  <p className="text-[#B0B0C0] text-sm">
+                    Voice uploaded, transcribed, and analyzed for CSAT report
+                  </p>
+                </div>
+              </div>
 
-                  {/* Business Impact */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">💼</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Business Impact
-                      </h4>
-                    </div>
-                    <div className="ml-11 space-y-3">
-                      <p className="text-[#B0B0C0] leading-relaxed">
-                        {processedData.executiveSummary?.sentimentChange?.startsWith(
-                          "+",
-                        )
-                          ? "Positive performance with opportunities for continued growth"
-                          : "Mixed performance requiring targeted improvements"}
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                          <span className="text-sm text-[#B0B0C0]">
-                            Opportunity to enhance specific areas for better
-                            customer satisfaction
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                          <span className="text-sm text-[#B0B0C0]">
-                            Need for ongoing monitoring and quick response to
-                            issues
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+              {/* Feedback Page Preview */}
+              <div className="mt-6 bg-[#181a20]/60 border border-purple-500/20 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-4 h-4 text-white" />
                   </div>
-
-                  {/* Immediate Actions */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">🎯</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Immediate Actions
-                      </h4>
+                  <h4 className="text-white font-semibold">Feedback Page Preview</h4>
+                </div>
+                <div className="space-y-3">
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-4">
+                    <div className="text-center mb-4">
+                      <h5 className="text-white font-semibold text-lg">{processedData.business_name || 'Business Name'}</h5>
+                      <p className="text-[#B0B0C0] text-sm">Leave your feedback</p>
                     </div>
-                    <div className="ml-11 space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-red-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-red-400">
-                              Priority:
-                            </span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Address{" "}
-                              {processedData.executiveSummary?.topComplaint ||
-                                "service quality"}{" "}
-                              issues immediately to prevent customer churn.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-green-400">
-                              Leverage:
-                            </span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Use positive{" "}
-                              {processedData.executiveSummary?.mostPraised ||
-                                "customer service"}{" "}
-                              feedback in marketing materials.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-blue-400">
-                              Monitor:
-                            </span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Track sentiment trends weekly to identify emerging
-                              issues.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                          <div>
-                            <span className="text-sm font-medium text-purple-400">
-                              Improve:
-                            </span>
-                            <p className="text-sm text-[#B0B0C0] mt-1">
-                              Implement customer feedback loops for continuous
-                              improvement.
-                            </p>
-                          </div>
-                        </div>
+                    <div className="flex justify-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+                        <span className="text-white text-2xl">🎤</span>
                       </div>
                     </div>
+                    <p className="text-center text-[#B0B0C0] text-sm mt-3">Tap to speak</p>
                   </div>
+                </div>
+              </div>
 
-                  {/* Data Quality */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">📊</span>
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">
-                        Data Quality
-                      </h4>
-                    </div>
-                    <div className="ml-11">
-                      <p className="text-sm text-[#B0B0C0]">
-                        Analysis based on{" "}
-                        {processedData.detected_sources?.reduce(
-                          (total: number, source: any) =>
-                            total + (source?.review_count || 0),
-                          0,
-                        ) || 0}{" "}
-                        customer reviews with comprehensive sentiment analysis
-                        and topic extraction.
-                      </p>
-                    </div>
+              {/* Voice Processing Workflow */}
+              <div className="mt-6 bg-[#181a20]/60 border border-blue-500/20 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-sm">⚡</span>
                   </div>
+                  <h4 className="text-white font-semibold">Voice Processing Workflow</h4>
+                </div>
+                <div className="space-y-3">
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium">Voice Recording</span>
+                      <span className="text-purple-400 text-sm">🎤 Tap to Speak</span>
+                    </div>
+                    <p className="text-[#B0B0C0] text-sm italic">
+                      Customer records voice feedback via WhatsApp-style interface
+                    </p>
+                  </div>
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium">Upload & Transcribe</span>
+                      <span className="text-blue-400 text-sm">📝 Processing</span>
+                    </div>
+                    <p className="text-[#B0B0C0] text-sm italic">
+                      Voice uploaded to server and transcribed to text
+                    </p>
+                  </div>
+                  <div className="bg-[#181a20]/40 border border-white/10 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium">AI Analysis</span>
+                      <span className="text-green-400 text-sm">✅ Complete</span>
+                    </div>
+                    <p className="text-[#B0B0C0] text-sm italic">
+                      Sentiment: Positive | Topics: Service, Quality, Atmosphere
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-                  {/* Frequently Mentioned Topics */}
-                  {processedData.mentionsByTopic &&
-                    processedData.mentionsByTopic.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">
-                              📝
-                            </span>
-                          </div>
-                          <h4 className="text-lg font-semibold text-white">
-                            Frequently Mentioned Topics
-                          </h4>
-                        </div>
-                        <div className="ml-11">
-                          <div className="space-y-2">
-                            {processedData.mentionsByTopic
-                              .slice(0, 5)
-                              .map((topic: any, index: number) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center space-x-3"
-                                >
-                                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                  <span className="text-sm text-[#B0B0C0]">
-                                    {topic.topic} is frequently mentioned
-                                  </span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+              {/* CSAT Report Preview */}
+              <div className="mt-6 bg-[#181a20]/60 border border-emerald-500/20 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-4 h-4 text-white" />
+                  </div>
+                  <h4 className="text-white font-semibold">CSAT Report Preview</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-emerald-400 font-bold text-xl">4.2</div>
+                    <div className="text-[#B0B0C0] text-xs">Overall Score</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-blue-400 font-bold text-xl">78%</div>
+                    <div className="text-[#B0B0C0] text-xs">Satisfied</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-orange-400 font-bold text-xl">23</div>
+                    <div className="text-[#B0B0C0] text-xs">Voice Responses</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-purple-400 font-bold text-xl">5</div>
+                    <div className="text-[#B0B0C0] text-xs">Topics</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </section>
-        )}
-      </div>
+          </div>
+        </section>
 
       {/* Trending Topic Detailed Modal */}
       {showTrendingModal && selectedTrendingTopic && (
@@ -4784,7 +4847,11 @@ export default function ReportPageContent({
                     className="bg-[#181a20] border border-white/10 rounded-xl p-4"
                   >
                     <div className="mb-3 leading-relaxed">
-                      <p className="text-white">{review.text}</p>
+                      {review.highlightedText ? (
+                        <div className="text-white" dangerouslySetInnerHTML={{ __html: review.highlightedText }} />
+                      ) : (
+                        <p className="text-white">{review.text}</p>
+                      )}
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-3">

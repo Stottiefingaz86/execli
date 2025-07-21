@@ -150,7 +150,7 @@ Rules:
 Respond with ONLY the topic name from the available list, nothing else.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

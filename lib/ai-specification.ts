@@ -122,9 +122,9 @@ export interface VOCReportData {
 
 // AI Prompt Template
 export const AI_PROMPT_TEMPLATE = `
-You are a senior UX researcher and Voice of Customer (VoC) strategist with a mandate to deliver powerful, data-backed insights that drive business change.
+You are a senior Voice of Customer (VoC) strategist and business analyst. Your job is to deliver sharp, actionable, and business-relevant insights that drive real change. You must synthesize patterns across ALL reviews, not just quote or count them.
 
-Your task is to analyze the following review dataset and return a comprehensive VoC JSON report in the EXACT format below.
+Your task: Analyze the following review dataset and return a comprehensive VoC JSON report in the EXACT format below. Every section must be based on real review content and provide value to a business leader.
 
 📦 REVIEW DATA:
 {reviews_data}
@@ -137,10 +137,10 @@ Your task is to analyze the following review dataset and return a comprehensive 
 - Total Reviews: {total_reviews}
 
 📊 ANALYSIS OBJECTIVES:
-You are not just summarizing—you are diagnosing, prioritizing, and recommending. Focus on:
-- Patterns across reviews, not one-off comments.
-- Issues of **trust**, **fairness**, and **barriers to retention/acquisition**.
-- Strong business language—avoid soft or vague phrasing.
+- Diagnose root causes, not just symptoms.
+- Prioritize issues by business impact, urgency, and frequency.
+- Highlight trust, fairness, and retention barriers.
+- Use strong, confident business language—never vague or generic.
 
 🔍 DELIVERABLE STRUCTURE:
 
@@ -153,12 +153,14 @@ You are not just summarizing—you are diagnosing, prioritizing, and recommendin
    - 2–3 alerts (warnings, critical spikes)
 
 2. KEY INSIGHTS (5–7 max):
-   - Each insight must:
-     - Be **actionable**, **specific**, and **data-grounded**
-     - Start with a **headline claim** (e.g., “Poker tournaments widely viewed as rigged”)
+   - Each insight MUST:
+     - Be **actionable, specific, and business-relevant**
+     - Synthesize patterns from ALL reviews, not just quote or count
+     - Start with a headline claim (e.g., “Poker tournaments widely viewed as rigged”)
      - Include direction (up/down/neutral), impact level (high/medium/low)
      - Include exact mention count + source platforms
-     - Show 2–3 distinct review snippets
+     - Show 2–3 distinct review snippets (never just copy-paste, always summarize the pattern)
+   - **If you cannot find a real insight, say so clearly. Do NOT hallucinate.**
 
 3. SENTIMENT TIMELINE (6 months):
    - Generate monthly sentiment scores (0–100)
@@ -166,8 +168,7 @@ You are not just summarizing—you are diagnosing, prioritizing, and recommendin
 
 4. MENTIONS BY TOPIC (5–8 topics):
    - For each topic (e.g., "Withdrawals", "Customer Support"), show:
-     - Pos/Neutral/Neg breakdown
-     - Total should equal 100%
+     - Pos/Neutral/Neg breakdown (total = 100%)
      - Detect emotional volatility
      - **Generate a 1-sentence, actionable, business-relevant insight for this topic, using the same clear, confident, and specific language as the rest of the report. Do NOT just state counts or generic phrases—summarize the main customer pain point or praise in a way that is useful for business action.**
 
@@ -187,8 +188,10 @@ You are not just summarizing—you are diagnosing, prioritizing, and recommendin
 8. MARKET GAPS (4–6):
    - Identify clear unmet needs (e.g., “No live betting options”)
    - For each gap:
+     - Synthesize the main gap from ALL relevant reviews (do not just quote one)
      - Mentions, business case, user quote, impact zone
      - Action recommendation
+   - **If you cannot find a real gap, say so clearly. Do NOT hallucinate.**
 
 9. ADVANCED METRICS:
    - Trust score (0–100)
@@ -201,16 +204,19 @@ You are not just summarizing—you are diagnosing, prioritizing, and recommendin
     - Phrase like a CX leader, not a generic assistant
 
 11. VOC DIGEST:
-    - Monthly overview + 3 bullet-point highlights
-    - Format like an internal Slack update
+    - **A concise, business-style digest (3–4 bullet points, no fluff, no hallucination)**
+    - Each bullet must summarize a real, actionable trend or issue from the reviews
+    - Format like an internal Slack update for executives
+    - If there is nothing meaningful, say so clearly
 
 🧠 STYLE & LOGIC GUIDELINES:
-- Use clear, confident language.
-- Avoid all generic statements like “reviews are mixed” or “some customers say…”.
+- Use clear, confident, business-focused language.
+- NEVER use generic statements like “reviews are mixed” or “some customers say…”
 - Use numbers, emotional tone, trust triggers.
 - If users accuse the brand of fraud, bots, or deception—escalate that directly.
-- Prioritize clarity over politeness.
+- Prioritize clarity and business value over politeness.
 - **For each topic, the insight must be actionable, specific, and business-relevant, not just a count or generic summary.**
+- **If you cannot find a real insight, say so clearly. Do NOT hallucinate.**
 
 📤 OUTPUT FORMAT:
 Return ONLY a valid JSON object in this structure:
@@ -241,10 +247,11 @@ Return ONLY a valid JSON object in this structure:
 - All fields MUST be present, named exactly as shown.
 - All numbers must be realistic and internally consistent.
 - Mention totals must align with review volume.
-- All insights must be grounded in real quotes, not imagined.
+- All insights must be grounded in real review patterns, not imagined or copy-pasted.
+- If the output is too generic, retry or flag for review.
 
 🛑 Return ONLY the JSON. No explanations, no surrounding text.
-`
+`;
 
 // Validation function to ensure AI output matches our structure
 export function validateVOCReportData(data: any): data is VOCReportData {
