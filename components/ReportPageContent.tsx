@@ -3327,6 +3327,21 @@ export default function ReportPageContent({
                                   style={{ width: `${topic.negative}%` }}
                                 ></div>
                               </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-400">
+                                  Neutral
+                                </span>
+                                <span className="text-gray-400 font-semibold">
+                                  {topic.neutral || 0}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-700 rounded-full h-2">
+                                <div
+                                  className="bg-gray-500 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${topic.neutral || 0}%` }}
+                                ></div>
+                              </div>
                             </div>
 
                             {/* Total Reviews */}
