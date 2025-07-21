@@ -32,7 +32,6 @@ serve(async (req) => {
         const syncResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-voc-report`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
