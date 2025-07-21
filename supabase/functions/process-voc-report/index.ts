@@ -3587,7 +3587,7 @@ function detectIndustry(businessName: string, businessUrl?: string): string {
 
 serve(async (req) => {
   try {
-    const { business_name, business_url, email, industry = null } = await req.json();
+    const { business_name, business_url, email, industry = null, ip_address = null } = await req.json();
     
     // Add null checks for required parameters
     if (!business_name || !business_url || !email) {
@@ -3607,7 +3607,8 @@ serve(async (req) => {
         name: business_name,
         email: email,
         status: 'processing',
-        industry: industry || null
+        industry: industry || null,
+        ip_address: ip_address || null
       })
       .select()
       .single();
