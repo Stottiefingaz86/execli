@@ -1261,8 +1261,25 @@ export default function ReportPageContent({
   }, [reportData]);
 
   console.log("Processed data:", processedData);
-    console.log("Mentions by topic:", processedData?.mentionsByTopic);
+  console.log("Mentions by topic:", processedData?.mentionsByTopic);
   console.log("Positive topics:", processedData?.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
+  
+  // Add detailed debugging for empty sections
+  console.log("=== DEBUGGING EMPTY SECTIONS ===");
+  console.log("keyInsights length:", processedData?.keyInsights?.length);
+  console.log("mentionsByTopic length:", processedData?.mentionsByTopic?.length);
+  console.log("trendingTopics length:", processedData?.trendingTopics?.length);
+  console.log("marketGaps length:", processedData?.marketGaps?.length);
+  console.log("executiveSummary:", !!processedData?.executiveSummary);
+  console.log("allSectionsEmpty:", allSectionsEmpty);
+  
+  // Log the actual data structure
+  if (processedData?.mentionsByTopic && processedData.mentionsByTopic.length > 0) {
+    console.log("First mentionsByTopic item:", processedData.mentionsByTopic[0]);
+  }
+  if (processedData?.keyInsights && processedData.keyInsights.length > 0) {
+    console.log("First keyInsights item:", processedData.keyInsights[0]);
+  }
 
   // Show loader until report is fully ready
   if (isProcessing) {
@@ -1293,15 +1310,21 @@ export default function ReportPageContent({
 
   // If all sections are empty, show a global error/CTA
   if (allSectionsEmpty) {
-    return (
-      <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-        <div className="text-center max-w-sm mx-auto px-6">
-          <h2 className="text-2xl font-semibold mb-4">No analysis data available</h2>
-          <p className="text-gray-400 mb-4">Something went wrong and no insights could be generated for this report.</p>
-          <button onClick={handleRetry} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition">Retry Analysis</button>
-        </div>
-      </div>
-    );
+    console.log("🚨 ALL SECTIONS EMPTY - SHOWING ERROR SCREEN");
+    console.log("Raw reportData:", reportData);
+    console.log("Processed data keys:", Object.keys(processedData || {}));
+    
+    // TEMPORARY: Show the report anyway to debug
+    console.log("🔧 TEMPORARY: Bypassing empty sections check to show report");
+    // return (
+    //   <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
+    //     <div className="text-center max-w-sm mx-auto px-6">
+    //       <h2 className="text-2xl font-semibold mb-4">No analysis data available</h2>
+    //       <p className="text-gray-400 mb-4">Something went wrong and no insights could be generated for this report.</p>
+    //       <button onClick={handleRetry} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition">Retry Analysis</button>
+    //     </div>
+    //   </div>
+    // );
   }
 
   const handleTopicClick = (
