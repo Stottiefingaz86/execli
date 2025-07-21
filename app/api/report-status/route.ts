@@ -98,9 +98,9 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      status: data.status || 'processing',
+      status: analysisReady ? 'complete' : (data.status || 'processing'),
       report_id: reportId,
-      report_url: reportUrl,
+      report_url: analysisReady ? `/report/${reportId}` : reportUrl,
       has_analysis: !!data.analysis,
       analysis_ready: analysisReady,
       sources_count: data.sources?.length || 0,
