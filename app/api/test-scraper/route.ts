@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
     const functionResponse = await fetch(edgeFunctionUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'apikey': `${process.env.SUPABASE_SERVICE_ROLE_KEY}`
       },
       body: JSON.stringify({
         business_name,

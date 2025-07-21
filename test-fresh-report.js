@@ -42,8 +42,7 @@ async function createFreshReport() {
     const response = await fetch('https://efiioacrgwuewmroztth.supabase.co/functions/v1/process-voc-report', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         report_id: report.id,
