@@ -81,12 +81,30 @@ export default function ReportPage() {
           // Check if report has analysis data
           if (vocReport.analysis && Object.keys(vocReport.analysis).length > 0) {
             console.log('Analysis data found, displaying report');
+            console.log('Analysis data structure:', Object.keys(vocReport.analysis));
+            console.log('Analysis content preview:', {
+              executiveSummary: !!vocReport.analysis.executiveSummary,
+              keyInsights: vocReport.analysis.keyInsights?.length || 0,
+              trendingTopics: vocReport.analysis.trendingTopics?.length || 0,
+              mentionsByTopic: vocReport.analysis.mentionsByTopic?.length || 0
+            });
+            
             // Use the analysis data from voc_reports
             const reportWithSources = {
               ...vocReport,
               detected_sources: vocReport.sources || [], // Map sources to detected_sources for compatibility
-              ...vocReport.analysis // Spread the analysis data into the main object
+              // Ensure analysis data is properly structured
+              executiveSummary: vocReport.analysis.executiveSummary,
+              keyInsights: vocReport.analysis.keyInsights || [],
+              trendingTopics: vocReport.analysis.trendingTopics || [],
+              mentionsByTopic: vocReport.analysis.mentionsByTopic || [],
+              marketGaps: vocReport.analysis.marketGaps || [],
+              sentimentOverTime: vocReport.analysis.sentimentOverTime || [],
+              volumeOverTime: vocReport.analysis.volumeOverTime || [],
+              advancedMetrics: vocReport.analysis.advancedMetrics,
+              suggestedActions: vocReport.analysis.suggestedActions || []
             }
+            console.log('Processed report data structure:', Object.keys(reportWithSources));
             setReportData(reportWithSources)
           } else {
             console.log('No analysis data found, starting polling');
@@ -152,10 +170,20 @@ export default function ReportPage() {
         .maybeSingle()
 
           if (!error && updatedReport) {
+            console.log('Updated report analysis data:', Object.keys(updatedReport.analysis || {}));
             const reportWithSources = {
               ...updatedReport,
               detected_sources: updatedReport.sources || [],
-              ...updatedReport.analysis // Spread the analysis data into the main object
+              // Ensure analysis data is properly structured
+              executiveSummary: updatedReport.analysis?.executiveSummary,
+              keyInsights: updatedReport.analysis?.keyInsights || [],
+              trendingTopics: updatedReport.analysis?.trendingTopics || [],
+              mentionsByTopic: updatedReport.analysis?.mentionsByTopic || [],
+              marketGaps: updatedReport.analysis?.marketGaps || [],
+              sentimentOverTime: updatedReport.analysis?.sentimentOverTime || [],
+              volumeOverTime: updatedReport.analysis?.volumeOverTime || [],
+              advancedMetrics: updatedReport.analysis?.advancedMetrics,
+              suggestedActions: updatedReport.analysis?.suggestedActions || []
             }
             setReportData(reportWithSources)
             setPolling(false)

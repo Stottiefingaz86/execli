@@ -14,21 +14,21 @@ export default function TestReportPage() {
     status: "complete",
     analysis: {
       executiveSummary: {
-        overview: "This test business shows strong customer satisfaction with an overall positive sentiment trend. Key areas of excellence include customer service and product quality.",
+        overview: "Analysis of 5 reviews for Test Business. Overall positive sentiment with focus on customer service and product quality. Customer service excellence drives positive reviews with 3 mentions, while product quality receives consistent praise with 2 mentions.",
         sentimentChange: "+15%",
         volumeChange: "+8%",
-        mostPraised: "Customer service quality",
-        topComplaint: "Delivery times",
+        mostPraised: "Customer Service",
+        topComplaint: "Product Quality",
         praisedSections: [
           {
             topic: "Customer Service",
             percentage: "85%",
-            examples: ["Staff was very helpful", "Great customer support", "Friendly service"]
+            examples: ["Great customer service!", "Excellent support team", "Friendly service"]
           },
           {
             topic: "Product Quality",
             percentage: "78%",
-            examples: ["High quality products", "Excellent craftsmanship", "Durable materials"]
+            examples: ["Fast delivery and good quality", "Product quality is amazing", "Durable materials"]
           }
         ],
         painPoints: [
@@ -38,33 +38,36 @@ export default function TestReportPage() {
             examples: ["Slow shipping", "Delayed delivery", "Long wait times"]
           }
         ],
-        summary: "Overall positive customer sentiment with room for improvement in delivery services."
+        summary: "Overall positive customer sentiment with room for improvement in delivery services.",
+        context: "Analysis based on real review data",
+        dataSource: "Analyzed 5 reviews",
+        topHighlights: []
       },
       keyInsights: [
         {
           insight: "Customer service excellence drives positive reviews",
           title: "Service Quality Leader",
           direction: "positive",
-          mentionCount: "45",
-          platforms: ["Trustpilot", "Google"],
-          impact: "High",
+          mentionCount: "3",
+          platforms: ["Trustpilot"],
+          impact: "high",
           suggestions: ["Maintain current service standards", "Train staff on new procedures"],
           reviews: [
-            { text: "Amazing customer service!", topic: "Service", sentiment: "positive" },
-            { text: "Staff was very helpful", topic: "Service", sentiment: "positive" }
+            { text: "Great customer service!", topic: "Customer Service", sentiment: "positive" },
+            { text: "Excellent support team", topic: "Customer Service", sentiment: "positive" }
           ]
         },
         {
-          insight: "Delivery times need improvement",
-          title: "Delivery Optimization",
-          direction: "negative",
-          mentionCount: "12",
+          insight: "Product quality receives consistent praise",
+          title: "Product Quality Leader",
+          direction: "positive",
+          mentionCount: "2",
           platforms: ["Trustpilot"],
-          impact: "Medium",
-          suggestions: ["Optimize shipping routes", "Partner with faster carriers"],
+          impact: "medium",
+          suggestions: ["Continue quality control", "Maintain product standards"],
           reviews: [
-            { text: "Slow delivery", topic: "Delivery", sentiment: "negative" },
-            { text: "Took too long to arrive", topic: "Delivery", sentiment: "negative" }
+            { text: "Fast delivery and good quality", topic: "Product Quality", sentiment: "positive" },
+            { text: "Product quality is amazing", topic: "Product Quality", sentiment: "positive" }
           ]
         }
       ],
