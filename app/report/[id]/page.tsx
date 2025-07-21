@@ -76,7 +76,9 @@ export default function ReportPage() {
           setReportData(oldReport.report_data)
         } else if (vocReport) {
           console.log('VOC Report found:', vocReport);
-          console.log('Analysis data:', vocReport.analysis);
+          console.log('Report status:', vocReport.status);
+          console.log('Analysis data exists:', !!vocReport.analysis);
+          console.log('Analysis data keys:', vocReport.analysis ? Object.keys(vocReport.analysis) : []);
           
           // Check if report has analysis data
           if (vocReport.analysis && Object.keys(vocReport.analysis).length > 0) {
@@ -161,7 +163,10 @@ export default function ReportPage() {
           setProgressMessage(data.progress_message)
         }
 
-        if (data.status === 'complete' && data.analysis_ready) {
+        console.log('Polling check - status:', data.status, 'analysis_ready:', data.analysis_ready, 'has_analysis:', data.has_analysis);
+        
+        if (data.status === 'complete' && (data.analysis_ready || data.has_analysis)) {
+          console.log('Report is complete, fetching updated data...');
           // Fetch the updated report data
           const { data: updatedReport, error } = await supabase()
             .from('voc_reports')
@@ -185,9 +190,12 @@ export default function ReportPage() {
               advancedMetrics: updatedReport.analysis?.advancedMetrics,
               suggestedActions: updatedReport.analysis?.suggestedActions || []
             }
+            console.log('Setting report data and stopping polling');
             setReportData(reportWithSources)
             setPolling(false)
             return
+          } else {
+            console.log('Error fetching updated report or no report found:', error);
           }
         } else if (data.status === 'error') {
           setError('Report generation failed. Please try again.')
