@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${supabaseUrl}/functions/v1/sync-voc-report`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

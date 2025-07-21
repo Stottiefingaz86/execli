@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${supabaseUrl}/functions/v1/scheduled-sync`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
         'Content-Type': 'application/json',
       }
     });
