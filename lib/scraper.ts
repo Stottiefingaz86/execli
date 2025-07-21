@@ -258,8 +258,21 @@ export async function runScrapingWorkflow(
       [reviewSource]
     )
 
+    // Log the full prompt for debugging
+    console.log('--- LLM ANALYSIS PROMPT START ---')
+    console.log(analysisPrompt)
+    console.log('--- LLM ANALYSIS PROMPT END ---')
+
     // Call your AI service (OpenAI, Anthropic, etc.)
-    const analysisResult = await analyzeWithAI(analysisPrompt)
+    const analysisResultRaw = await analyzeWithAI(analysisPrompt, true)
+
+    // Log the raw LLM response for debugging
+    console.log('--- LLM RAW RESPONSE START ---')
+    console.log(typeof analysisResultRaw === 'string' ? analysisResultRaw.substring(0, 5000) : analysisResultRaw)
+    console.log('--- LLM RAW RESPONSE END ---')
+
+    // Parse and validate the result
+    const analysisResult = typeof analysisResultRaw === 'string' ? JSON.parse(analysisResultRaw) : analysisResultRaw
     
     // Store results in database
     await storeAnalysisResults(companyId, analysisResult, supabase)
@@ -292,7 +305,7 @@ export async function runScrapingWorkflow(
 }
 
 // AI analysis function using our precise specification
-async function analyzeWithAI(prompt: string) {
+async function analyzeWithAI(prompt: string, returnRaw?: boolean) {
   try {
     // Choose ONE of these options:
     
@@ -316,14 +329,13 @@ async function analyzeWithAI(prompt: string) {
       if (data.error) {
         throw new Error(`OpenAI API error: ${data.error.message}`)
       }
-      
-      const result = JSON.parse(data.choices[0].message.content)
-      
+      const rawContent = data.choices[0].message.content
+      if (returnRaw) return rawContent
+      const result = JSON.parse(rawContent)
       // Validate the result matches our structure
       if (!validateVOCReportData(result)) {
         throw new Error('AI response does not match expected VOC report structure')
       }
-      
       return result
     }
     
@@ -347,14 +359,13 @@ async function analyzeWithAI(prompt: string) {
       if (data.error) {
         throw new Error(`Anthropic API error: ${data.error.message}`)
       }
-      
-      const result = JSON.parse(data.content[0].text)
-      
+      const rawContent = data.content[0].text
+      if (returnRaw) return rawContent
+      const result = JSON.parse(rawContent)
       // Validate the result matches our structure
       if (!validateVOCReportData(result)) {
         throw new Error('AI response does not match expected VOC report structure')
       }
-      
       return result
     }
     

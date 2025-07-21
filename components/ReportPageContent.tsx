@@ -36,6 +36,8 @@ import {
   User,
   MoreVertical,
 } from "lucide-react";
+import MinimalLoadingState from './MinimalLoadingState';
+import { DynamicOrbLoader } from "./OrbLoader";
 
 interface ReportData {
   id?: string;
@@ -198,42 +200,25 @@ const TruncatedText = ({
   maxLength?: number;
   title?: string;
 }) => {
-  const [showModal, setShowModal] = useState(false);
-
   if (!text || text.length <= maxLength) {
     return <span>{text}</span>;
   }
 
+  // Use CSS ellipsis and a tooltip for overflow
   return (
-    <>
-      <span>
-        {text.substring(0, maxLength)}...
-        <button
-          onClick={() => setShowModal(true)}
-          className="ml-1 text-blue-400 hover:text-blue-300 underline text-sm"
-        >
-          Show more
-        </button>
-      </span>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#181a20] border border-white/20 rounded-2xl p-6 max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">{title}</h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="text-[#B0B0C0] whitespace-pre-wrap">{text}</div>
-          </div>
-        </div>
-      )}
-    </>
+    <span
+      className="truncate inline-block max-w-full align-bottom cursor-pointer"
+      style={{
+        maxWidth: `${maxLength * 0.6}ch`, // Adjust width for best fit
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'bottom',
+      }}
+      title={text}
+    >
+      {text}
+    </span>
   );
 };
 
@@ -982,123 +967,184 @@ export default function ReportPageContent({
   const processAndDeduplicateData = async (data: any) => {
     if (!data) return data;
 
-    // Process mentions by topic with proper filtering
-    if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
-      for (let i = 0; i < data.mentionsByTopic.length; i++) {
-        const topic = data.mentionsByTopic[i];
-        const allMentions = deduplicateComments(topic.rawMentions || []);
+    try {
+      console.log("Processing data with structure:", {
+        hasMentionsByTopic: !!data.mentionsByTopic,
+        mentionsByTopicLength: data.mentionsByTopic?.length || 0,
+        hasKeyInsights: !!data.keyInsights,
+        keyInsightsLength: data.keyInsights?.length || 0,
+        hasExecutiveSummary: !!data.executiveSummary
+      });
 
-        // Filter mentions by topic relevance
-        const relevantMentions = [];
-        for (const mention of allMentions) {
-          if (await isTopicRelevant(mention, topic.topic)) {
-            relevantMentions.push(mention);
-          }
-        }
-
-        // Separate positive and negative mentions
-        const positiveMentions = await filterCommentsByTopicAndSentiment(
-          relevantMentions,
-          topic.topic,
-          "positive",
-        );
-        const negativeMentions = await filterCommentsByTopicAndSentiment(
-          relevantMentions,
-          topic.topic,
-          "negative",
-        );
-
-        // Recalculate counts based on actual sentiment analysis
-        const totalRelevant = relevantMentions.length;
-        const positiveCount = positiveMentions.length;
-        const negativeCount = negativeMentions.length;
-
-        data.mentionsByTopic[i] = {
-          ...topic,
-          rawMentions: relevantMentions,
-          positive: positiveCount,
-          negative: negativeCount,
-          total: totalRelevant,
-          positiveMentions,
-          negativeMentions,
-        };
-      }
-    }
-
-    // Process executive summary with proper sentiment filtering
-    if (data.executiveSummary?.praisedSections) {
-      for (let i = 0; i < data.executiveSummary.praisedSections.length; i++) {
-        const section = data.executiveSummary.praisedSections[i];
-        const allExamples = deduplicateComments(section.examples || []);
-        const positiveExamples = [];
+      // Process mentions by topic with proper filtering
+      if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
+        console.log("Processing mentionsByTopic:", data.mentionsByTopic.length);
         
-        for (const example of allExamples) {
-          if (analyzeSentiment(example) === "positive" && 
-              await isTopicRelevant(example, section.topic)) {
-            positiveExamples.push(example);
+        for (let i = 0; i < data.mentionsByTopic.length; i++) {
+          const topic = data.mentionsByTopic[i];
+          const allMentions = deduplicateComments(topic.rawMentions || []);
+
+          // Filter mentions by topic relevance
+          const relevantMentions = [];
+          for (const mention of allMentions) {
+            try {
+              if (await isTopicRelevant(mention, topic.topic)) {
+                relevantMentions.push(mention);
+              }
+            } catch (error) {
+              console.warn("Error checking topic relevance:", error);
+              // If relevance check fails, include the mention anyway
+              relevantMentions.push(mention);
+            }
           }
+
+          // Separate positive and negative mentions
+          let positiveMentions = [];
+          let negativeMentions = [];
+          
+          try {
+            positiveMentions = await filterCommentsByTopicAndSentiment(
+              relevantMentions,
+              topic.topic,
+              "positive",
+            );
+            negativeMentions = await filterCommentsByTopicAndSentiment(
+              relevantMentions,
+              topic.topic,
+              "negative",
+            );
+          } catch (error) {
+            console.warn("Error filtering comments by sentiment:", error);
+            // Fallback: use simple sentiment analysis
+            positiveMentions = relevantMentions.filter(m => analyzeSentiment(m) === "positive");
+            negativeMentions = relevantMentions.filter(m => analyzeSentiment(m) === "negative");
+          }
+
+          // Recalculate counts based on actual sentiment analysis
+          const totalRelevant = relevantMentions.length;
+          const positiveCount = positiveMentions.length;
+          const negativeCount = negativeMentions.length;
+
+          data.mentionsByTopic[i] = {
+            ...topic,
+            rawMentions: relevantMentions,
+            positive: positiveCount,
+            negative: negativeCount,
+            total: totalRelevant,
+            positiveMentions,
+            negativeMentions,
+          };
         }
-
-        data.executiveSummary.praisedSections[i] = {
-          ...section,
-          examples: positiveExamples,
-          percentage:
-            positiveExamples.length > 0
-              ? Math.round(
-                  (positiveExamples.length / allExamples.length) * 100,
-                )
-              : 0,
-        };
       }
-    }
 
-    if (data.executiveSummary?.painPoints) {
-      for (let i = 0; i < data.executiveSummary.painPoints.length; i++) {
-        const point = data.executiveSummary.painPoints[i];
-        const allExamples = deduplicateComments(point.examples || []);
-        const negativeExamples = [];
+      // Process executive summary with proper sentiment filtering
+      if (data.executiveSummary?.praisedSections) {
+        console.log("Processing praisedSections:", data.executiveSummary.praisedSections.length);
         
-        for (const example of allExamples) {
-          if (analyzeSentiment(example) === "negative" && 
-              await isTopicRelevant(example, point.topic)) {
-            negativeExamples.push(example);
+        for (let i = 0; i < data.executiveSummary.praisedSections.length; i++) {
+          const section = data.executiveSummary.praisedSections[i];
+          const allExamples = deduplicateComments(section.examples || []);
+          const positiveExamples = [];
+          
+          for (const example of allExamples) {
+            try {
+              if (analyzeSentiment(example) === "positive" && 
+                  await isTopicRelevant(example, section.topic)) {
+                positiveExamples.push(example);
+              }
+            } catch (error) {
+              console.warn("Error processing praised section example:", error);
+              // If processing fails, include positive examples anyway
+              if (analyzeSentiment(example) === "positive") {
+                positiveExamples.push(example);
+              }
+            }
           }
+
+          data.executiveSummary.praisedSections[i] = {
+            ...section,
+            examples: positiveExamples,
+            percentage:
+              positiveExamples.length > 0
+                ? Math.round(
+                    (positiveExamples.length / allExamples.length) * 100,
+                  )
+                : 0,
+          };
         }
-
-        data.executiveSummary.painPoints[i] = {
-          ...point,
-          examples: negativeExamples,
-          percentage:
-            negativeExamples.length > 0
-              ? Math.round(
-                  (negativeExamples.length / allExamples.length) * 100,
-                )
-              : 0,
-        };
       }
-    }
 
-    // Process key insights with proper filtering
-    if (data.keyInsights && Array.isArray(data.keyInsights)) {
-      for (let i = 0; i < data.keyInsights.length; i++) {
-        const insight = data.keyInsights[i];
-        const allMentions = deduplicateComments(insight.rawMentions || []);
-        const relevantMentions = [];
+      if (data.executiveSummary?.painPoints) {
+        console.log("Processing painPoints:", data.executiveSummary.painPoints.length);
         
-        for (const mention of allMentions) {
-          if (await isTopicRelevant(mention, insight.insight)) {
-            relevantMentions.push(mention);
+        for (let i = 0; i < data.executiveSummary.painPoints.length; i++) {
+          const point = data.executiveSummary.painPoints[i];
+          const allExamples = deduplicateComments(point.examples || []);
+          const negativeExamples = [];
+          
+          for (const example of allExamples) {
+            try {
+              if (analyzeSentiment(example) === "negative" && 
+                  await isTopicRelevant(example, point.topic)) {
+                negativeExamples.push(example);
+              }
+            } catch (error) {
+              console.warn("Error processing pain point example:", error);
+              // If processing fails, include negative examples anyway
+              if (analyzeSentiment(example) === "negative") {
+                negativeExamples.push(example);
+              }
+            }
           }
+
+          data.executiveSummary.painPoints[i] = {
+            ...point,
+            examples: negativeExamples,
+            percentage:
+              negativeExamples.length > 0
+                ? Math.round(
+                    (negativeExamples.length / allExamples.length) * 100,
+                  )
+                : 0,
+          };
         }
-
-        data.keyInsights[i] = {
-          ...insight,
-          rawMentions: relevantMentions,
-        };
       }
-    }
 
-    return data;
+      // Process key insights with proper filtering
+      if (data.keyInsights && Array.isArray(data.keyInsights)) {
+        console.log("Processing keyInsights:", data.keyInsights.length);
+        
+        for (let i = 0; i < data.keyInsights.length; i++) {
+          const insight = data.keyInsights[i];
+          const allMentions = deduplicateComments(insight.rawMentions || []);
+          const relevantMentions = [];
+          
+          for (const mention of allMentions) {
+            try {
+              if (await isTopicRelevant(mention, insight.insight)) {
+                relevantMentions.push(mention);
+              }
+            } catch (error) {
+              console.warn("Error processing key insight mention:", error);
+              // If relevance check fails, include the mention anyway
+              relevantMentions.push(mention);
+            }
+          }
+
+          data.keyInsights[i] = {
+            ...insight,
+            rawMentions: relevantMentions,
+          };
+        }
+      }
+
+      console.log("Data processing completed successfully");
+      return data;
+    } catch (error) {
+      console.error("Error in processAndDeduplicateData:", error);
+      // Return the original data if processing fails
+      return data;
+    }
   };
 
   // State for processed data
@@ -1110,6 +1156,22 @@ export default function ReportPageContent({
     const processData = async () => {
       setIsProcessing(true);
       try {
+        console.log("Raw reportData:", reportData);
+        console.log("Analysis data:", reportData.analysis);
+        console.log("Analysis keys:", reportData.analysis ? Object.keys(reportData.analysis) : []);
+        console.log("Analysis content summary:", reportData.analysis ? {
+          keyInsights: reportData.analysis.keyInsights?.length || 0,
+          trendingTopics: reportData.analysis.trendingTopics?.length || 0,
+          marketGaps: reportData.analysis.marketGaps?.length || 0,
+          mentionsByTopic: reportData.analysis.mentionsByTopic?.length || 0,
+          reviews: reportData.analysis.reviews?.length || 0,
+          executiveSummary: !!reportData.analysis.executiveSummary,
+          // Show first few items for debugging
+          firstKeyInsight: reportData.analysis.keyInsights?.[0]?.insight?.substring(0, 100),
+          firstTopic: reportData.analysis.mentionsByTopic?.[0]?.topic,
+          firstMarketGap: reportData.analysis.marketGaps?.[0]?.gap?.substring(0, 100)
+        } : null);
+        
         const data = {
           ...reportData,
           // If analysis is nested, spread it out
@@ -1139,11 +1201,45 @@ export default function ReportPageContent({
           vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
         };
 
+        console.log("Processed data structure:", data);
+        
+        // If we have analysis data but it's in a different format, try to convert it
+        if (reportData.analysis && typeof reportData.analysis === 'object') {
+          // Check if analysis has the expected structure
+          if (reportData.analysis.reviews && Array.isArray(reportData.analysis.reviews)) {
+            console.log("Found reviews in analysis:", reportData.analysis.reviews.length);
+            
+            // Generate insights from the reviews if they exist
+            if (!data.keyInsights && reportData.analysis.reviews.length > 0) {
+              data.keyInsights = generateInsightsFromReviews(reportData.analysis.reviews);
+            }
+            
+            // Generate trending topics if they don't exist
+            if (!data.trendingTopics && reportData.analysis.reviews.length > 0) {
+              data.trendingTopics = generateTrendingTopicsFromReviews(reportData.analysis.reviews);
+            }
+            
+            // Generate market gaps if they don't exist
+            if (!data.marketGaps && reportData.analysis.reviews.length > 0) {
+              data.marketGaps = generateMarketGapsFromReviews(reportData.analysis.reviews);
+            }
+          }
+        }
+
         const processed = await processAndDeduplicateData(data);
-        setProcessedData(processed);
+        console.log("Final processed data:", processed);
+        
+        // Ensure we always have data, even if processing fails
+        if (processed && Object.keys(processed).length > 0) {
+          setProcessedData(processed);
+        } else {
+          console.warn("Processing returned empty data, using original data");
+          setProcessedData(data);
+        }
       } catch (error) {
         console.error('Error processing data:', error);
-        setProcessedData(null);
+        // Use original data as fallback
+        setProcessedData(reportData);
       } finally {
         setIsProcessing(false);
       }
@@ -1153,48 +1249,57 @@ export default function ReportPageContent({
   }, [reportData]);
 
   console.log("Processed data:", processedData);
-  console.log("Mentions by topic:", processedData?.mentionsByTopic);
+    console.log("Mentions by topic:", processedData?.mentionsByTopic);
   console.log("Positive topics:", processedData?.mentionsByTopic?.filter((topic: any) => topic.positive > topic.negative));
 
+  // Show loader until report is fully ready
   if (isProcessing) {
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">Processing with AI</h2>
-          <p className="text-gray-400">Classifying topics with OpenAI...</p>
+        <div className="text-center max-w-sm mx-auto px-6">
+          <MinimalLoadingState reportId={reportId} />
+          <div className="mt-4 text-gray-400 text-sm opacity-80">
+            Generating your report. This may take a few minutes. Please keep this page open.
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!processedData) {
+  // Helper to check if all major sections are empty
+  const allSectionsEmpty = !processedData?.keyInsights?.length && !processedData?.mentionsByTopic?.length && !processedData?.trendingTopics?.length && !processedData?.marketGaps?.length;
+
+  // Handler to retry/regenerate the report
+  const handleRetry = async () => {
+    try {
+      await fetch(`/api/report/${reportId}/regenerate`, { method: 'POST' });
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to trigger regeneration. Please try again.');
+    }
+  };
+
+  // If all sections are empty, show a global error/CTA
+  if (allSectionsEmpty) {
     return (
       <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-4">No report data</h2>
-          <p className="text-gray-400">Report data is missing.</p>
+        <div className="text-center max-w-sm mx-auto px-6">
+          <h2 className="text-2xl font-semibold mb-4">No analysis data available</h2>
+          <p className="text-gray-400 mb-4">Something went wrong and no insights could be generated for this report.</p>
+          <button onClick={handleRetry} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition">Retry Analysis</button>
         </div>
       </div>
     );
   }
 
-  const handleTopicClick = async (
+  const handleTopicClick = (
     topicName: string,
     rawMentions?: string[],
     topicData?: any,
   ) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Filter mentions by topic relevance and analyze sentiment properly
-      const relevantMentions = [];
-      for (const mention of rawMentions) {
-        if (await isTopicRelevant(mention, topicName)) {
-          relevantMentions.push(mention);
-        }
-      }
-
-      // Create reviews with proper sentiment analysis
-      const reviews = relevantMentions.map((text: string) => {
+      // Use all mentions directly without async filtering for performance
+      const reviews = rawMentions.map((text: string) => {
         const sentiment = analyzeSentiment(text);
         return {
           text,
@@ -1564,6 +1669,96 @@ export default function ReportPageContent({
     } else {
       setVisibleTopics(nextBatch);
     }
+  };
+
+  const generateInsightsFromReviews = (reviews: any[]): any[] => {
+    if (!reviews || reviews.length === 0) return [];
+    
+    const insights = [];
+    const sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
+    
+    // Count sentiments
+    reviews.forEach(review => {
+      const sentiment = review.sentiment_label || analyzeSentiment(review.review_text || '');
+      if (sentiment in sentimentCounts) {
+        sentimentCounts[sentiment as keyof typeof sentimentCounts]++;
+      }
+    });
+    
+    // Only generate insights if we have actual data
+    if (sentimentCounts.positive > 0 || sentimentCounts.negative > 0) {
+      if (sentimentCounts.positive > sentimentCounts.negative) {
+        insights.push({
+          insight: "Overall positive sentiment detected",
+          direction: "up",
+          mentionCount: sentimentCounts.positive.toString(),
+          platforms: ["All sources"],
+          impact: "high",
+          rawMentions: reviews.filter(r => r.sentiment_label === 'positive').map(r => r.review_text)
+        });
+      }
+      
+      if (sentimentCounts.negative > 0) {
+        insights.push({
+          insight: "Negative feedback areas identified",
+          direction: "down",
+          mentionCount: sentimentCounts.negative.toString(),
+          platforms: ["All sources"],
+          impact: "medium",
+          rawMentions: reviews.filter(r => r.sentiment_label === 'negative').map(r => r.review_text)
+        });
+      }
+    }
+    
+    return insights;
+  };
+
+  const generateTrendingTopicsFromReviews = (reviews: any[]): any[] => {
+    if (!reviews || reviews.length === 0) return [];
+    
+    const topicCounts: { [key: string]: number } = {};
+    
+    // Count topics from reviews
+    reviews.forEach(review => {
+      if (review.topics && Array.isArray(review.topics)) {
+        review.topics.forEach((topic: string) => {
+          topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+        });
+      }
+    });
+    
+    // Only return topics that have actual mentions
+    return Object.entries(topicCounts)
+      .filter(([, count]) => count > 0) // Only include topics with mentions
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([topic, count]) => ({
+        topic,
+        growth: count > 0 ? "increasing" : "stable",
+        sentiment: "mixed",
+        volume: count.toString(),
+        totalCount: count
+      }));
+  };
+
+  const generateMarketGapsFromReviews = (reviews: any[]): any[] => {
+    if (!reviews || reviews.length === 0) return [];
+    
+    const negativeReviews = reviews.filter(r => r.sentiment_label === 'negative');
+    const gaps = [];
+    
+    // Only create gaps if there are actual negative reviews
+    if (negativeReviews.length > 0) {
+      gaps.push({
+        gap: "Customer service improvements needed",
+        mentions: negativeReviews.length,
+        suggestion: "Implement better customer support processes",
+        kpiImpact: "Improve customer satisfaction scores",
+        rawMentions: negativeReviews.map(r => r.review_text)
+      });
+    }
+    
+    return gaps;
   };
 
   return (

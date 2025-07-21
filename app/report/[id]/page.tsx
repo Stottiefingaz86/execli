@@ -9,6 +9,7 @@ import ReportProgressStepper from '../../../components/ReportProgressStepper'; /
 import SourceCard from '../../../components/SourceCard'; // Added import
 import Navigation from '@/components/Navigation';
 import { RefreshCw } from 'lucide-react';
+import MinimalLoadingState from '@/components/MinimalLoadingState';
 
 // Force dynamic rendering to prevent build-time errors
 export const dynamic = 'force-dynamic'
@@ -135,12 +136,14 @@ export default function ReportPage() {
         const response = await fetch(`/api/report-status?report_id=${reportId}`)
         const data = await response.json()
 
+        console.log('Polling response:', data)
+
         // Update progress message from API
         if (data.progress_message) {
           setProgressMessage(data.progress_message)
         }
 
-        if (data.status === 'complete' && data.has_analysis) {
+        if (data.status === 'complete' && data.analysis_ready) {
           // Fetch the updated report data
           const { data: updatedReport, error } = await supabase()
             .from('voc_reports')
@@ -234,43 +237,15 @@ export default function ReportPage() {
     }
   };
 
-  if ((loading || polling) && !minProgressTimeElapsed) {
+  // Show loading state while fetching report data
+  if (loading && !reportData) {
     return (
-      <div className="min-h-screen bg-[#0f1117] text-white flex flex-col">
-        <Navigation hideLinks={true} />
-        {/* Glassmorphic Main Card */}
-        <main className="flex flex-1 items-center justify-center">
-          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/10 via-[#23263a]/10 to-[#3b82f6]/5 rounded-2xl pointer-events-none" />
-            <div className="relative z-10">
-              <h2 className="text-2xl font-semibold mb-6 text-center">Creating your Voice of Customer report...</h2>
-              <div className="flex flex-col items-start gap-4">
-                {workflowSteps.map((step, idx) => (
-                  <div key={step.label} className={`flex items-center gap-3 text-left w-full transition-all duration-300 ${idx < currentStep ? 'opacity-80' : idx === currentStep ? 'font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5] animate-shine' : 'opacity-40'}`}>
-                    {idx < currentStep ? (
-                      <span className="inline-block w-5 h-5 bg-gradient-to-br from-[#8b5cf6] to-[#a78bfa] rounded-full flex items-center justify-center text-xs shadow-[0_0_8px_2px_#8b5cf6]">✓</span>
-                    ) : idx === currentStep ? (
-                      <span className="inline-block w-5 h-5 animate-pulse">
-                        <span className="block w-5 h-5 rounded-full bg-gradient-to-br from-[#8b5cf6] via-[#a78bfa] to-[#86EFF5]" />
-                      </span>
-                    ) : (
-                      <span className="inline-block w-5 h-5 border-2 border-[#a78bfa] rounded-full"></span>
-                    )}
-                    <span>{step.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 text-center text-[#B0B0C0] text-base min-h-[32px]">
-                {workflowSteps[currentStep]?.commentary}
-              </div>
-              <div className="mt-2 text-xs text-[#B0B0C0] text-center">
-                {progressMessage}
-              </div>
-            </div>
-          </div>
-        </main>
+      <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
+        <div className="text-center max-w-sm mx-auto px-6">
+          <MinimalLoadingState reportId={Array.isArray(params.id) ? params.id[0] : params.id} />
+        </div>
       </div>
-    )
+    );
   }
 
   if (error) {

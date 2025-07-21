@@ -3159,8 +3159,139 @@ function calculateRealChanges(reviews: Review[]): {sentimentChange: string, volu
   };
 }
 
-// Helper: Use OpenAI to analyze reviews
-async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string): Promise<any> {
+// Add the VOC_ANALYSIS_PROMPT directly in this file
+const VOC_ANALYSIS_PROMPT = `
+You are an expert Voice of Customer (VOC) analyst. Analyze the provided reviews and generate a comprehensive VOC report in the exact JSON format specified below.
+
+REVIEW DATA:
+{reviews_data}
+
+BUSINESS CONTEXT:
+- Business Name: {business_name}
+- Industry: {industry}
+- Review Sources: {review_sources}
+
+ANALYSIS REQUIREMENTS:
+1. Analyze sentiment trends over time
+2. Extract key topics and themes
+3. Identify market gaps and opportunities
+4. Generate actionable insights
+5. Calculate advanced business metrics
+6. Create executive summary
+7. Suggest specific actions
+
+OUTPUT FORMAT - Return ONLY valid JSON in this exact structure:
+
+{
+  "company_id": "{company_id}",
+  "business_name": "{business_name}",
+  "business_url": "{business_url}",
+  "industry": "{industry}",
+  "reviews": [
+    {
+      "source": "{review_source_name}",
+      "external_review_id": "{unique_review_id}",
+      "reviewer_name": "{reviewer_name_or_anonymous}",
+      "rating": {1-5},
+      "review_text": "{full_review_text}",
+      "sentiment_score": {-1.0_to_1.0},
+      "sentiment_label": "{positive|negative|neutral}",
+      "topics": ["{topic1}", "{topic2}"],
+      "review_date": "{YYYY-MM-DD}"
+    }
+  ],
+  "analysis": {
+    "sentiment_timeline": [
+      {
+        "date": "{YYYY-MM-DD}",
+        "avg_sentiment": {-1.0_to_1.0},
+        "total_reviews": {number},
+        "positive_count": {number},
+        "neutral_count": {number},
+        "negative_count": {number}
+      }
+    ],
+    "topic_analysis": [
+      {
+        "topic": "{topic_name}",
+        "positive_count": {number},
+        "neutral_count": {number},
+        "negative_count": {number},
+        "total_mentions": {number},
+        "sentiment_score": {-1.0_to_1.0}
+      }
+    ],
+    "key_insights": [
+      {
+        "insight_text": "{clear_actionable_insight}",
+        "direction": "{up|down|stable}",
+        "mention_count": {number},
+        "platforms": ["{source1}", "{source2}"],
+        "impact": "{low|medium|high}",
+        "sample_reviews": [
+          {
+            "text": "{sample_review_text}",
+            "rating": {1-5},
+            "source": "{source_name}"
+          }
+        ]
+      }
+    ],
+    "market_gaps": [
+      {
+        "gap_description": "{specific_market_gap_or_opportunity}",
+        "mention_count": {number},
+        "suggestion": "{specific_action_to_address_gap}",
+        "priority": "{low|medium|high}"
+      }
+    ],
+    "advanced_metrics": {
+      "trust_score": {0-100},
+      "repeat_complaints": {number},
+      "avg_resolution_time_hours": {decimal_hours},
+      "voc_velocity_percentage": {percentage_change}
+    }
+  }
+}
+
+ANALYSIS GUIDELINES:
+
+SENTIMENT ANALYSIS:
+- Use VADER sentiment analysis for consistent scoring
+- Consider context, sarcasm, and business-specific language
+- Score range: -1.0 (very negative) to 1.0 (very positive)
+
+TOPIC EXTRACTION:
+- Identify recurring themes and pain points
+- Group similar complaints and praises
+- Focus on actionable insights
+
+MARKET GAPS:
+- Identify unmet customer needs
+- Spot opportunities for improvement
+- Consider competitive advantages
+
+KEY INSIGHTS:
+- Provide specific, actionable recommendations
+- Include data-backed evidence
+- Prioritize by business impact
+
+ADVANCED METRICS:
+- Calculate trust scores based on sentiment consistency
+- Track repeat complaint patterns
+- Measure VOC velocity (sentiment change over time)
+
+CRITICAL REQUIREMENTS:
+1. Analyze EVERY review provided - no exceptions
+2. Ensure all JSON fields are populated
+3. Provide specific, actionable insights
+4. Use real data from reviews for all metrics
+5. Focus on business value and customer experience
+6. Generate insights at a professional UX researcher level
+`;
+
+// 2. Refactor analyzeReviewsWithOpenAI to use VOC_ANALYSIS_PROMPT
+async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string, businessUrl?: string, industry?: string, companyId?: string, reviewSources?: string[]): Promise<any> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
     throw new Error('OPENAI_API_KEY is required');
@@ -3175,412 +3306,92 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string)
     };
   }
 
-  // For batching, use smaller limits to avoid token issues
-  const maxReviewLength = 500; // Further reduced to avoid token limits
-  const maxTotalReviews = 15; // Smaller batches for better analysis
-  const truncatedReviews = reviews.slice(0, maxTotalReviews).map(r => ({
-    ...r,
-    text: r.text.length > maxReviewLength ? r.text.substring(0, maxReviewLength) + '...' : r.text
-  }));
-  
-  const reviewTexts = truncatedReviews.map(r => r.text).join('\n\n');
-  const totalReviews = reviews.length;
-  const avgRating = reviews.filter(r => r.rating).reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.filter(r => r.rating).length || 0;
+  // Prepare review data for the prompt
+  const reviewsData = JSON.stringify(reviews.slice(0, 1000)); // Limit to 1000 for token safety
+  const prompt = VOC_ANALYSIS_PROMPT
+    .replace('{reviews_data}', reviewsData)
+    .replace('{business_name}', businessName)
+    .replace('{business_url}', businessUrl || '')
+    .replace('{industry}', industry || 'Unknown')
+    .replace('{company_id}', companyId || '')
+    .replace('{review_sources}', reviewSources ? reviewSources.join(', ') : 'Trustpilot');
 
-  // Debug: Log what we're sending to OpenAI
-  console.log(`Sending ${truncatedReviews.length} reviews to OpenAI for ${businessName} (batch analysis)`);
-  console.log(`Total review text length:`, reviewTexts.length);
-  console.log(`Average rating:`, avgRating);
+  // 3. Call OpenAI with the improved prompt
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a world-class Voice of Customer and UX research analyst. You MUST provide specific, actionable, and deeply insightful findings based on ALL reviews provided. Do not skip any review. Every insight must be backed by real review content, numbers, and trends. Always surface trending topics, market gaps, and actionable recommendations. Return ONLY valid JSON, no markdown.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 16384
+    })
+  });
 
-  // Extract real topics from reviews
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+
+  // 4. Extract JSON and run fallback logic for missing fields
+  let analysis;
+  try {
+    analysis = extractJsonFromOpenAI(content);
+  } catch (error) {
+    analysis = {};
+  }
+
+  // Fallback: fill missing fields using robust local logic
   const topics = extractTopicsFromReviews(reviews);
   const sentimentAnalysis = analyzeSentimentByTopic(reviews);
   const realInsights = generateRealInsights(reviews, businessName);
-
-  const prompt = `Analyze these specific customer reviews for ${businessName} and provide a focused Voice of Customer (VOC) analysis.
-
-REVIEWS TO ANALYZE (${totalReviews} total, analyzing ${truncatedReviews.length}):
-${reviewTexts}
-
-CONTEXT: ${totalReviews} reviews, avg rating ${avgRating.toFixed(1)}/5
-
-CRITICAL: You MUST analyze the actual review content above. DO NOT make up generic insights. Every insight must be based on specific quotes from the reviews provided.
-
-Provide a focused JSON response with these sections:
-
-1. keyInsights: array of 3-5 detailed insights with:
-   - insight: clear, actionable insight with specific data points and review examples
-   - direction: up/down/neutral with percentage change
-   - mentionCount: exact number of mentions
-   - platforms: array of platforms where mentioned
-   - impact: high/medium/low with business justification
-   - reviews: array of sample review texts
-   - rawMentions: array of ALL raw review texts mentioning this insight
-   - context: "What this insight means and why it matters"
-   - specificExamples: "3-5 specific review quotes that demonstrate this insight"
-
-2. mentionsByTopic: array of topics with detailed breakdown:
-   - topic: specific topic name
-   - positive: percentage positive with count and specific examples
-   - negative: percentage negative with count and specific examples
-   - total: total mentions
-   - rawMentions: array of ALL raw review texts mentioning this topic
-   - context: "KEY INSIGHT: [specific actionable insight about this topic with numbers and examples]"
-   - specificExamples: "3-5 specific review quotes about this topic"
-
-3. sentimentOverTime: array of daily sentiment data for last 7 days:
-   - date: YYYY-MM-DD format
-   - sentiment: sentiment score (0-100)
-   - reviewCount: number of reviews for that day
-   - specificExamples: "3-5 specific review quotes from this day"
-
-4. volumeOverTime: array of daily volume data for last 7 days:
-   - date: YYYY-MM-DD format
-   - volume: number of reviews
-   - platform: platform name
-   - specificExamples: "3-5 specific review quotes from peak days"
-
-5. suggestedActions: array of 3-5 detailed actions with:
-   - action: specific, actionable action item
-   - painPoint: specific pain point addressed with examples
-   - recommendation: detailed recommendation with implementation steps
-   - kpiImpact: specific impact on KPIs with metrics
-   - rawMentions: array of ALL raw review texts supporting this action
-   - specificExamples: "3-5 specific review quotes that support this action"
-
-Return ONLY valid JSON. NO additional text or explanations.`;
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a Voice of Customer analysis expert. You MUST provide specific, actionable insights with real examples from the reviews. NO generic statements. NO dummy data. NO neutral sentiment. Every insight must be backed by specific review quotes and numbers. Extract actual problems and opportunities from review content. If you cannot find specific insights, leave fields empty rather than making up generic content. NEVER use phrases like "trending due to increased mentions", "affects customer satisfaction", or "should be monitored closely". ALWAYS use specific numbers and review quotes. Return ONLY valid JSON, no markdown formatting.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 16384 // Reduced to stay within GPT-4o limits
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    
-    console.log('OpenAI response received, length:', content.length);
-    console.log('First 500 chars of response:', content.substring(0, 500));
-    
-    // Extract JSON from the response
-    let analysis;
-    try {
-      analysis = extractJsonFromOpenAI(content);
-      console.log('Successfully extracted JSON from OpenAI response');
-    } catch (error) {
-      console.error('Error extracting JSON from OpenAI response:', error);
-      console.error('Full OpenAI response:', content);
-      
-      // Create a comprehensive fallback analysis using real data
-      console.log('Creating comprehensive fallback analysis due to OpenAI error...');
-      
-      // Generate real data from reviews
-      const realChanges = calculateRealChanges(reviews);
-      const realTopics = extractTopicsFromReviews(reviews);
-      const realSentiment = analyzeSentimentByTopic(reviews);
-      const realInsights = generateRealInsights(reviews, businessName);
-      const realMentionsByTopic = generateMentionsByTopic(reviews);
-      console.log('Generated realMentionsByTopic in fallback:', realMentionsByTopic);
-      const realSentimentOverTime = generateDailySentimentData(reviews, 30);
-      const realVolumeOverTime = generateDailyVolumeData(reviews, 30);
-      const realAdvancedMetrics = generateAdvancedMetrics(reviews);
-      const realSuggestedActions = generateSuggestedActions(reviews, businessName);
-      const realExecutiveSummary = generateDetailedExecutiveSummary(reviews, businessName);
-      
-      // Find most praised and top complaint from real data
-      const mostPraised = realTopics.length > 0 ? realTopics[0] : 'No data available';
-      const topComplaint = realTopics.length > 1 ? realTopics[1] : 'No data available';
-      
-      const fallbackAnalysis = {
-        executiveSummary: {
-          sentimentChange: realChanges.sentimentChange,
-          volumeChange: realChanges.volumeChange,
-          mostPraised: mostPraised,
-          topComplaint: topComplaint,
-          praisedSections: realTopics.slice(0, 3).map(topic => ({
-            topic,
-            percentage: Math.floor(Math.random() * 30) + 20,
-            examples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-          })),
-          painPoints: realTopics.slice(3, 6).map(topic => ({
-            topic,
-            percentage: Math.floor(Math.random() * 30) + 20,
-            examples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-          })),
-          overview: realExecutiveSummary,
-          alerts: [],
-          context: `This analysis is based on ${reviews.length} reviews from multiple platforms. The data shows customer sentiment trends and key areas for improvement.`,
-          dataSource: `Analyzed ${reviews.length} reviews from ${reviews.map(r => r.source).filter((v, i, a) => a.indexOf(v) === i).join(', ')} over the last 30 days.`,
-          topHighlights: realTopics.slice(0, 5).map(topic => ({
-            title: `${topic} Performance`,
-            description: `${topic} is frequently mentioned in customer reviews with ${reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).length} mentions.`,
-            businessImpact: `Addressing ${topic} concerns could improve customer satisfaction by 15-20%.`
-          }))
-        },
-        keyInsights: realInsights.slice(0, 10).map(insight => ({
-          ...insight,
-          context: `This insight is based on ${insight.mentionCount || 0} customer mentions and reflects actual customer feedback patterns.`,
-          rootCause: `The trend is driven by customer experiences and feedback patterns observed in the reviews.`,
-          actionItems: `Focus on improving this aspect through better processes and customer communication.`,
-          businessImpact: `Addressing this could improve customer satisfaction and retention.`,
-          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(insight.insight.toLowerCase())).slice(0, 3).map(r => r.text)
-        })),
-        trendingTopics: realTopics.slice(0, 6).map(topic => ({
-          topic,
-          growth: `${Math.floor(Math.random() * 40) + 10}%`,
-          sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
-          volume: Math.floor(Math.random() * 20) + 5,
-          keyInsights: generateTopicKeyInsights(topic, reviews),
-          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
-          context: `${topic} is trending due to increased customer mentions and feedback.`,
-          mainIssue: `Customers are discussing ${topic} more frequently in their reviews.`,
-          businessImpact: `This trend affects customer satisfaction and should be monitored closely.`,
-          peakDay: `Peak mentions occurred on ${new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toLocaleDateString()}.`,
-          trendAnalysis: `${topic} mentions have increased over the past 30 days.`,
-          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-        })),
-        marketGaps: realTopics.slice(0, 3).map(topic => ({
-          gap: `Improve ${topic}`,
-          mentions: Math.floor(Math.random() * 15) + 5,
-          suggestion: `Address ${topic} concerns raised in customer feedback with specific improvements.`,
-          kpiImpact: 'High Impact',
-          rawMentions: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).map(r => r.text),
-          priority: 'high',
-          context: `Customers frequently mention ${topic} in their feedback, indicating an area for improvement.`,
-          opportunity: `Addressing ${topic} concerns could significantly improve customer satisfaction.`,
-          customerImpact: `This gap affects customer retention and satisfaction scores.`,
-          specificExamples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-        })) as any[],
-        advancedMetrics: {
-          ...realAdvancedMetrics,
-          context: `These metrics provide insights into customer trust, satisfaction, and engagement patterns.`,
-          trustScoreContext: `Trust score reflects customer confidence in the platform and services.`,
-          repeatComplaintsContext: `Repeat complaints indicate areas needing systematic improvement.`,
-          resolutionTimeContext: `Resolution time shows how quickly customer issues are addressed.`,
-          vocVelocityContext: `VOC velocity indicates customer engagement and feedback trends.`
-        },
-        suggestedActions: realSuggestedActions.map(action => ({
-          ...action,
-          context: `This action addresses specific customer pain points identified in the feedback.`,
-          expectedOutcome: `Implementing this should improve customer satisfaction and reduce complaints.`,
-          implementation: `Step 1: Analyze current processes. Step 2: Implement improvements. Step 3: Monitor results.`,
-          resources: `Requires team coordination and process updates.`,
-          specificExamples: action.rawMentions?.slice(0, 3) || []
-        })),
-        vocDigest: {
-          summary: realExecutiveSummary,
-          highlights: realTopics.slice(0, 5).map(topic => `${topic} is frequently mentioned`),
-          recommendations: realSuggestedActions.slice(0, 3).map(action => action.action),
-          trends: [`${realTopics[0]} trending up`, `${realTopics[1]} trending down`],
-          alerts: [],
-          context: `This VOC analysis provides actionable insights for business improvement.`,
-          focusAreas: realTopics.slice(0, 3),
-          successMetrics: `Measure improvement through customer satisfaction scores and complaint reduction.`
-        },
-        realTopics: realTopics,
-        realSentiment: realSentiment,
-        realInsights: realInsights
-      };
-    }
-    
-    // Add real data analysis
-    analysis.realTopics = topics;
-    analysis.realSentiment = sentimentAnalysis;
-    analysis.realInsights = realInsights;
-    
-    // Generate fallback data for missing sections
-    if (!analysis.sentimentOverTime || analysis.sentimentOverTime.length === 0) {
-      analysis.sentimentOverTime = generateDailySentimentData(reviews, 30);
-    }
-    
-    if (!analysis.volumeOverTime || analysis.volumeOverTime.length === 0) {
-      analysis.volumeOverTime = generateDailyVolumeData(reviews, 30);
-    }
-    
-    if (!analysis.mentionsByTopic || analysis.mentionsByTopic.length === 0) {
-      console.log('Generating mentionsByTopic from reviews...');
-      analysis.mentionsByTopic = generateMentionsByTopic(reviews, businessName);
-      console.log('Generated mentionsByTopic:', analysis.mentionsByTopic);
-    }
-    
-    if (!analysis.trendingTopics || analysis.trendingTopics.length === 0) {
-      console.log('Generating trendingTopics from reviews...');
-      analysis.trendingTopics = generateTrendingTopics(reviews);
-      console.log('Generated trendingTopics:', analysis.trendingTopics);
-    }
-    
-    if (!analysis.marketGaps || analysis.marketGaps.length === 0) {
-      console.log('Generating marketGaps from reviews...');
-      analysis.marketGaps = generateMarketGaps(reviews);
-      console.log('Generated marketGaps:', analysis.marketGaps);
-    }
-    
-    if (!analysis.advancedMetrics || Object.keys(analysis.advancedMetrics).length === 0) {
-      analysis.advancedMetrics = generateAdvancedMetrics(reviews);
-    }
-    
-    if (!analysis.suggestedActions || analysis.suggestedActions.length === 0) {
-      analysis.suggestedActions = generateSuggestedActions(reviews, businessName);
-    }
-    
-    // Ensure executive summary is detailed
-    if (!analysis.executiveSummary?.overview || analysis.executiveSummary.overview.length < 200) {
-      analysis.executiveSummary = analysis.executiveSummary || {};
-      analysis.executiveSummary.overview = generateDetailedExecutiveSummary(reviews, businessName);
-    }
-    
-    // Calculate real sentiment and volume changes
-    const realChanges = calculateRealChanges(reviews);
-    if (!analysis.executiveSummary) {
-      analysis.executiveSummary = {};
-    }
-    analysis.executiveSummary.sentimentChange = realChanges.sentimentChange;
-    analysis.executiveSummary.volumeChange = realChanges.volumeChange;
-    
-    console.log('Final analysis structure:', {
-      hasExecutiveSummary: !!analysis.executiveSummary,
-      hasKeyInsights: !!analysis.keyInsights,
-      hasTrendingTopics: !!analysis.trendingTopics,
-      hasSentimentOverTime: !!analysis.sentimentOverTime,
-      hasMentionsByTopic: !!analysis.mentionsByTopic,
-      hasVolumeOverTime: !!analysis.volumeOverTime,
-      hasMarketGaps: !!analysis.marketGaps,
-      hasAdvancedMetrics: !!analysis.advancedMetrics,
-      hasVocDigest: !!analysis.vocDigest,
-      hasSuggestedActions: !!analysis.suggestedActions
-    });
-    
-    return analysis;
-  } catch (error) {
-    console.error('Error analyzing reviews with OpenAI:', error);
-    
-    // Create a comprehensive fallback analysis using real data
-    console.log('Creating comprehensive fallback analysis due to OpenAI error...');
-    
-    // Generate real data from reviews
-    const realChanges = calculateRealChanges(reviews);
-    const realTopics = extractTopicsFromReviews(reviews);
-    const realSentiment = analyzeSentimentByTopic(reviews);
-    const realInsights = generateRealInsights(reviews, businessName);
-    const realMentionsByTopic = generateMentionsByTopic(reviews, businessName);
-    const realTrendingTopics = generateTrendingTopics(reviews);
-    const realMarketGaps = generateMarketGaps(reviews);
-    const realSentimentOverTime = generateDailySentimentData(reviews, 30);
-    const realVolumeOverTime = generateDailyVolumeData(reviews, 30);
-    const realAdvancedMetrics = generateAdvancedMetrics(reviews);
-    const realSuggestedActions = generateSuggestedActions(reviews, businessName);
-    const realExecutiveSummary = generateDetailedExecutiveSummary(reviews, businessName);
-    
-    // Find most praised and top complaint from real data
-    const mostPraised = realTopics.length > 0 ? realTopics[0] : 'No data available';
-    const topComplaint = realTopics.length > 1 ? realTopics[1] : 'No data available';
-    
-    const fallbackAnalysis = {
-      executiveSummary: {
-        sentimentChange: realChanges.sentimentChange,
-        volumeChange: realChanges.volumeChange,
-        mostPraised: mostPraised,
-        topComplaint: topComplaint,
-        praisedSections: realTopics.slice(0, 3).map(topic => ({
-          topic,
-          percentage: Math.floor(Math.random() * 30) + 20,
-          examples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-        })),
-        painPoints: realTopics.slice(3, 6).map(topic => ({
-          topic,
-          percentage: Math.floor(Math.random() * 30) + 20,
-          examples: reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).slice(0, 3).map(r => r.text)
-        })),
-        overview: realExecutiveSummary,
-        alerts: [],
-        context: `This analysis is based on ${reviews.length} reviews from multiple platforms. The data shows customer sentiment trends and key areas for improvement.`,
-        dataSource: `Analyzed ${reviews.length} reviews from ${reviews.map(r => r.source).filter((v, i, a) => a.indexOf(v) === i).join(', ')} over the last 30 days.`,
-        topHighlights: realTopics.slice(0, 5).map(topic => ({
-          title: `${topic} Performance`,
-          description: `${topic} is frequently mentioned in customer reviews with ${reviews.filter(r => r.text.toLowerCase().includes(topic.toLowerCase())).length} mentions.`,
-          businessImpact: `Addressing ${topic} concerns could improve customer satisfaction by 15-20%.`
-        }))
-      },
-      keyInsights: realInsights.slice(0, 10).map(insight => ({
-        ...insight,
-        context: `This insight is based on ${insight.mentionCount || 0} customer mentions and reflects actual customer feedback patterns.`,
-        rootCause: `The trend is driven by customer experiences and feedback patterns observed in the reviews.`,
-        actionItems: `Focus on improving this aspect through better processes and customer communication.`,
-        businessImpact: `Addressing this could improve customer satisfaction and retention.`,
-        specificExamples: reviews.filter(r => r.text.toLowerCase().includes(insight.insight.toLowerCase())).slice(0, 3).map(r => r.text)
-      })),
-      trendingTopics: realTrendingTopics,
-      mentionsByTopic: realMentionsByTopic.map(topic => ({
-        topic: topic.topic,
-        positive: topic.positive,
-        negative: topic.negative,
-        total: topic.total,
-        rawMentions: topic.rawMentions,
-        context: generateTopicKeyInsight({ topic: topic.topic, ...topic }, reviews),
-        mainConcern: `The primary issue or positive aspect for ${topic.topic} with examples`,
-        priority: topic.negative > topic.positive ? 'high' : 'medium',
-        trendAnalysis: `How this topic's sentiment has changed over time`,
-        specificExamples: topic.rawMentions?.slice(0, 3) || [],
-        keyInsight: generateTopicKeyInsight({ topic: topic.topic, ...topic }, reviews)
-      })),
-      marketGaps: realMarketGaps,
-      advancedMetrics: {
-        ...realAdvancedMetrics,
-        context: `These metrics provide insights into customer trust, satisfaction, and engagement patterns.`,
-        trustScoreContext: `Trust score reflects customer confidence in the platform and services.`,
-        repeatComplaintsContext: `Repeat complaints indicate areas needing systematic improvement.`,
-        resolutionTimeContext: `Resolution time shows how quickly customer issues are addressed.`,
-        vocVelocityContext: `VOC velocity indicates customer engagement and feedback trends.`
-      },
-      suggestedActions: realSuggestedActions.map(action => ({
-        ...action,
-        context: `This action addresses specific customer pain points identified in the feedback.`,
-        expectedOutcome: `Implementing this should improve customer satisfaction and reduce complaints.`,
-        implementation: `Step 1: Analyze current processes. Step 2: Implement improvements. Step 3: Monitor results.`,
-        resources: `Requires team coordination and process updates.`,
-        specificExamples: action.rawMentions?.slice(0, 3) || []
-      })),
-      vocDigest: {
-        summary: realExecutiveSummary,
-        highlights: realTopics.slice(0, 5).map(topic => `${topic} is frequently mentioned`),
-        recommendations: realSuggestedActions.slice(0, 3).map(action => action.action),
-        trends: [`${realTopics[0]} trending up`, `${realTopics[1]} trending down`],
-        alerts: [],
-        context: `This VOC analysis provides actionable insights for business improvement.`,
-        focusAreas: realTopics.slice(0, 3),
-        successMetrics: `Measure improvement through customer satisfaction scores and complaint reduction.`
-      },
-      realTopics: realTopics,
-      realSentiment: realSentiment,
-      realInsights: realInsights
-    };
-    
-    return fallbackAnalysis;
+  if (!analysis.trendingTopics || analysis.trendingTopics.length === 0) {
+    analysis.trendingTopics = generateTrendingTopics(reviews);
   }
+  if (!analysis.mentionsByTopic || analysis.mentionsByTopic.length === 0) {
+    analysis.mentionsByTopic = generateMentionsByTopic(reviews, businessName);
+  }
+  if (!analysis.sentimentOverTime || analysis.sentimentOverTime.length === 0) {
+    analysis.sentimentOverTime = generateDailySentimentData(reviews, 30);
+  }
+  if (!analysis.volumeOverTime || analysis.volumeOverTime.length === 0) {
+    analysis.volumeOverTime = generateDailyVolumeData(reviews, 30);
+  }
+  if (!analysis.marketGaps || analysis.marketGaps.length === 0) {
+    analysis.marketGaps = generateMarketGaps(reviews);
+  }
+  if (!analysis.advancedMetrics || Object.keys(analysis.advancedMetrics).length === 0) {
+    analysis.advancedMetrics = generateAdvancedMetrics(reviews);
+  }
+  if (!analysis.suggestedActions || analysis.suggestedActions.length === 0) {
+    analysis.suggestedActions = generateSuggestedActions(reviews, businessName);
+  }
+  if (!analysis.keyInsights || analysis.keyInsights.length === 0) {
+    analysis.keyInsights = realInsights;
+  }
+  if (!analysis.executiveSummary || !analysis.executiveSummary.overview) {
+    analysis.executiveSummary = { overview: generateDetailedExecutiveSummary(reviews, businessName) };
+  }
+  analysis.realTopics = topics;
+  analysis.realSentiment = sentimentAnalysis;
+  analysis.realInsights = realInsights;
+
+  return analysis;
 }
 
 // Add this function after the existing generateTopicKeyInsight function
@@ -4041,109 +3852,40 @@ async function processReportInBackground(report_id: string, company_id: string, 
       })
       .eq('id', report_id);
 
-    // 3. Analyze reviews with AI
-    let analysis;
-    console.log(`Total reviews to analyze: ${allReviews.length}`);
-    console.log('Sample reviews:', allReviews.slice(0, 3).map(r => ({ text: r.text.substring(0, 100), rating: r.rating, source: r.source })));
-    
+    // 3. Analyze reviews if we have any
     if (allReviews.length > 0) {
       await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
+      console.log(`Starting analysis of ${allReviews.length} reviews`);
       
-      if (allReviews.length > 1000) {
-        console.log('Using batch processing for large review set...');
-        await updateProgress(`Processing ${allReviews.length} reviews in batches (this may take 3-5 minutes)...`);
-        analysis = await analyzeReviewsInBatches(allReviews, business_name);
-      } else {
-        console.log('Using single batch for smaller review set...');
-        await updateProgress(`Analyzing ${allReviews.length} reviews with AI...`);
-        analysis = await analyzeReviewsWithOpenAI(allReviews, business_name);
-      }
-      
-      console.log('Analysis completed successfully:', {
-        hasExecutiveSummary: !!analysis.executiveSummary,
-        hasKeyInsights: !!analysis.keyInsights,
-        hasTrendingTopics: !!analysis.trendingTopics,
-        hasSentimentOverTime: !!analysis.sentimentOverTime,
-        hasMentionsByTopic: !!analysis.mentionsByTopic,
-        hasVolumeOverTime: !!analysis.volumeOverTime,
-        hasMarketGaps: !!analysis.marketGaps,
-        hasAdvancedMetrics: !!analysis.advancedMetrics,
-        hasVocDigest: !!analysis.vocDigest,
-        hasSuggestedActions: !!analysis.suggestedActions,
-        analysisKeys: Object.keys(analysis),
-        analysisSize: JSON.stringify(analysis).length
-      });
-      
-      // Store the analysis data
       try {
-        console.log('Storing analysis in database...');
-        const { error: updateError } = await supabase
+        const analysis = await analyzeReviewsInBatches(allReviews, business_name);
+        console.log('Analysis completed successfully');
+        
+        // Store the analysis
+        const { error: analysisError } = await supabase
           .from('voc_reports')
           .update({ 
             analysis: analysis,
             status: 'complete',
-            progress_message: 'Report completed successfully',
-            processed_at: new Date().toISOString()
+            progress_message: `Report completed successfully with ${allReviews.length} reviews analyzed`
           })
           .eq('id', report_id);
         
-        if (updateError) {
-          console.error('Failed to store analysis in database:', updateError);
-          throw updateError;
-        }
-        
-        // Verify the analysis was stored correctly
-        console.log('Verifying analysis storage...');
-        const { data: verificationData, error: verificationError } = await supabase
-          .from('voc_reports')
-          .select('analysis, status, processed_at')
-          .eq('id', report_id)
-          .single();
-        
-        if (verificationError) {
-          console.error('Failed to verify analysis storage:', verificationError);
-          throw verificationError;
-        }
-        
-        if (!verificationData.analysis) {
-          console.error('Analysis not found in database after storage attempt');
-          throw new Error('Analysis not properly stored in database');
-        }
-        
-        console.log('Analysis completed and stored successfully:', {
-          hasAnalysis: !!verificationData.analysis,
-          status: verificationData.status,
-          processedAt: verificationData.processed_at,
-          analysisKeys: Object.keys(verificationData.analysis || {}),
-          analysisSize: JSON.stringify(verificationData.analysis).length
-        });
-        
-        // Additional verification: check if analysis has required fields
-        const requiredFields = ['executiveSummary', 'keyInsights', 'mentionsByTopic'];
-        const missingFields = requiredFields.filter(field => !verificationData.analysis[field]);
-        if (missingFields.length > 0) {
-          console.warn('Analysis missing required fields:', missingFields);
+        if (analysisError) {
+          console.error('Error storing analysis:', analysisError);
+          await updateProgress('Error storing analysis: ' + analysisError.message, 'error');
         } else {
-          console.log('Analysis contains all required fields');
+          console.log('Analysis stored successfully');
+          await updateProgress(`Report completed successfully with ${allReviews.length} reviews analyzed`);
         }
-        
-        // Small delay to ensure database write is committed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-      } catch (dbError) {
-        console.error('Database storage failed:', dbError);
-        throw dbError;
+      } catch (err) {
+        console.error('Error during analysis:', err);
+        await updateProgress('Error during analysis: ' + (err.message || err), 'error');
       }
     } else {
-      analysis = { summary: 'No reviews found to analyze.' };
-      await supabase
-        .from('voc_reports')
-        .update({ 
-          analysis: analysis,
-          status: 'complete',
-          progress_message: 'Report completed (no reviews found)'
-        })
-        .eq('id', report_id);
+      console.log('No reviews found for this business. No analysis will be generated.');
+      await updateProgress('No customer reviews found for this business.', 'complete');
+      // Do not generate or store any analysis object
     }
   } catch (err) {
     console.error('Error during AI analysis:', err);

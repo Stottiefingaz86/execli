@@ -7,6 +7,10 @@ import { CheckCircle, Mail, BarChart2, Users, Lock, Zap, FileText, TrendingUp, P
 import PlatformSelection from '../components/PlatformSelection'
 import ErrorPage from '../components/ErrorPage'
 
+import Aurora from '../components/Aurora'
+import MagicBento from '../components/MagicBento'
+import MinimalLoadingState from '../components/MinimalLoadingState'
+
 const VERSION = 'v0.1.0-deploy-20240714';
 
 const TRUST_LOGOS = [
@@ -184,12 +188,22 @@ function SampleReportPreview() {
           { label: 'Trust Score', graphic: 'trust', desc: 'A single score reflecting your brand’s reputation and reliability.' },
           { label: 'Quantitative Signals', graphic: 'quant', desc: 'Hard metrics like complaint rates and resolution times.' },
         ].map((s, i) => (
-          <div key={i} className="w-[260px] max-w-xs bg-[#1c1e26]/50 border border-white/10 rounded-3xl shadow-xl p-8 backdrop-blur-2xl flex flex-col items-center justify-center relative hover:scale-[1.06] hover:shadow-2xl transition-all duration-300 group" style={{margin:'16px 0'}}>
-            {/* Glassy overlays */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-            <div className="font-semibold text-lg mb-2 text-white relative z-10 text-center">{s.label}</div>
-            <div className="w-full h-20 flex items-center justify-center mb-2 relative z-10">
+          <MagicBento 
+            key={i}
+            textAutoHide={true}
+            enableStars={false}
+            enableSpotlight={true}
+            enableBorderGlow={true}
+            enableTilt={true}
+            enableMagnetism={true}
+            clickEffect={true}
+            spotlightRadius={300}
+            particleCount={12}
+            glowColor="132, 0, 255"
+            className="w-[260px] max-w-xs"
+          >
+            <div className="font-semibold text-lg mb-2 text-white text-center">{s.label}</div>
+            <div className="w-full h-20 flex items-center justify-center mb-2">
               {/* On-brand SVGs for each card */}
               {s.graphic === 'bar' && (
                 <svg width="80" height="40" viewBox="0 0 80 40" fill="none"><rect x="5" y="20" width="8" height="15" rx="2" fill="#3b82f6" /><rect x="20" y="10" width="8" height="25" rx="2" fill="#7c3aed" /><rect x="35" y="25" width="8" height="10" rx="2" fill="#0891b2" /><rect x="50" y="5" width="8" height="30" rx="2" fill="#9F6BFA" /><rect x="65" y="15" width="8" height="20" rx="2" fill="#2370FF" /></svg>
@@ -230,8 +244,8 @@ function SampleReportPreview() {
                 <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><rect x="10" y="30" width="8" height="8" rx="2" fill="#3b82f6" /><rect x="25" y="20" width="8" height="18" rx="2" fill="#7c3aed" /><rect x="40" y="10" width="8" height="28" rx="2" fill="#86EFF5" /><circle cx="54" cy="10" r="4" fill="#f59e42" /></svg>
               )}
             </div>
-            <div className="text-xs text-[#B0B0C0] text-center mt-1 relative z-10">{s.desc}</div>
-          </div>
+            <div className="text-xs text-[#B0B0C0] text-center mt-1">{s.desc}</div>
+          </MagicBento>
         ))}
       </div>
     </section>
@@ -497,13 +511,13 @@ export default function Home() {
   const [polling, setPolling] = useState(false);
   const [pollingError, setPollingError] = useState<string | null>(null);
   const [pollingEmail, setPollingEmail] = useState('');
+  const [reportId, setReportId] = useState<string>('');
   // Error state
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   // Platform detection state
   const [detectingPlatforms, setDetectingPlatforms] = useState(false);
-  const [loading, setLoading] = useState(false); // New loading state
-  const [loadingMessage, setLoadingMessage] = useState('Creating your report...'); // Loading message state
+
 
   useEffect(() => {
     setShowHighlight(true);
@@ -522,13 +536,13 @@ export default function Home() {
     setPolling(true);
     setPollingError(null);
     
-    // Show initial progress message
-    setLoadingMessage('Initializing your report...');
+
     
     while (true) { // No maximum attempts - let backend control completion
       try {
         const res = await fetch(`/api/report-status?report_id=${reportId}`);
         const data = await res.json();
+        console.log('Polling /api/report-status response:', data); // <-- Add this line
         
         // Add debugging logs
         console.log('Polling response:', {
@@ -540,19 +554,20 @@ export default function Home() {
           sourcesCount: data.sources_count
         });
         
-        // Update loading message based on progress
-        if (data.progress_message) {
-          setLoadingMessage(data.progress_message);
+
+        
+        // Handle completion - only redirect when report is truly complete and analysis is ready
+        if (data.status === 'complete' && data.report_url && data.analysis_ready) {
+          console.log('Report complete with analysis, redirecting to:', data.report_url);
+          // Redirect immediately to report page
+          window.location.href = data.report_url;
+          return;
         }
         
-        // Handle completion
-        if (data.status === 'complete' && data.report_url) {
-          console.log('Report complete, redirecting to:', data.report_url);
-          setLoadingMessage('Report ready! Redirecting...');
-          setTimeout(() => {
-            window.location.href = data.report_url;
-          }, 1000);
-          return;
+        // If report exists but no analysis yet, keep polling
+        if (data.status === 'processing' || (data.status === 'complete' && !data.has_analysis)) {
+          console.log('Report still processing, continuing to poll...');
+          // Continue polling, don't redirect yet
         }
         
         // Handle error
@@ -570,9 +585,7 @@ export default function Home() {
           const seconds = (attempts % 30) * 2;
           const timeElapsed = `${minutes}:${seconds.toString().padStart(2, '0')}`;
           
-          if (!data.progress_message || data.progress_message.includes('Processing')) {
-            setLoadingMessage(`Analyzing customer feedback with AI... (${timeElapsed} elapsed)`);
-          }
+
         }
         
       } catch (err) {
@@ -626,6 +639,17 @@ export default function Home() {
         {/* Main Content */}
         {!hasError && (
           <section className="relative z-10">
+            {/* Aurora Background */}
+            <div className="absolute inset-0 -z-10">
+              <Aurora 
+                colorStops={["#1e1b4b", "#312e81", "#1e293b"]}
+                amplitude={1.2}
+                blend={0.6}
+                speed={0.8}
+                className="w-full h-full"
+              />
+            </div>
+            
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
               <div className="flex flex-col lg:flex-row items-start justify-between gap-12">
                 {/* Left: Hero Content */}
@@ -664,26 +688,13 @@ export default function Home() {
               <div className="absolute -z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[340px] bg-gradient-radial bg-gradient-radial-from-purple bg-gradient-radial-to-transparent blur-3xl opacity-80 pointer-events-none animate-glow-pulse" />
               
               <div className="w-full max-w-full md:max-w-md md:w-[380px]">
-                <div className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl shadow-2xl p-8 mx-auto backdrop-blur-2xl relative overflow-hidden max-w-xl w-full">
-                  {/* Liquid effect overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
-                      <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
+                <div className="relative overflow-hidden rounded-3xl p-8 mx-auto max-w-xl w-full border border-white/10 shadow-2xl backdrop-blur-[8px] bg-white/5">
+                  {/* Subtle glassmorphic overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/3 via-transparent to-indigo-400/3 rounded-3xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/3 via-transparent to-[#8b5cf6]/3 rounded-3xl" />
+                  <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{boxShadow: '0 0 24px 0 rgba(139,92,246,0.1), 0 0 0 1px rgba(139,92,246,0.05)'}} />
                   
-                  {loading && (
-                    <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
-                      <div className="flex flex-col items-center gap-4">
-                        <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                        </svg>
-                        <span className="text-white text-lg font-semibold text-center">{loadingMessage}</span>
-                        <div className="text-sm text-gray-400 text-center max-w-xs">
-                          This can take 2-5 minutes for thorough analysis.<br />
-                          We're analyzing customer feedback across multiple platforms.
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {(polling || submitted) && <MinimalLoadingState noCard={true} reportId={reportId} />}
                   {!submitted ? (
                     <form className="flex flex-col gap-5 md:gap-6 relative z-10" onSubmit={async (e) => { 
                       e.preventDefault(); 
@@ -691,7 +702,7 @@ export default function Home() {
                       setPollingEmail(email);
                       setPolling(false);
                       setPollingError(null);
-                      setLoading(true); // Show loading spinner/overlay
+
                       try {
                         const response = await fetch('/api/scrape', {
                           method: 'POST',
@@ -707,7 +718,8 @@ export default function Home() {
                         });
                         const result = await response.json();
                         if (result.report_id) {
-                          // Start polling instead of immediate redirect
+                          setReportId(result.report_id);
+                          // Start polling for report completion
                           pollReportStatus(result.report_id);
                           return;
                         }
@@ -718,12 +730,10 @@ export default function Home() {
                         setErrorMessage(fullError || 'Unexpected error. Please try again.');
                         setHasError(true);
                         setSubmitted(false);
-                        setLoading(false);
                       } catch {
                         setErrorMessage('Error submitting form. Please try again.');
                         setHasError(true);
                         setSubmitted(false);
-                        setLoading(false);
                       }
                     }} onChange={e => {
                       const form = e.currentTarget as HTMLFormElement;
@@ -793,7 +803,7 @@ export default function Home() {
                       </div>
                       {/* Info Text */}
                       <div className="text-xs text-[#B0B0C0] bg-white/5 border border-white/10 rounded-md px-4 py-3 mt-1 mb-2">
-                        Sign up to unlock <span className="font-semibold text-white">live monitoring</span>, <span className="font-semibold text-white">more sources</span>, and <span className="font-semibold text-white">competitor tracking</span>.
+                        No Credit Card or account required.
                       </div>
                       {/* Submit Button */}
                       <div className="flex flex-col gap-2 mt-2">
@@ -808,44 +818,12 @@ export default function Home() {
                         </button>
                       </div>
                     </form>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center min-h-[200px] relative z-10">
-                          {detectingPlatforms ? (
-                            <>
-                              <div className="flex flex-col items-center gap-4">
-                                <svg className="animate-spin h-10 w-10 text-[#3b82f6]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                                </svg>
-                                <h2 className="text-2xl font-semibold mb-2 text-white">Detecting review platforms...</h2>
-                                <p className="text-lg text-[#B0B0C0]">We're searching for reviews across all platforms.</p>
-                              </div>
-                            </>
-                          ) : polling ? (
-                            <>
-                              <div className="flex flex-col items-center gap-4">
-                                <svg className="animate-spin h-10 w-10 text-[#3b82f6]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                                </svg>
-                                <h2 className="text-2xl font-semibold mb-2 text-white">We're analyzing your customer voice.</h2>
-                                <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{pollingEmail}</span> in under 1 minute.</p>
-                                <p className="text-sm text-[#B0B0C0]">This may take up to 60 seconds. Please keep this page open.</p>
-                              </div>
-                            </>
-                          ) : pollingError ? (
-                            <div className="flex flex-col items-center gap-4">
-                              <h2 className="text-2xl font-semibold mb-2 text-red-400">{pollingError}</h2>
-                              <button className="btn-primary" onClick={() => { setSubmitted(false); setPollingError(null); }}>Try Again</button>
-                            </div>
-                          ) : (
-                            <>
-                      <h2 className="text-2xl font-semibold mb-4 text-white">We're analyzing your customer voice.</h2>
-                              <p className="text-lg text-[#B0B0C0]">Your VOC report will be delivered to <span className="text-[#2370FF] font-semibold">{pollingEmail}</span> in under 1 minute.</p>
-                            </>
-                          )}
+                  ) : pollingError ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <h2 className="text-2xl font-semibold mb-2 text-red-400">{pollingError}</h2>
+                      <button className="btn-primary" onClick={() => { setSubmitted(false); setPollingError(null); }}>Try Again</button>
                     </div>
-                  )}
+                  ) : null}
                     </div>
                 </div>
               </div>
