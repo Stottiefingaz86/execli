@@ -2069,7 +2069,7 @@ function generateTrendingTopics(reviews: Review[]): Array<{topic: string, growth
   });
 
   console.log(`✅ Generated ${trendingTopics.length} REAL trending topics from actual review data`);
-  return trendingTopics.slice(0, 8); // Return top 8 topics
+  return trendingTopics; // Return ALL trending topics, not just top 8
 }
 
 // Helper function to generate market gaps
@@ -2212,11 +2212,10 @@ function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: nu
     };
   });
   
-  // Filter out gaps with no mentions and sort by priority
+  // Return ALL gaps, even with 0 mentions, so frontend can display them properly
   return gaps
-    .filter(gap => gap.mentions > 0)
     .sort((a, b) => b.mentions - a.mentions)
-    .slice(0, 5);
+    .slice(0, 10); // Return more gaps to ensure comprehensive coverage
 }
 
 function generateMentionsByTopic(reviews: Review[], businessName: string): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}> {
@@ -2376,7 +2375,7 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
       mainConcern: mainConcern,
       specificIssues: uniqueIssues
     };
-  }).filter(topic => topic.total > 0); // Only return topics with reviews
+  }); // Return ALL topics, even with 0 reviews, so frontend can display them properly
 }
 
 // Helper function to generate advanced metrics

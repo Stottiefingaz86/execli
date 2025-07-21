@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        'apikey': `${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'apikey': `${process.env.SUPABASE_SERVICE_ROLE_KEY}`
       },
       body: JSON.stringify({
         business_name,
