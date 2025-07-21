@@ -57,16 +57,20 @@ export async function GET(request: NextRequest) {
       typeof data.analysis === 'object' && 
       Object.keys(data.analysis).length > 0 &&
       (
-        // Check for actual analysis content
+        // Check for actual analysis content - support both old and new field names
         (data.analysis.keyInsights && data.analysis.keyInsights.length > 0) ||
         (data.analysis.trendingTopics && data.analysis.trendingTopics.length > 0) ||
         (data.analysis.marketGaps && data.analysis.marketGaps.length > 0) ||
+        (data.analysis.mentionsByTopic && data.analysis.mentionsByTopic.length > 0) ||
+        (data.analysis.executiveSummary && data.analysis.executiveSummary.overview) ||
         (data.analysis.reviews && data.analysis.reviews.length > 0) ||
         // Check for any meaningful analysis fields
         (data.analysis.sentiment_timeline && data.analysis.sentiment_timeline.length > 0) ||
         (data.analysis.topic_analysis && data.analysis.topic_analysis.length > 0) ||
         // Allow minimal test analysis for debugging
-        (data.analysis.test === true)
+        (data.analysis.test === true) ||
+        // If status is complete and we have any analysis data, consider it ready
+        (data.status === 'complete' && Object.keys(data.analysis).length > 0)
       )
     );
 

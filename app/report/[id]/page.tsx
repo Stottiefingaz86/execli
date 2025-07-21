@@ -226,7 +226,8 @@ export default function ReportPage() {
 
         console.log('Polling check - status:', data.status, 'analysis_ready:', data.analysis_ready, 'has_analysis:', data.has_analysis);
         
-        if (data.status === 'complete' && (data.analysis_ready || data.has_analysis)) {
+        // Check if report is complete - be more lenient with the conditions
+        if (data.status === 'complete' || (data.analysis_ready || data.has_analysis)) {
           console.log('Report is complete, fetching updated data...');
           // Fetch the updated report data
           const { data: updatedReport, error } = await supabase()
@@ -257,11 +258,38 @@ export default function ReportPage() {
             return
           } else {
             console.log('Error fetching updated report or no report found:', error);
+            // Fallback: try to fetch directly from database
+            console.log('Trying direct database fetch as fallback...');
+            const { data: directReport, error: directError } = await supabase()
+              .from('voc_reports')
+              .select('*')
+              .eq('id', reportId)
+              .maybeSingle();
+            
+            if (!directError && directReport && directReport.analysis && Object.keys(directReport.analysis).length > 0) {
+              console.log('Direct database fetch successful, displaying report');
+              const reportWithSources = {
+                ...directReport,
+                detected_sources: directReport.sources || [],
+                executiveSummary: directReport.analysis?.executiveSummary,
+                keyInsights: directReport.analysis?.keyInsights || [],
+                trendingTopics: directReport.analysis?.trendingTopics || [],
+                mentionsByTopic: directReport.analysis?.mentionsByTopic || [],
+                marketGaps: directReport.analysis?.marketGaps || [],
+                sentimentOverTime: directReport.analysis?.sentimentOverTime || [],
+                volumeOverTime: directReport.analysis?.volumeOverTime || [],
+                advancedMetrics: directReport.analysis?.advancedMetrics,
+                suggestedActions: directReport.analysis?.suggestedActions || []
+              };
+              setReportData(reportWithSources);
+              setPolling(false);
+              return;
+            }
           }
         } else if (data.status === 'error') {
           setError('Report generation failed. Please try again.')
           setPolling(false)
-        return
+          return
         }
 
         attempts++
