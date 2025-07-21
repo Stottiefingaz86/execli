@@ -80,6 +80,30 @@ export default function ReportPage() {
           console.log('Analysis data exists:', !!vocReport.analysis);
           console.log('Analysis data keys:', vocReport.analysis ? Object.keys(vocReport.analysis) : []);
           
+          // FORCE DISPLAY: If we have any analysis data, show it immediately
+          if (vocReport.analysis && Object.keys(vocReport.analysis).length > 0) {
+            console.log('🎯 FORCE DISPLAY: Analysis data found, displaying report immediately');
+            // Use the analysis data from voc_reports
+            const reportWithSources = {
+              ...vocReport,
+              detected_sources: vocReport.sources || [], // Map sources to detected_sources for compatibility
+              // Ensure analysis data is properly structured
+              executiveSummary: vocReport.analysis.executiveSummary,
+              keyInsights: vocReport.analysis.keyInsights || [],
+              trendingTopics: vocReport.analysis.trendingTopics || [],
+              mentionsByTopic: vocReport.analysis.mentionsByTopic || [],
+              marketGaps: vocReport.analysis.marketGaps || [],
+              sentimentOverTime: vocReport.analysis.sentimentOverTime || [],
+              volumeOverTime: vocReport.analysis.volumeOverTime || [],
+              advancedMetrics: vocReport.analysis.advancedMetrics,
+              suggestedActions: vocReport.analysis.suggestedActions || []
+            }
+            console.log('✅ FORCE DISPLAY: Setting report data with analysis');
+            setReportData(reportWithSources)
+            setLoading(false)
+            return
+          }
+          
           // Check if report has analysis data
           if (vocReport.analysis && Object.keys(vocReport.analysis).length > 0) {
             console.log('Analysis data found, displaying report');
@@ -115,23 +139,60 @@ export default function ReportPage() {
             startPolling()
             return
           }
-        } else {
-          // No report found in voc_reports table - start polling for it
-          console.log('No report found in voc_reports, starting polling...')
-          setProgressMessage('Initializing your report...')
-          setPolling(true)
-          startPolling()
-          return
+                  } else {
+            // No report found in voc_reports table - start polling for it
+            console.log('No report found in voc_reports, starting polling...')
+            setProgressMessage('Initializing your report...')
+            setPolling(true)
+            startPolling()
+            return
+          }
+        } catch (err: any) {
+          console.error('Error fetching report:', err)
+          setError(err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err)) || 'Failed to load report')
+        } finally {
+          setLoading(false)
         }
-      } catch (err: any) {
-        console.error('Error fetching report:', err)
-        setError(err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err)) || 'Failed to load report')
-      } finally {
-        setLoading(false)
       }
-    }
-    fetchData()
-  }, [reportId])
+      fetchData()
+    }, [reportId])
+
+    // EMERGENCY FALLBACK: If loading takes too long, try to show any data
+    useEffect(() => {
+      const emergencyTimeout = setTimeout(() => {
+        if (loading && !reportData) {
+          console.log('🚨 EMERGENCY FALLBACK: Loading taking too long, trying to fetch data directly');
+          // Try to fetch the report directly one more time
+          supabase()
+            .from('voc_reports')
+            .select('*')
+            .eq('id', reportId)
+            .maybeSingle()
+            .then(({ data, error }) => {
+              if (!error && data && data.analysis) {
+                console.log('🚨 EMERGENCY FALLBACK: Found data, forcing display');
+                const emergencyReport = {
+                  ...data,
+                  detected_sources: data.sources || [],
+                  executiveSummary: data.analysis.executiveSummary,
+                  keyInsights: data.analysis.keyInsights || [],
+                  trendingTopics: data.analysis.trendingTopics || [],
+                  mentionsByTopic: data.analysis.mentionsByTopic || [],
+                  marketGaps: data.analysis.marketGaps || [],
+                  sentimentOverTime: data.analysis.sentimentOverTime || [],
+                  volumeOverTime: data.analysis.volumeOverTime || [],
+                  advancedMetrics: data.analysis.advancedMetrics,
+                  suggestedActions: data.analysis.suggestedActions || []
+                }
+                setReportData(emergencyReport)
+                setLoading(false)
+              }
+            })
+        }
+      }, 10000) // 10 second emergency timeout
+
+      return () => clearTimeout(emergencyTimeout)
+    }, [loading, reportData, reportId])
 
   useEffect(() => {
     if (polling) {
