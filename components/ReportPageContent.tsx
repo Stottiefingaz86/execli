@@ -1238,16 +1238,12 @@ export default function ReportPageContent({
           }
         }
 
-        const processed = await processAndDeduplicateData(data);
-        console.log("Final processed data:", processed);
+        // TEMPORARY: Skip the reprocessing that's breaking the data
+        console.log("🔧 TEMPORARY: Skipping processAndDeduplicateData to preserve original data");
+        console.log("Final processed data:", data);
         
-        // Ensure we always have data, even if processing fails
-        if (processed && Object.keys(processed).length > 0) {
-          setProcessedData(processed);
-        } else {
-          console.warn("Processing returned empty data, using original data");
-          setProcessedData(data);
-        }
+        // Use the data directly without reprocessing
+        setProcessedData(data);
       } catch (error) {
         console.error('Error processing data:', error);
         // Use original data as fallback
@@ -1308,23 +1304,12 @@ export default function ReportPageContent({
     }
   };
 
-  // If all sections are empty, show a global error/CTA
+  // TEMPORARY: Always show the report, even if sections appear empty
   if (allSectionsEmpty) {
-    console.log("🚨 ALL SECTIONS EMPTY - SHOWING ERROR SCREEN");
+    console.log("🚨 ALL SECTIONS EMPTY - BUT SHOWING REPORT ANYWAY");
     console.log("Raw reportData:", reportData);
     console.log("Processed data keys:", Object.keys(processedData || {}));
-    
-    // TEMPORARY: Show the report anyway to debug
     console.log("🔧 TEMPORARY: Bypassing empty sections check to show report");
-    // return (
-    //   <div className="min-h-screen bg-[#0f1117] text-white flex items-center justify-center">
-    //     <div className="text-center max-w-sm mx-auto px-6">
-    //       <h2 className="text-2xl font-semibold mb-4">No analysis data available</h2>
-    //       <p className="text-gray-400 mb-4">Something went wrong and no insights could be generated for this report.</p>
-    //       <button onClick={handleRetry} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition">Retry Analysis</button>
-    //     </div>
-    //   </div>
-    // );
   }
 
   const handleTopicClick = (
