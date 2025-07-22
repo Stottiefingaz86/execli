@@ -1397,8 +1397,8 @@ export default function ReportPageContent({
                                           {percentage}% positive
                                         </span>
                                       </div>
-                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
-                                        {insight}
+                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors leading-relaxed">
+                                        <TruncatedText text={insight} maxLength={200} title={`${topic.topic} Insights`} />
                                       </div>
                                     </div>
                                   );
@@ -1434,8 +1434,8 @@ export default function ReportPageContent({
                                           {topic.positive} positive mentions
                                         </span>
                                       </div>
-                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
-                                        {insight}
+                                      <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors leading-relaxed">
+                                        <TruncatedText text={insight} maxLength={200} title={`${topic.topic} Insights`} />
                                       </div>
                                     </div>
                                   );
@@ -1454,8 +1454,8 @@ export default function ReportPageContent({
                                       0% positive
                                     </span>
                                   </div>
-                                  <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors">
-                                    No significant positive feedback found in the analyzed reviews.
+                                  <div className="text-sm text-green-200 group-hover:text-green-100 transition-colors leading-relaxed">
+                                    <TruncatedText text="No significant positive feedback found in the analyzed reviews." maxLength={200} title="No Positive Feedback" />
                                   </div>
                                 </div>
                               </div>
@@ -1538,8 +1538,8 @@ export default function ReportPageContent({
                                           {percentage}% negative
                                         </span>
                                       </div>
-                                      <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors">
-                                        {insight}
+                                      <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors leading-relaxed">
+                                        <TruncatedText text={insight} maxLength={200} title={`${topic.topic} Insights`} />
                                       </div>
                                     </div>
                                   );
@@ -1559,8 +1559,8 @@ export default function ReportPageContent({
                                     0% negative
                                   </span>
                                 </div>
-                                <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors">
-                                  No significant negative feedback found in the analyzed reviews.
+                                <div className="text-sm text-red-200 group-hover:text-red-100 transition-colors leading-relaxed">
+                                  <TruncatedText text="No significant negative feedback found in the analyzed reviews." maxLength={200} title="No Negative Feedback" />
                                 </div>
                               </div>
                             </div>
