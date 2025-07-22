@@ -263,198 +263,14 @@ export default function ReportPageContent({
   console.log("ReportPageContent received data:", reportData);
 
   // Enhanced sentiment analysis function
+  // REMOVED: Frontend sentiment analysis - Let AI handle it
+  // The backend AI analysis should determine sentiment, not frontend keyword matching
   const analyzeSentiment = (
     text: string,
   ): "positive" | "negative" | "neutral" => {
-    if (!text) return "neutral";
-
-    const lowerText = text.toLowerCase();
-
-    // Strong negative indicators
-    const negativeWords = [
-      "scam",
-      "fraud",
-      "fake",
-      "terrible",
-      "awful",
-      "horrible",
-      "worst",
-      "bad",
-      "poor",
-      "disappointed",
-      "hate",
-      "dislike",
-      "angry",
-      "furious",
-      "mad",
-      "upset",
-      "frustrated",
-      "annoyed",
-      "irritated",
-      "waste",
-      "useless",
-      "broken",
-      "defective",
-      "faulty",
-      "problem",
-      "issue",
-      "error",
-      "bug",
-      "slow",
-      "unreliable",
-      "untrustworthy",
-      "suspicious",
-      "doubtful",
-      "questionable",
-      "expensive",
-      "overpriced",
-      "costly",
-      "pricey",
-      "rip-off",
-      "overcharged",
-      "difficult",
-      "complicated",
-      "confusing",
-      "unclear",
-      "vague",
-      "misleading",
-      "rude",
-      "unhelpful",
-      "unresponsive",
-      "ignored",
-      "neglected",
-      "abandoned",
-      "dangerous",
-      "risky",
-      "unsafe",
-      "harmful",
-      "damaging",
-      "destructive",
-      "stay away",
-      "avoid",
-      "never",
-      "don't",
-      "won't",
-      "can't",
-      "impossible",
-      "fail",
-      "failed",
-      "failure",
-      "broken",
-      "crash",
-      "error",
-      "bug",
-      "glitch",
-    ];
-
-    // Strong positive indicators
-    const positiveWords = [
-      "great",
-      "excellent",
-      "amazing",
-      "wonderful",
-      "fantastic",
-      "outstanding",
-      "superb",
-      "perfect",
-      "love",
-      "like",
-      "enjoy",
-      "satisfied",
-      "happy",
-      "pleased",
-      "delighted",
-      "thrilled",
-      "good",
-      "nice",
-      "fine",
-      "okay",
-      "alright",
-      "decent",
-      "acceptable",
-      "satisfactory",
-      "fast",
-      "quick",
-      "efficient",
-      "effective",
-      "reliable",
-      "trustworthy",
-      "dependable",
-      "helpful",
-      "supportive",
-      "responsive",
-      "attentive",
-      "caring",
-      "professional",
-      "easy",
-      "simple",
-      "straightforward",
-      "clear",
-      "obvious",
-      "intuitive",
-      "affordable",
-      "cheap",
-      "inexpensive",
-      "reasonable",
-      "fair",
-      "worth",
-      "value",
-      "recommend",
-      "suggest",
-      "endorse",
-      "approve",
-      "support",
-      "back",
-      "stand by",
-      "success",
-      "successful",
-      "working",
-      "functioning",
-      "operational",
-      "active",
-    ];
-
-    // Count negative and positive words
-    let negativeCount = 0;
-    let positiveCount = 0;
-
-    negativeWords.forEach((word) => {
-      if (lowerText.includes(word)) {
-        negativeCount += (lowerText.match(new RegExp(word, "g")) || []).length;
-      }
-    });
-
-    positiveWords.forEach((word) => {
-      if (lowerText.includes(word)) {
-        positiveCount += (lowerText.match(new RegExp(word, "g")) || []).length;
-      }
-    });
-
-    // Additional negative patterns
-    const negativePatterns = [
-      /\b(no|not|never|don't|won't|can't|isn't|aren't|wasn't|weren't)\b/gi,
-      /\b(bad|poor|terrible|awful|horrible)\b/gi,
-      /\b(problem|issue|error|bug|fail|broken)\b/gi,
-      /\b(scam|fraud|fake|dishonest)\b/gi,
-      /\b(expensive|overpriced|rip-off)\b/gi,
-      /\b(slow|unreliable|untrustworthy)\b/gi,
-    ];
-
-    negativePatterns.forEach((pattern) => {
-      const matches = lowerText.match(pattern);
-      if (matches) {
-        negativeCount += matches.length;
-      }
-    });
-
-    // Determine sentiment based on word counts and context
-    if (negativeCount > positiveCount * 2) {
-      return "negative";
-    } else if (positiveCount > negativeCount * 2) {
-      return "positive";
-    } else {
-      return "neutral";
-    }
+    // Default to neutral - let backend AI analysis handle sentiment
+    console.log(`🤖 Using backend AI sentiment analysis for: "${text.substring(0, 100)}..."`);
+    return "neutral";
   };
 
   // AI-powered topic classification function
@@ -708,6 +524,55 @@ export default function ReportPageContent({
         "win",
         "spin",
         "deal",
+      ],
+      "casino": [
+        "casino",
+        "slot",
+        "poker",
+        "blackjack",
+        "roulette",
+        "craps",
+        "baccarat",
+        "keno",
+        "bingo",
+        "game",
+        "gaming",
+        "gambling",
+        "card",
+        "table",
+        "machine",
+        "jackpot",
+        "win",
+        "spin",
+        "deal",
+        "live casino",
+        "online casino",
+      ],
+      "sports": [
+        "sports",
+        "sport",
+        "football",
+        "basketball",
+        "baseball",
+        "soccer",
+        "tennis",
+        "golf",
+        "hockey",
+        "mma",
+        "boxing",
+        "racing",
+        "nfl",
+        "nba",
+        "mlb",
+        "nhl",
+        "ufc",
+        "betting",
+        "bet",
+        "wager",
+        "odds",
+        "parlay",
+        "spread",
+        "line",
       ],
       "withdrawals": [
         "withdraw",
@@ -988,101 +853,51 @@ export default function ReportPageContent({
         hasExecutiveSummary: !!data.executiveSummary
       });
 
-      // Process mentions by topic with proper filtering
+      // Process mentions by topic - USE BACKEND DATA, DON'T OVERRIDE
       if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
         console.log("Processing mentionsByTopic:", data.mentionsByTopic.length);
         
         for (let i = 0; i < data.mentionsByTopic.length; i++) {
           const topic = data.mentionsByTopic[i];
-          const allMentions = deduplicateComments(topic.rawMentions || []);
-
-          // Filter mentions by topic relevance
-          const relevantMentions = [];
-          for (const mention of allMentions) {
-            try {
-              if (await isTopicRelevant(mention, topic.topic)) {
-                relevantMentions.push(mention);
-              }
-            } catch (error) {
-              console.warn("Error checking topic relevance:", error);
-              // If relevance check fails, include the mention anyway
-              relevantMentions.push(mention);
-            }
-          }
-
-          // Separate positive and negative mentions
-          let positiveMentions = [];
-          let negativeMentions = [];
+          console.log(`📊 Topic ${topic.topic}: Backend data - Positive: ${topic.positive}, Negative: ${topic.negative}, Total: ${topic.total}`);
+          console.log(`📝 Topic ${topic.topic}: Raw mentions count: ${topic.rawMentions?.length || 0}`);
           
-          try {
-            positiveMentions = await filterCommentsByTopicAndSentiment(
-              relevantMentions,
-              topic.topic,
-              "positive",
-            );
-            negativeMentions = await filterCommentsByTopicAndSentiment(
-              relevantMentions,
-              topic.topic,
-              "negative",
-            );
-          } catch (error) {
-            console.warn("Error filtering comments by sentiment:", error);
-            // Fallback: use simple sentiment analysis
-            positiveMentions = relevantMentions.filter(m => analyzeSentiment(m) === "positive");
-            negativeMentions = relevantMentions.filter(m => analyzeSentiment(m) === "negative");
-          }
+          // Use backend data, just deduplicate raw mentions
+          const allMentions = deduplicateComments(topic.rawMentions || []);
+          console.log(`📝 Topic ${topic.topic}: ${allMentions.length} raw mentions after deduplication`);
 
-          // Recalculate counts based on actual sentiment analysis
-          const totalRelevant = relevantMentions.length;
-          const positiveCount = positiveMentions.length;
-          const negativeCount = negativeMentions.length;
-
+          // Keep backend sentiment analysis, don't recalculate
           data.mentionsByTopic[i] = {
             ...topic,
-            rawMentions: relevantMentions,
-            positive: positiveCount,
-            negative: negativeCount,
-            total: totalRelevant,
-            positiveMentions,
-            negativeMentions,
+            rawMentions: allMentions, // Include ALL mentions, not filtered
+            // Keep original backend positive/negative counts
+            positive: topic.positive || 0,
+            negative: topic.negative || 0,
+            total: topic.total || allMentions.length,
           };
+          
+          console.log(`✅ Topic ${topic.topic}: Final data - Positive: ${data.mentionsByTopic[i].positive}, Negative: ${data.mentionsByTopic[i].negative}, Total: ${data.mentionsByTopic[i].total}, Raw mentions: ${data.mentionsByTopic[i].rawMentions?.length || 0}`);
         }
       }
 
-      // Process executive summary with proper sentiment filtering
+      // Process executive summary - USE BACKEND DATA
       if (data.executiveSummary?.praisedSections) {
         console.log("Processing praisedSections:", data.executiveSummary.praisedSections.length);
         
         for (let i = 0; i < data.executiveSummary.praisedSections.length; i++) {
           const section = data.executiveSummary.praisedSections[i];
-          const allExamples = deduplicateComments(section.examples || []);
-          const positiveExamples = [];
+          console.log(`📊 Praised Section ${section.topic}: Backend examples: ${section.examples?.length || 0}`);
           
-          for (const example of allExamples) {
-            try {
-              if (analyzeSentiment(example) === "positive" && 
-                  await isTopicRelevant(example, section.topic)) {
-                positiveExamples.push(example);
-              }
-            } catch (error) {
-              console.warn("Error processing praised section example:", error);
-              // If processing fails, include positive examples anyway
-              if (analyzeSentiment(example) === "positive") {
-                positiveExamples.push(example);
-              }
-            }
-          }
+          // Use backend data, just deduplicate
+          const allExamples = deduplicateComments(section.examples || []);
+          console.log(`📝 Praised Section ${section.topic}: ${allExamples.length} examples after deduplication`);
 
           data.executiveSummary.praisedSections[i] = {
             ...section,
-            examples: positiveExamples,
-            percentage:
-              positiveExamples.length > 0
-                ? Math.round(
-                    (positiveExamples.length / allExamples.length) * 100,
-                  )
-                : 0,
+            examples: allExamples, // Include ALL examples, don't filter
           };
+          
+          console.log(`✅ Praised Section ${section.topic}: Final examples: ${data.executiveSummary.praisedSections[i].examples.length}`);
         }
       }
 
@@ -1238,8 +1053,8 @@ export default function ReportPageContent({
           }
         }
 
-        // TEMPORARY: Skip the reprocessing that's breaking the data
-        console.log("🔧 TEMPORARY: Skipping processAndDeduplicateData to preserve original data");
+        // Process data to ensure backend AI analysis is preserved
+        console.log("🔧 Processing data to preserve backend AI analysis");
         console.log("Final processed data:", data);
         console.log("🔍 DETAILED DATA INSPECTION:");
         console.log("mentionsByTopic sample:", data.mentionsByTopic?.[0]);
@@ -1247,8 +1062,9 @@ export default function ReportPageContent({
         console.log("executiveSummary:", data.executiveSummary);
         console.log("marketGaps sample:", data.marketGaps?.[0]);
         
-        // Use the data directly without reprocessing
-        setProcessedData(data);
+        // Process the data to ensure backend AI sentiment analysis is preserved
+        const processedData = await processAndDeduplicateData(data);
+        setProcessedData(processedData);
       } catch (error) {
         console.error('Error processing data:', error);
         // Use original data as fallback
@@ -1272,6 +1088,9 @@ export default function ReportPageContent({
     total: topic.total
   })));
   
+  // Helper to check if all major sections are empty
+  const allSectionsEmpty = !processedData?.keyInsights?.length && !processedData?.mentionsByTopic?.length && !processedData?.trendingTopics?.length && !processedData?.marketGaps?.length;
+
   // Add detailed debugging for empty sections
   console.log("=== DEBUGGING EMPTY SECTIONS ===");
   console.log("keyInsights length:", processedData?.keyInsights?.length);
@@ -1303,9 +1122,6 @@ export default function ReportPageContent({
     );
   }
 
-  // Helper to check if all major sections are empty
-  const allSectionsEmpty = !processedData?.keyInsights?.length && !processedData?.mentionsByTopic?.length && !processedData?.trendingTopics?.length && !processedData?.marketGaps?.length;
-
   // Handler to retry/regenerate the report
   const handleRetry = async () => {
     try {
@@ -1330,9 +1146,34 @@ export default function ReportPageContent({
     topicData?: any,
   ) => {
     if (rawMentions && rawMentions.length > 0) {
-      // Use all mentions directly without async filtering for performance
-      const reviews = rawMentions.map((text: string) => {
-        const sentiment = analyzeSentiment(text);
+      console.log(`🔍 Opening modal for topic: ${topicName}`);
+      console.log(`📊 Backend data - Positive: ${topicData?.positive}, Negative: ${topicData?.negative}, Total: ${topicData?.total}`);
+      console.log(`📝 Raw mentions count: ${rawMentions.length}`);
+      
+      // Use backend sentiment data to determine sentiment for each review
+      const totalReviews = rawMentions.length;
+      const positivePercentage = topicData?.positive || 0;
+      const negativePercentage = topicData?.negative || 0;
+      
+      // Calculate actual counts based on backend percentages
+      const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
+      const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
+      
+      console.log(`📊 Calculated counts - Positive: ${positiveCount}, Negative: ${negativeCount}, Total: ${totalReviews}`);
+      
+      // Create reviews with sentiment based on backend data
+      const reviews = rawMentions.map((text: string, index: number) => {
+        let sentiment = "neutral"; // Default to neutral
+        
+        // Distribute positive and negative reviews based on backend percentages
+        if (index < positiveCount) {
+          sentiment = "positive";
+        } else if (index < positiveCount + negativeCount) {
+          sentiment = "negative";
+        } else {
+          sentiment = "neutral";
+        }
+        
         return {
           text,
           sentiment,
@@ -1352,6 +1193,8 @@ export default function ReportPageContent({
         ...negativeReviews,
         ...neutralReviews,
       ];
+
+      console.log(`✅ Final organized reviews - Positive: ${positiveReviews.length}, Negative: ${negativeReviews.length}, Neutral: ${neutralReviews.length}, Total: ${organizedReviews.length}`);
 
       setSelectedTopic(topicName);
       setSelectedReviews(organizedReviews);

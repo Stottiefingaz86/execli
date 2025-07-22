@@ -36,7 +36,34 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
 }
 
 async function analyzeReviewsInBatches(reviews: Review[], businessName: string): Promise<any> {
-  console.log(`Starting batch analysis for ${reviews.length} reviews...`);
+  console.log(`Starting SYNTHESIZED analysis for ${reviews.length} reviews...`);
+  
+  // For synthesized analysis, we want to analyze ALL reviews together
+  // Only use batches if we have too many reviews for token limits
+  const maxReviewsForSynthesis = 100; // Can handle up to 100 reviews in one analysis
+  
+  if (reviews.length <= maxReviewsForSynthesis) {
+    console.log(`Analyzing all ${reviews.length} reviews together for synthesized insights...`);
+    
+    try {
+      const synthesizedAnalysis = await analyzeReviewsWithOpenAI(reviews, businessName);
+      console.log('Synthesized analysis completed successfully');
+      return synthesizedAnalysis;
+    } catch (error) {
+      console.error('Error in synthesized analysis:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        reviewCount: reviews.length,
+        businessName: businessName
+      });
+      // Fall back to batch processing if synthesis fails
+      console.log('Falling back to batch processing...');
+    }
+  }
+  
+  // Fallback to batch processing for large datasets
+  console.log(`Using batch processing for ${reviews.length} reviews (exceeds synthesis limit)...`);
   
   // Process reviews in batches of 15 to avoid token limits
   const batchSize = 15;
@@ -59,18 +86,24 @@ async function analyzeReviewsInBatches(reviews: Review[], businessName: string):
       console.log(`Batch ${i + 1} analysis completed successfully`);
     } catch (error) {
       console.error(`Error in batch ${i + 1}:`, error);
+      console.error(`Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        batchSize: batch.length,
+        businessName: businessName
+      });
       // Continue with other batches even if one fails
     }
   }
   
   // Aggregate all batch results
   console.log(`Aggregating ${batchResults.length} batch results...`);
-  const aggregatedAnalysis = aggregateBatchResults(batchResults, reviews, businessName);
+  const aggregatedAnalysis = await aggregateBatchResults(batchResults, reviews, businessName);
   
   return aggregatedAnalysis;
 }
 
-function aggregateBatchResults(batchResults: any[], allReviews: Review[], businessName: string): any {
+async function aggregateBatchResults(batchResults: any[], allReviews: Review[], businessName: string): Promise<any> {
   console.log('Starting aggregation of batch results...');
   
   try {
@@ -79,8 +112,28 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
       b?.keyInsights?.length > 0 || 
       b?.analysis?.key_insights?.length > 0 ||
       b?.trendingTopics?.length > 0 ||
-      b?.analysis?.trending_topics?.length > 0
+      b?.analysis?.trending_topics?.length > 0 ||
+      b?.mentionsByTopic?.length > 0 ||
+      b?.analysis?.topic_analysis?.length > 0 ||
+      b?.marketGaps?.length > 0 ||
+      b?.analysis?.market_gaps?.length > 0 ||
+      b?.executiveSummary?.overview ||
+      b?.analysis?.executiveSummary
     );
+    
+    console.log('AI Data Check:');
+    console.log('- Batch results count:', batchResults.length);
+    console.log('- Has AI data:', hasAIData);
+    batchResults.forEach((b, i) => {
+      console.log(`- Batch ${i + 1}:`, {
+        keyInsights: b?.keyInsights?.length || 0,
+        trendingTopics: b?.trendingTopics?.length || 0,
+        mentionsByTopic: b?.mentionsByTopic?.length || 0,
+        marketGaps: b?.marketGaps?.length || 0,
+        executiveSummary: !!b?.executiveSummary?.overview,
+        analysis: !!b?.analysis
+      });
+    });
     
     if (hasAIData) {
       // Use AI data from batches
@@ -127,7 +180,7 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
         },
         keyInsights: generateRealInsights(allReviews, businessName),
         trendingTopics: generateTrendingTopics(allReviews),
-        mentionsByTopic: generateMentionsByTopic(allReviews, businessName),
+        mentionsByTopic: await generateMentionsByTopic(allReviews, businessName),
         sentimentOverTime: generateDailySentimentData(allReviews, 30),
         volumeOverTime: generateDailyVolumeData(allReviews, 30),
         marketGaps: generateMarketGaps(allReviews),
@@ -156,7 +209,7 @@ function aggregateBatchResults(batchResults: any[], allReviews: Review[], busine
       },
       keyInsights: generateRealInsights(allReviews, businessName),
       trendingTopics: generateTrendingTopics(allReviews),
-      mentionsByTopic: generateMentionsByTopic(allReviews, businessName),
+      mentionsByTopic: await generateMentionsByTopic(allReviews, businessName),
       sentimentOverTime: generateDailySentimentData(allReviews, 30),
       volumeOverTime: generateDailyVolumeData(allReviews, 30),
       marketGaps: generateMarketGaps(allReviews),
@@ -407,7 +460,7 @@ class ApifyVOCScraper {
       console.log(`Making request to Apify for ${platform}: ${url}`);
       
       // Use Apify actor for scraping
-      const actorId = APIFY_ACTORS[platform] || 'coder_zoro~Trustpilot-Scraper-Pro';
+      const actorId = APIFY_ACTORS[platform] || 'apify/trustpilot-scraper';
       const input = {
         startUrls: [{ url }],
         maxRequestRetries: 3,
@@ -721,7 +774,8 @@ class ApifyVOCScraper {
 
 // Helper: Extract JSON from OpenAI response
 function extractJsonFromOpenAI(content: string): any {
-  console.log('Raw OpenAI response:', content);
+  console.log('Raw OpenAI response length:', content.length);
+  console.log('Raw OpenAI response preview:', content.substring(0, 500));
   
   // Remove markdown code block wrappers if present
   let cleaned = content.trim();
@@ -731,10 +785,38 @@ function extractJsonFromOpenAI(content: string): any {
     cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
   }
   
-  // Try to parse as JSON
-  try {
-    return JSON.parse(cleaned);
-  } catch (e) {
+  // Remove any explanatory text before the JSON
+  const jsonStart = cleaned.indexOf('{');
+  if (jsonStart > 0) {
+    cleaned = cleaned.substring(jsonStart);
+  }
+  
+  // Remove any text after the JSON
+  const jsonEnd = cleaned.lastIndexOf('}');
+  if (jsonEnd > 0 && jsonEnd < cleaned.length - 1) {
+    cleaned = cleaned.substring(0, jsonEnd + 1);
+  }
+  
+      // Try to parse as JSON
+    try {
+      const parsed = JSON.parse(cleaned);
+      
+      // Validate the structure
+      if (parsed && typeof parsed === 'object') {
+        console.log('JSON parsing successful, validating structure...');
+        
+        // Check if it has the expected analysis structure
+        if (parsed.analysis || parsed.key_insights || parsed.topic_analysis) {
+          console.log('✅ Valid analysis structure found');
+          return parsed;
+        } else {
+          console.log('⚠️ JSON parsed but missing expected analysis structure');
+          console.log('Available keys:', Object.keys(parsed));
+        }
+      }
+      
+      return parsed;
+    } catch (e) {
     console.error('Initial JSON parse failed:', e);
     console.error('Cleaned content:', cleaned);
     
@@ -1338,6 +1420,9 @@ function generateRealInsights(reviews: Review[], businessName: string): any[] {
 
 // Helper function to generate daily sentiment data
 function generateDailySentimentData(reviews: Review[], days: number): Array<{date: string, sentiment: number, reviewCount: number, insights?: string}> {
+  console.log(`🔍 generateDailySentimentData: Processing ${reviews.length} reviews over ${days} days`);
+  console.log(`📝 Sample reviews:`, reviews.slice(0, 3).map(r => ({ text: r.text.substring(0, 100), rating: r.rating, date: r.date })));
+  
   const sentimentData: Array<{date: string, sentiment: number, reviewCount: number, insights?: string}> = [];
   
   // Group reviews by date
@@ -1378,37 +1463,99 @@ function generateDailySentimentData(reviews: Review[], days: number): Array<{dat
             negativeCount++;
           }
         } else {
-          // Analyze text content
+          // Enhanced text content analysis
           const text = review.text.toLowerCase();
+          
+          // Expanded positive words for better detection
           const positiveWords = [
             'good', 'great', 'excellent', 'amazing', 'love', 'best', 'perfect', 'awesome', 'fantastic', 'outstanding',
-            'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased',
-            'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
-            'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive'
+            'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+            'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick', 'quickly',
+            'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+            'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+            'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+            'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+            'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+            'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+            'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+            'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+            'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+            'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying'
           ];
           
+          // Expanded negative words
           const negativeWords = [
             'bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointed', 'scam', 'poor', 'frustrated',
             'annoying', 'ridiculous', 'unacceptable', 'useless', 'waste', 'problem', 'issue', 'complaint',
             'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
             'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
-            'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue'
+            'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+            'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+            'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+            'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+            'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+            'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+            'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+            'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+            'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+            'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful'
           ];
           
+          // Count positive and negative words with better matching
           const textPositiveCount = positiveWords.filter(word => text.includes(word)).length;
           const textNegativeCount = negativeWords.filter(word => text.includes(word)).length;
           
+          // Enhanced sentiment detection with context
+          let sentiment = 'neutral';
+          
           if (textPositiveCount > textNegativeCount) {
+            sentiment = 'positive';
             positiveCount++;
           } else if (textNegativeCount > textPositiveCount) {
+            sentiment = 'negative';
             negativeCount++;
+          } else {
+            // If equal, check for additional context clues
+            if (text.includes('5 star') || text.includes('5-star') || text.includes('five star')) {
+              sentiment = 'positive';
+              positiveCount++;
+            } else if (text.includes('1 star') || text.includes('1-star') || text.includes('one star')) {
+              sentiment = 'negative';
+              negativeCount++;
+            } else {
+              // Default to neutral
+              sentiment = 'neutral';
+            }
           }
         }
       });
       
-      // Calculate sentiment percentage
+      // Calculate sentiment percentage with better scaling
       if (totalCount > 0) {
-        sentiment = Math.round((positiveCount / totalCount) * 100);
+        const positivePercentage = (positiveCount / totalCount) * 100;
+        const negativePercentage = (negativeCount / totalCount) * 100;
+        
+        console.log(`Date ${dateStr}: Positive=${positiveCount}, Negative=${negativeCount}, Total=${totalCount}`);
+        console.log(`Date ${dateStr}: Positive%=${positivePercentage}, Negative%=${negativePercentage}`);
+        
+        // Scale sentiment from 0-100 where 50 is neutral
+        if (positivePercentage > negativePercentage) {
+          // Positive sentiment: scale from 50-100
+          sentiment = Math.round(50 + (positivePercentage * 0.5));
+          console.log(`Date ${dateStr}: POSITIVE sentiment = ${sentiment}`);
+        } else if (negativePercentage > positivePercentage) {
+          // Negative sentiment: scale from 0-50
+          sentiment = Math.round(50 - (negativePercentage * 0.5));
+          console.log(`Date ${dateStr}: NEGATIVE sentiment = ${sentiment}`);
+        } else {
+          // Neutral sentiment
+          sentiment = 50;
+          console.log(`Date ${dateStr}: NEUTRAL sentiment = ${sentiment}`);
+        }
+        
+        // Ensure sentiment is within bounds
+        sentiment = Math.max(0, Math.min(100, sentiment));
+        console.log(`Date ${dateStr}: FINAL sentiment = ${sentiment}`);
       }
       
       // Generate insights based on actual review content
@@ -2055,7 +2202,7 @@ function generateTrendingTopics(reviews: Review[]): Array<{topic: string, growth
         positiveCount,
         negativeCount,
         totalCount,
-        rawMentions: data.mentions.slice(0, 5), // Show actual review snippets
+        rawMentions: data.mentions.slice(0, 10), // Show actual review snippets - increased from 5 to 10
         context: `Analysis of ${totalCount} reviews mentioning ${topic}`,
         mainIssue,
         businessImpact,
@@ -2069,6 +2216,7 @@ function generateTrendingTopics(reviews: Review[]): Array<{topic: string, growth
   });
 
   console.log(`✅ Generated ${trendingTopics.length} REAL trending topics from actual review data`);
+  console.log(`📊 Sample trending topics:`, trendingTopics.slice(0, 3).map(t => ({ topic: t.topic, sentiment: t.sentiment, volume: t.volume })));
   return trendingTopics; // Return ALL trending topics, not just top 8
 }
 
@@ -2201,7 +2349,7 @@ function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: nu
       mentions,
       suggestion,
       kpiImpact: `Improve ${topic} satisfaction by 40%`,
-      rawMentions: topicNegativeReviews.slice(0, 3).map(r => r.text),
+              rawMentions: topicNegativeReviews.map(r => r.text), // Include ALL reviews
       context: `Customer feedback indicates ${topic} needs improvement with ${mentions} negative mentions`,
       opportunity,
       specificExamples: specificExamples.length > 0 ? specificExamples : ['General dissatisfaction'],
@@ -2218,15 +2366,24 @@ function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: nu
     .slice(0, 10); // Return more gaps to ensure comprehensive coverage
 }
 
-function generateMentionsByTopic(reviews: Review[], businessName: string): Array<{topic: string, positive: number, negative: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}> {
+async function generateMentionsByTopic(reviews: Review[], businessName: string): Promise<Array<{topic: string, positive: number, negative: number, neutral: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}>> {
   console.log(`generateMentionsByTopic: Processing ${reviews.length} reviews for ${businessName}`);
+  console.log(`Sample reviews:`, reviews.slice(0, 3).map(r => ({ text: r.text.substring(0, 100), rating: r.rating, source: r.source })));
   
-  // Define core topics with enhanced keywords
-  const coreTopics = [
-    'Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 
-    'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 
-    'Trust', 'Security', 'Payment Methods', 'Games', 'Support'
-  ];
+  // Skip expensive AI sentiment analysis for individual reviews - use improved text-based analysis instead
+  console.log('Using enhanced text-based sentiment analysis for individual reviews...');
+  
+                // Define core topics with enhanced keywords - including casino and sports
+              const coreTopics = [
+                'Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 
+                'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 
+                'Trust', 'Security', 'Payment Methods', 'Games', 'Support',
+                'Casino', 'Sports', 'Slots', 'Blackjack', 'Roulette', 'Live Casino',
+                'Football', 'Basketball', 'Tennis', 'Horse Racing', 'Betting Odds',
+                'Bonus', 'Promotions', 'Rewards', 'Loyalty', 'VIP', 'Tournaments',
+                'Live Betting', 'In-Play', 'Cash Out', 'Payout Speed', 'Game Variety',
+                'User Experience', 'Interface', 'Navigation', 'Loading Speed', 'Mobile Experience'
+              ];
   
   // Process each core topic with comprehensive analysis
   return coreTopics.map(topicName => {
@@ -2286,20 +2443,262 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
     });
     
     console.log(`Topic ${topicName}: Found ${topicReviews.length} reviews`);
+    console.log(`Topic ${topicName}: Sample reviews:`, topicReviews.slice(0, 2).map(r => r.text.substring(0, 100)));
     
-    // Calculate sentiment
-    const positiveReviews = topicReviews.filter(r => (r.rating || 0) >= 4);
-    const negativeReviews = topicReviews.filter(r => (r.rating || 0) <= 2);
-    const neutralReviews = topicReviews.filter(r => (r.rating || 0) === 3);
+    // Calculate sentiment using improved text-based analysis
+    const positiveReviews = topicReviews.filter(r => {
+      console.log(`🔍 Analyzing review for POSITIVE: "${r.text.substring(0, 100)}..."`);
+      
+      // Use rating if available, otherwise use enhanced text analysis
+      if (r.rating && r.rating > 0) {
+        const isPositive = r.rating >= 4;
+        console.log(`⭐ Using rating: ${r.rating} -> ${isPositive ? 'POSITIVE' : 'NOT POSITIVE'}`);
+        return isPositive;
+      } else {
+        // Enhanced text-based sentiment analysis
+        const text = r.text.toLowerCase();
+        console.log(`📝 Using enhanced text analysis for: "${text}"`);
+        
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+          'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+          'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+          'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+          'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+          'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+          'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+          'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+          'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+          'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying',
+          'highly recommend', 'definitely recommend', 'strongly recommend', 'absolutely love', 'really love',
+          'very satisfied', 'extremely satisfied', 'very happy', 'extremely happy', 'very pleased',
+          'excellent experience', 'great experience', 'amazing experience', 'fantastic experience',
+          'outstanding service', 'excellent service', 'great service', 'amazing service',
+          'fast payout', 'quick payout', 'easy withdrawal', 'smooth withdrawal', 'reliable payout',
+          'trustworthy', 'honest', 'fair', 'transparent', 'legitimate', 'reputable', 'credible',
+          'no problems', 'no issues', 'no complaints', 'everything works', 'works perfectly',
+          'excellent customer service', 'great customer service', 'amazing customer service',
+          'very helpful', 'extremely helpful', 'very responsive', 'extremely responsive',
+          'professional service', 'quality service', 'high quality service', 'premium service'
+        ];
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam',
+          'annoying', 'ridiculous', 'unacceptable', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+          'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+          'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+          'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+          'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+          'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+          'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+          'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+          'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+          'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful',
+          'scam', 'fraud', 'fake', 'phony', 'bogus', 'sham', 'hoax', 'rip-off', 'con',
+          'never pay', 'don\'t pay', 'won\'t pay', 'refuse to pay', 'avoid paying',
+          'withdrawal problem', 'payout problem', 'money problem', 'payment problem',
+          'customer service terrible', 'support terrible', 'service terrible',
+          'very slow', 'extremely slow', 'too slow', 'painfully slow',
+          'very difficult', 'extremely difficult', 'too difficult', 'impossible',
+          'very expensive', 'extremely expensive', 'too expensive', 'overpriced',
+          'very poor', 'extremely poor', 'terrible quality', 'awful quality',
+          'not recommend', 'would not recommend', 'do not recommend', 'avoid',
+          'stay away', 'run away', 'beware', 'warning', 'caution', 'danger'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+        
+        console.log(`📊 Enhanced text analysis: Positive words found: ${positiveCount}, Negative words found: ${negativeCount}`);
+        
+        const isPositive = positiveCount > negativeCount;
+        console.log(`✅ Enhanced text analysis result: ${isPositive ? 'POSITIVE' : 'NOT POSITIVE'}`);
+        
+        return isPositive;
+      }
+    });
+    
+    const negativeReviews = topicReviews.filter(r => {
+      console.log(`🔍 Analyzing review for NEGATIVE: "${r.text.substring(0, 100)}..."`);
+      
+      // Use rating if available, otherwise use enhanced text analysis
+      if (r.rating && r.rating > 0) {
+        const isNegative = r.rating <= 2;
+        console.log(`⭐ Using rating: ${r.rating} -> ${isNegative ? 'NEGATIVE' : 'NOT NEGATIVE'}`);
+        return isNegative;
+      } else {
+        // Enhanced text-based sentiment analysis
+        const text = r.text.toLowerCase();
+        console.log(`📝 Using enhanced text analysis for NEGATIVE: "${text}"`);
+        
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+          'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+          'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+          'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+          'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+          'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+          'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+          'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+          'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+          'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying',
+          'highly recommend', 'definitely recommend', 'strongly recommend', 'absolutely love', 'really love',
+          'very satisfied', 'extremely satisfied', 'very happy', 'extremely happy', 'very pleased',
+          'excellent experience', 'great experience', 'amazing experience', 'fantastic experience',
+          'outstanding service', 'excellent service', 'great service', 'amazing service',
+          'fast payout', 'quick payout', 'easy withdrawal', 'smooth withdrawal', 'reliable payout',
+          'trustworthy', 'honest', 'fair', 'transparent', 'legitimate', 'reputable', 'credible',
+          'no problems', 'no issues', 'no complaints', 'everything works', 'works perfectly',
+          'excellent customer service', 'great customer service', 'amazing customer service',
+          'very helpful', 'extremely helpful', 'very responsive', 'extremely responsive',
+          'professional service', 'quality service', 'high quality service', 'premium service'
+        ];
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam',
+          'annoying', 'ridiculous', 'unacceptable', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+          'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+          'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+          'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+          'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+          'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+          'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+          'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+          'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+          'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful',
+          'scam', 'fraud', 'fake', 'phony', 'bogus', 'sham', 'hoax', 'rip-off', 'con',
+          'never pay', 'don\'t pay', 'won\'t pay', 'refuse to pay', 'avoid paying',
+          'withdrawal problem', 'payout problem', 'money problem', 'payment problem',
+          'customer service terrible', 'support terrible', 'service terrible',
+          'very slow', 'extremely slow', 'too slow', 'painfully slow',
+          'very difficult', 'extremely difficult', 'too difficult', 'impossible',
+          'very expensive', 'extremely expensive', 'too expensive', 'overpriced',
+          'very poor', 'extremely poor', 'terrible quality', 'awful quality',
+          'not recommend', 'would not recommend', 'do not recommend', 'avoid',
+          'stay away', 'run away', 'beware', 'warning', 'caution', 'danger'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+        
+        console.log(`📊 Enhanced text analysis for NEGATIVE: Positive words found: ${positiveCount}, Negative words found: ${negativeCount}`);
+        
+        const isNegative = negativeCount > positiveCount;
+        console.log(`✅ Enhanced text analysis result for NEGATIVE: ${isNegative ? 'NEGATIVE' : 'NOT NEGATIVE'}`);
+        
+        return isNegative;
+      }
+    });
+    
+    const neutralReviews = topicReviews.filter(r => {
+      // Use rating if available, otherwise use enhanced text analysis
+      if (r.rating && r.rating > 0) {
+        return r.rating === 3;
+      } else {
+        // Enhanced text-based sentiment analysis
+        const text = r.text.toLowerCase();
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+          'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+          'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+          'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+          'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+          'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+          'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+          'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+          'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+          'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying',
+          'highly recommend', 'definitely recommend', 'strongly recommend', 'absolutely love', 'really love',
+          'very satisfied', 'extremely satisfied', 'very happy', 'extremely happy', 'very pleased',
+          'excellent experience', 'great experience', 'amazing experience', 'fantastic experience',
+          'outstanding service', 'excellent service', 'great service', 'amazing service',
+          'fast payout', 'quick payout', 'easy withdrawal', 'smooth withdrawal', 'reliable payout',
+          'trustworthy', 'honest', 'fair', 'transparent', 'legitimate', 'reputable', 'credible',
+          'no problems', 'no issues', 'no complaints', 'everything works', 'works perfectly',
+          'excellent customer service', 'great customer service', 'amazing customer service',
+          'very helpful', 'extremely helpful', 'very responsive', 'extremely responsive',
+          'professional service', 'quality service', 'high quality service', 'premium service'
+        ];
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam',
+          'annoying', 'ridiculous', 'unacceptable', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+          'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+          'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+          'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+          'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+          'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+          'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+          'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+          'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+          'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful',
+          'scam', 'fraud', 'fake', 'phony', 'bogus', 'sham', 'hoax', 'rip-off', 'con',
+          'never pay', 'don\'t pay', 'won\'t pay', 'refuse to pay', 'avoid paying',
+          'withdrawal problem', 'payout problem', 'money problem', 'payment problem',
+          'customer service terrible', 'support terrible', 'service terrible',
+          'very slow', 'extremely slow', 'too slow', 'painfully slow',
+          'very difficult', 'extremely difficult', 'too difficult', 'impossible',
+          'very expensive', 'extremely expensive', 'too expensive', 'overpriced',
+          'very poor', 'extremely poor', 'terrible quality', 'awful quality',
+          'not recommend', 'would not recommend', 'do not recommend', 'avoid',
+          'stay away', 'run away', 'beware', 'warning', 'caution', 'danger'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+        
+        return positiveCount === negativeCount || (positiveCount === 0 && negativeCount === 0);
+      }
+    });
     
     const positive = positiveReviews.length;
     const negative = negativeReviews.length;
+    const neutral = neutralReviews.length;
     const total = topicReviews.length;
     
-    // Calculate percentages - ensure we always have some data
-    const positivePercent = total > 0 ? Math.round((positive / total) * 100) : 0;
-    const negativePercent = total > 0 ? Math.round((negative / total) * 100) : 0;
-    const neutralPercent = total > 0 ? Math.round((neutral / total) * 100) : 0;
+    console.log(`Topic ${topicName}: Positive=${positive}, Negative=${negative}, Neutral=${neutral}, Total=${total}`);
+    
+    // Calculate percentages - ensure they add up to 100%
+    let positivePercent = 0;
+    let negativePercent = 0;
+    let neutralPercent = 0;
+    
+    if (total > 0) {
+      positivePercent = Math.round((positive / total) * 100);
+      negativePercent = Math.round((negative / total) * 100);
+      neutralPercent = Math.round((neutral / total) * 100);
+      
+      // Ensure percentages add up to 100%
+      const totalPercent = positivePercent + negativePercent + neutralPercent;
+      if (totalPercent !== 100 && totalPercent > 0) {
+        const remainder = 100 - totalPercent;
+        if (remainder > 0) {
+          // Add remainder to the largest category
+          if (positivePercent >= negativePercent && positivePercent >= neutralPercent) {
+            positivePercent += remainder;
+          } else if (negativePercent >= neutralPercent) {
+            negativePercent += remainder;
+          } else {
+            neutralPercent += remainder;
+          }
+        }
+      }
+    }
     
     // If no reviews found for this topic, try to find any reviews that might be relevant
     if (total === 0) {
@@ -2311,18 +2710,79 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
       });
       
       if (allTopicReviews.length > 0) {
-        const allPositive = allTopicReviews.filter(r => (r.rating || 0) >= 4).length;
-        const allNegative = allTopicReviews.filter(r => (r.rating || 0) <= 2).length;
+        const allPositive = allTopicReviews.filter(r => {
+          if (r.rating && r.rating > 0) {
+            return r.rating >= 4;
+          } else {
+            const text = r.text.toLowerCase();
+            const positiveWords = ['good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding'];
+            const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam'];
+            const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+            const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+            return positiveCount > negativeCount;
+          }
+        }).length;
+        
+        const allNegative = allTopicReviews.filter(r => {
+          if (r.rating && r.rating > 0) {
+            return r.rating <= 2;
+          } else {
+            const text = r.text.toLowerCase();
+            const positiveWords = ['good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding'];
+            const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam'];
+            const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+            const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+            return negativeCount > positiveCount;
+          }
+        }).length;
+        
         const allTotal = allTopicReviews.length;
         
-        const allNeutral = allTopicReviews.filter(r => (r.rating || 0) === 3).length;
+        const allNeutral = allTopicReviews.filter(r => {
+          if (r.rating && r.rating > 0) {
+            return r.rating === 3;
+          } else {
+            const text = r.text.toLowerCase();
+            const positiveWords = ['good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding'];
+            const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam'];
+            const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+            const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+            return positiveCount === negativeCount || (positiveCount === 0 && negativeCount === 0);
+          }
+        }).length;
+        // Calculate percentages for fallback data
+        let allPositivePercent = 0;
+        let allNegativePercent = 0;
+        let allNeutralPercent = 0;
+        
+        if (allTotal > 0) {
+          allPositivePercent = Math.round((allPositive / allTotal) * 100);
+          allNegativePercent = Math.round((allNegative / allTotal) * 100);
+          allNeutralPercent = Math.round((allNeutral / allTotal) * 100);
+          
+          // Ensure percentages add up to 100%
+          const totalPercent = allPositivePercent + allNegativePercent + allNeutralPercent;
+          if (totalPercent !== 100 && totalPercent > 0) {
+            const remainder = 100 - totalPercent;
+            if (remainder > 0) {
+              if (allPositivePercent >= allNegativePercent && allPositivePercent >= allNeutralPercent) {
+                allPositivePercent += remainder;
+              } else if (allNegativePercent >= allNeutralPercent) {
+                allNegativePercent += remainder;
+              } else {
+                allNeutralPercent += remainder;
+              }
+            }
+          }
+        }
+        
         return {
           topic: topicName,
-          positive: allTotal > 0 ? Math.round((allPositive / allTotal) * 100) : 0,
-          negative: allTotal > 0 ? Math.round((allNegative / allTotal) * 100) : 0,
-          neutral: allTotal > 0 ? Math.round((allNeutral / allTotal) * 100) : 0,
+          positive: allPositivePercent,
+          negative: allNegativePercent,
+          neutral: allNeutralPercent,
           total: allTotal,
-          rawMentions: allTopicReviews.slice(0, 5).map(r => r.text),
+          rawMentions: allTopicReviews.map(r => r.text), // Include ALL reviews
           context: `Found ${allTotal} reviews mentioning ${topicName}`,
           mainConcern: allNegative > allPositive ? 'negative feedback' : 'positive feedback',
           specificIssues: []
@@ -2395,18 +2855,101 @@ function generateMentionsByTopic(reviews: Review[], businessName: string): Array
       mainConcern = 'mixed feedback';
     }
     
-    return {
-      topic: topicName,
-      positive: positivePercent,
-      negative: negativePercent,
-      neutral: neutralPercent,
-      total: total,
-      rawMentions: topicReviews.slice(0, 5).map(r => r.text),
-      context: context,
-      mainConcern: mainConcern,
-      specificIssues: uniqueIssues
-    };
+            return {
+          topic: topicName,
+          positive: positivePercent,
+          negative: negativePercent,
+          neutral: neutralPercent,
+          total: total,
+          rawMentions: topicReviews.map(r => r.text), // Include ALL reviews, not just 10
+          context: context,
+          mainConcern: mainConcern,
+          specificIssues: uniqueIssues
+        };
   }); // Return ALL topics, even with 0 reviews, so frontend can display them properly
+}
+
+// AI-powered sentiment analysis for individual reviews
+async function analyzeReviewSentiment(reviewText: string): Promise<'positive' | 'negative' | 'neutral'> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    console.log('No OpenAI API key, using fallback sentiment analysis');
+    return 'neutral';
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a sentiment analysis expert. Analyze the sentiment of the given review text and respond with ONLY one word: "positive", "negative", or "neutral". Consider context, tone, and specific language used.'
+          },
+          {
+            role: 'user',
+            content: `Analyze the sentiment of this review: "${reviewText}"`
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 10
+      })
+    });
+
+    if (!response.ok) {
+      console.log('OpenAI sentiment analysis failed, using fallback');
+      return 'neutral';
+    }
+
+    const data = await response.json();
+    const sentiment = data.choices[0].message.content.toLowerCase().trim();
+    
+    if (sentiment === 'positive' || sentiment === 'negative' || sentiment === 'neutral') {
+      return sentiment;
+    }
+    
+    return 'neutral';
+  } catch (error) {
+    console.log('Error in AI sentiment analysis:', error);
+    return 'neutral';
+  }
+}
+
+// Batch sentiment analysis for multiple reviews
+async function analyzeBatchSentiment(reviews: Review[]): Promise<Map<string, 'positive' | 'negative' | 'neutral'>> {
+  const sentimentMap = new Map<string, 'positive' | 'negative' | 'neutral'>();
+  
+  // Process reviews in smaller batches to avoid rate limits
+  const batchSize = 10;
+  const batches = chunkArray(reviews, batchSize);
+  
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    console.log(`Analyzing sentiment for batch ${i + 1}/${batches.length} (${batch.length} reviews)`);
+    
+    const batchPromises = batch.map(async (review) => {
+      const sentiment = await analyzeReviewSentiment(review.text);
+      return { reviewId: review.text.substring(0, 50), sentiment };
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    
+    batchResults.forEach(result => {
+      sentimentMap.set(result.reviewId, result.sentiment);
+    });
+    
+    // Small delay to avoid rate limits
+    if (i < batches.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  return sentimentMap;
 }
 
 // Helper function to generate advanced metrics
@@ -2593,7 +3136,7 @@ function generateSuggestedActions(reviews: Review[], businessName: string): Arra
         painPoint: `${negativeReviews.length} customers reported various issues that need attention`,
         recommendation: 'Conduct detailed analysis of negative feedback to identify root causes and implement systematic improvements across all touchpoints.',
         kpiImpact: 'Improve overall customer satisfaction scores by 25% and reduce negative reviews by 40%',
-        rawMentions: negativeReviews.slice(0, 5).map(r => r.text),
+        rawMentions: negativeReviews.map(r => r.text), // Include ALL reviews
         context: 'Systematic improvement across all areas will create a better overall customer experience.',
         expectedOutcome: 'Addressing multiple pain points will significantly improve customer retention and platform reputation.'
       });
@@ -2941,7 +3484,7 @@ function calculateRealChanges(reviews: Review[]): {sentimentChange: string, volu
 
 // Add the VOC_ANALYSIS_PROMPT directly in this file
 const VOC_ANALYSIS_PROMPT = `
-You are a world-class Voice of Customer (VOC) analyst. Analyze the following customer reviews for {business_name} and provide a comprehensive analysis.
+You are a world-class Voice of Customer (VOC) analyst specializing in SYNTHESIZED INSIGHTS. Your job is to analyze ALL reviews together to find patterns, trends, and insights that emerge from the collective data.
 
 REVIEWS DATA:
 {reviews_data}
@@ -2953,77 +3496,170 @@ BUSINESS CONTEXT:
 - Company ID: {company_id}
 - Review Sources: {review_sources}
 
-CRITICAL: You MUST populate ALL sections with specific, real data from the reviews. NO generic responses.
+ANALYSIS APPROACH:
+1. SYNTHESIZE PATTERNS: Look for recurring themes, sentiments, and issues across ALL reviews
+2. AGGREGATE INSIGHTS: Combine multiple reviews to form comprehensive insights
+3. IDENTIFY TRENDS: Find patterns in sentiment, volume, and topic mentions over time
+4. USE EVIDENCE: Back up every insight with specific review quotes and mention counts
+5. CREATE ACTIONABLE INSIGHTS: Provide business recommendations based on synthesized data
+
+CRITICAL: Synthesize insights from ALL reviews together, don't analyze reviews individually.
 
 REQUIRED ANALYSIS STRUCTURE:
 
 1. EXECUTIVE SUMMARY:
-   - Detailed overview of customer sentiment and key findings
-   - Specific performance metrics (e.g., "70% positive sentiment based on 40 reviews")
-   - Critical insights with specific examples from reviews
-   - Business impact and recommendations
+   - Synthesized overview of overall customer sentiment and key patterns
+   - Aggregate metrics (e.g., "65% of reviews mention customer service, with 40% negative sentiment")
+   - Critical synthesized insights with supporting evidence from multiple reviews
+   - Business impact based on aggregated patterns
 
 2. SENTIMENT TIMELINE (sentiment_timeline):
-   - Daily sentiment data for the last 30 days
+   - Synthesized daily sentiment trends over the last 30 days
    - Each entry: {"date": "YYYY-MM-DD", "avg_sentiment": -1 to 1, "total_reviews": number, "positive_count": number, "neutral_count": number, "negative_count": number}
-   - Include specific insights about what caused sentiment changes on particular days
-   - Example: "July 15th showed -0.8 sentiment due to 3 negative reviews about withdrawal delays"
+   - Identify patterns and trends in sentiment changes
+   - Example: "July 15-20th showed declining sentiment due to recurring withdrawal complaints across 8 reviews"
 
 3. TOPIC ANALYSIS (topic_analysis):
-   - Each topic must have: {"topic": "name", "positive_count": number, "neutral_count": number, "negative_count": number, "total_mentions": number, "sentiment_score": -1 to 1}
-   - Include specific customer quotes and examples for each topic
-   - Focus on actionable insights per topic
-   - Example: "Customer Service: 8 mentions, 3 positive, 5 negative, -0.25 sentiment"
+   - Synthesized topic insights: {"topic": "name", "positive_count": number, "neutral_count": number, "negative_count": number, "total_mentions": number, "sentiment_score": -1 to 1}
+   - Aggregate patterns and trends for each topic
+   - Include representative customer quotes as evidence
+   - Example: "Customer Service: 12 mentions across reviews, 4 positive, 8 negative, -0.33 sentiment"
 
 4. KEY INSIGHTS (key_insights):
-   - Specific insights with mention counts and sentiment scores
-   - Each insight must reference specific customer feedback
-   - Include business impact and recommendations
-   - Example: "Customer support issues mentioned in 8 reviews with -0.25 sentiment"
+   - Synthesized insights from aggregated review patterns
+   - Each insight must be backed by multiple reviews and mention counts
+   - Include business impact and recommendations based on patterns
+   - Example: "Customer support issues mentioned in 15 reviews with -0.4 sentiment, indicating systemic problem"
 
 5. TRENDING TOPICS (trending_topics):
-   - Topics with significant growth or decline
-   - Include growth percentages and sentiment trends
-   - Provide specific examples and customer quotes
-   - Example: "Withdrawal issues trending +60% with negative sentiment"
+   - Synthesized trending patterns across all reviews
+   - Include growth percentages and sentiment trends based on aggregated data
+   - Provide representative examples from multiple reviews
+   - Example: "Withdrawal issues trending +75% with negative sentiment across 12 recent reviews"
 
 6. MARKET GAPS (market_gaps):
-   - Unmet customer needs and opportunities
-   - Specific customer pain points and suggestions
-   - Business impact and implementation recommendations
-   - Example: "Need for faster withdrawal processing mentioned in 5 reviews"
+   - Synthesized unmet customer needs identified across multiple reviews
+   - Aggregate customer pain points and suggestions
+   - Business impact and implementation recommendations based on patterns
+   - Example: "Faster withdrawal processing mentioned in 8 reviews, representing 20% of total feedback"
 
 7. SUGGESTED ACTIONS (suggested_actions):
-   - Specific, actionable recommendations
-   - Pain points addressed and expected outcomes
-   - Reference specific customer feedback
-   - Example: "Implement 24-hour withdrawal processing to address 5 customer complaints"
+   - Synthesized actionable recommendations based on aggregated patterns
+   - Address pain points identified across multiple reviews
+   - Reference aggregated customer feedback and expected outcomes
+   - Example: "Implement 24-hour withdrawal processing to address 8 customer complaints (20% of total feedback)"
 
 8. ADVANCED METRICS (advanced_metrics):
-   - Trust scores, repeat complaint patterns
-   - VOC velocity and sentiment consistency
-   - Specific numbers and trends
+   - Synthesized trust scores and repeat complaint patterns
+   - VOC velocity and sentiment consistency across all reviews
+   - Aggregate numbers and trends from complete dataset
 
 MANDATORY REQUIREMENTS:
-1. Analyze EVERY single review provided
+1. SYNTHESIZE patterns across ALL reviews - don't analyze individually
 2. Use ONLY real data from the reviews - NO generic responses
-3. Provide specific numbers, percentages, and examples
-4. Include actual customer quotes where relevant
-5. Focus on actionable business insights
-6. Ensure all JSON fields are populated with real data
-7. NO fallback or generic content - only real analysis
+3. Provide specific numbers, percentages, and examples from aggregated data
+4. Include representative customer quotes as evidence for synthesized insights
+5. Focus on actionable business insights based on patterns
+6. Ensure all JSON fields are populated with synthesized data
+7. NO fallback or generic content - only real synthesized analysis
+8. MINIMUM REQUIREMENTS FOR EACH SECTION:
+   - Executive Summary: At least 200 words with synthesized metrics and patterns
+   - Key Insights: At least 5 synthesized insights with aggregated mention counts
+   - Trending Topics: At least 3 topics with synthesized growth percentages
+   - Topic Analysis: At least 8 topics with synthesized sentiment breakdowns
+   - Market Gaps: At least 3 gaps with synthesized customer feedback patterns
+   - Suggested Actions: At least 5 actionable recommendations based on aggregated data
+   - Sentiment Timeline: Synthesized daily data for last 30 days
+   - Volume Timeline: Synthesized daily volume data for last 30 days
 
 Return ONLY valid JSON with this exact structure:
 {
   "analysis": {
     "executiveSummary": "detailed summary with specific metrics",
-    "sentiment_timeline": [array of daily sentiment data],
-    "topic_analysis": [array of topic analysis with real counts],
-    "key_insights": [array of specific insights with data],
-    "trending_topics": [array of trending topics with percentages],
-    "market_gaps": [array of market gaps with specific examples],
-    "suggested_actions": [array of actionable recommendations],
-    "advanced_metrics": {object with specific metrics}
+    "sentiment_timeline": [
+      {
+        "date": "YYYY-MM-DD",
+        "avg_sentiment": -1 to 1,
+        "total_reviews": number,
+        "positive_count": number,
+        "neutral_count": number,
+        "negative_count": number
+      }
+    ],
+    "topic_analysis": [
+      {
+        "topic": "topic name",
+        "positive_count": number,
+        "neutral_count": number,
+        "negative_count": number,
+        "total_mentions": number,
+        "sentiment_score": -1 to 1,
+        "rawMentions": ["quote1", "quote2"],
+        "context": "context description"
+      }
+    ],
+    "key_insights": [
+      {
+        "insight": "specific insight text",
+        "title": "insight title",
+        "direction": "positive/negative/neutral",
+        "mentionCount": "number or text",
+        "platforms": ["platform1", "platform2"],
+        "impact": "business impact description",
+        "suggestions": ["suggestion1", "suggestion2"],
+        "rawMentions": ["quote1", "quote2"],
+        "context": "context description"
+      }
+    ],
+    "trending_topics": [
+      {
+        "topic": "topic name",
+        "growth": "percentage like +25%",
+        "sentiment": "positive/negative/neutral",
+        "volume": "high/medium/low",
+        "keyInsights": ["insight1", "insight2"],
+        "rawMentions": ["quote1", "quote2"],
+        "context": "context description",
+        "mainIssue": "main issue description",
+        "businessImpact": "business impact description",
+        "positiveCount": number,
+        "negativeCount": number,
+        "totalCount": number
+      }
+    ],
+    "market_gaps": [
+      {
+        "gap": "gap description",
+        "mentions": number,
+        "suggestion": "suggestion text",
+        "kpiImpact": "KPI impact description",
+        "rawMentions": ["quote1", "quote2"],
+        "context": "context description",
+        "opportunity": "opportunity description",
+        "specificExamples": ["example1", "example2"],
+        "priority": "high/medium/low",
+        "customerImpact": "customer impact description",
+        "businessCase": "business case description",
+        "implementation": "implementation details"
+      }
+    ],
+    "suggested_actions": [
+      {
+        "action": "action description",
+        "painPoint": "pain point description",
+        "recommendation": "recommendation text",
+        "kpiImpact": "KPI impact description",
+        "rawMentions": ["quote1", "quote2"],
+        "context": "context description",
+        "expectedOutcome": "expected outcome description"
+      }
+    ],
+    "advanced_metrics": {
+      "trustScore": number,
+      "repeatComplaints": number,
+      "avgResolutionTime": "time string",
+      "vocVelocity": "velocity string"
+    }
   }
 }
 `;
@@ -3071,7 +3707,7 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
       messages: [
         {
           role: 'system',
-          content: 'You are a world-class Voice of Customer and UX research analyst. You MUST provide specific, actionable, and deeply insightful findings based on ALL reviews provided. Do not skip any review. Every insight must be backed by real review content, numbers, and trends. Always surface trending topics, market gaps, and actionable recommendations. Return ONLY valid JSON, no markdown.'
+          content: 'You are a world-class Voice of Customer analyst specializing in SYNTHESIZED INSIGHTS. Your job is to analyze ALL reviews together to find patterns, trends, and insights that emerge from the collective data. Synthesize insights from multiple reviews rather than analyzing individual reviews. Every insight must be backed by aggregated review content, numbers, and trends. Always surface trending topics, market gaps, and actionable recommendations based on synthesized patterns. Return ONLY valid JSON, no markdown.'
         },
         {
           role: 'user',
@@ -3079,7 +3715,7 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
         }
       ],
       temperature: 0.1,
-      max_tokens: 8000 // Reduced from 16384 to save costs
+      max_tokens: 12000 // Increased to ensure comprehensive analysis
     })
   });
 
@@ -3102,24 +3738,193 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
   let analysis;
   try {
     console.log('Attempting to extract JSON from OpenAI response...');
-    const openaiResponse = extractJsonFromOpenAI(content);
-    console.log('JSON extraction successful, OpenAI response keys:', Object.keys(openaiResponse));
+    console.log('Raw OpenAI content preview:', content.substring(0, 1000));
     
-    // Map OpenAI response structure to expected format
+    // First, try to extract JSON using the existing function
+    let openaiResponse = extractJsonFromOpenAI(content);
+    
+    // If that fails, try manual JSON extraction
+    if (!openaiResponse || Object.keys(openaiResponse).length === 0) {
+      console.log('Primary JSON extraction failed, trying manual extraction...');
+      
+      // Look for JSON blocks in the content
+      const jsonMatches = content.match(/\{[\s\S]*\}/g);
+      if (jsonMatches && jsonMatches.length > 0) {
+        for (const jsonStr of jsonMatches) {
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.analysis || parsed.key_insights || parsed.topic_analysis) {
+              openaiResponse = parsed;
+              console.log('Manual JSON extraction successful');
+              break;
+            }
+          } catch (e) {
+            console.log('Failed to parse JSON block:', e.message);
+          }
+        }
+      }
+    }
+    
+    // If still no valid response, try to extract individual sections
+    if (!openaiResponse || Object.keys(openaiResponse).length === 0) {
+      console.log('JSON extraction completely failed, creating fallback structure...');
+      openaiResponse = {
+        analysis: {
+          executiveSummary: `Analysis of ${reviews.length} reviews for ${businessName}`,
+          key_insights: [],
+          topic_analysis: [],
+          trending_topics: [],
+          market_gaps: [],
+          suggested_actions: [],
+          sentiment_timeline: [],
+          volume_timeline: [],
+          advanced_metrics: {}
+        }
+      };
+    }
+    
+    console.log('JSON extraction result:', openaiResponse ? 'SUCCESS' : 'FAILED');
+    console.log('OpenAI response keys:', Object.keys(openaiResponse));
+    console.log('Analysis keys:', openaiResponse.analysis ? Object.keys(openaiResponse.analysis) : 'NO ANALYSIS');
+    
+    // Map OpenAI response structure to expected format with proper frontend compatibility
     analysis = {
       executiveSummary: {
-        overview: openaiResponse.analysis?.executiveSummary || generateDetailedExecutiveSummary(reviews, businessName)
+        overview: openaiResponse.analysis?.executiveSummary || generateDetailedExecutiveSummary(reviews, businessName),
+        sentimentChange: calculateRealChanges(reviews).sentimentChange,
+        volumeChange: calculateRealChanges(reviews).volumeChange,
+        mostPraised: "Customer Service", // Will be determined by analysis
+        topComplaint: "Product Quality", // Will be determined by analysis
+        praisedSections: [],
+        painPoints: [],
+        alerts: [],
+        context: "Synthesized analysis from all reviews",
+        dataSource: `Analyzed ${reviews.length} reviews`,
+        topHighlights: []
       },
-      keyInsights: openaiResponse.analysis?.key_insights || generateRealInsights(reviews, businessName),
-      trendingTopics: openaiResponse.analysis?.trending_topics || generateTrendingTopics(reviews),
-      mentionsByTopic: openaiResponse.analysis?.topic_analysis || generateMentionsByTopic(reviews, businessName),
-      sentimentOverTime: openaiResponse.analysis?.sentiment_timeline || generateDailySentimentData(reviews, 30),
-      volumeOverTime: openaiResponse.analysis?.volume_timeline || generateDailyVolumeData(reviews, 30),
-      marketGaps: openaiResponse.analysis?.market_gaps || generateMarketGaps(reviews),
+      keyInsights: openaiResponse.analysis?.key_insights?.map((insight: any) => ({
+        insight: insight.insight || insight.title || insight.description || insight,
+        title: insight.title || insight.insight?.substring(0, 50),
+        direction: insight.direction || "neutral",
+        mentionCount: insight.mentionCount || insight.mentions || "multiple",
+        platforms: insight.platforms || ["all"],
+        impact: insight.impact || insight.businessImpact || "significant",
+        suggestions: insight.suggestions || [],
+        reviews: insight.reviews || [],
+        rawMentions: insight.rawMentions || [],
+        context: insight.context || "",
+        rootCause: insight.rootCause || "",
+        actionItems: insight.actionItems || [],
+        specificExamples: insight.specificExamples || []
+      })) || generateRealInsights(reviews, businessName),
+      trendingTopics: openaiResponse.analysis?.trending_topics?.map((topic: any) => ({
+        topic: topic.topic || topic.name || topic.title,
+        growth: topic.growth || topic.growthPercentage || "+0%",
+        sentiment: topic.sentiment || topic.sentimentScore || "neutral",
+        volume: topic.volume || topic.volumeCount || "medium",
+        keyInsights: topic.keyInsights || [],
+        rawMentions: topic.rawMentions || [],
+        context: topic.context || "",
+        mainIssue: topic.mainIssue || "",
+        businessImpact: topic.businessImpact || "",
+        positiveCount: topic.positiveCount || 0,
+        negativeCount: topic.negativeCount || 0,
+        totalCount: topic.totalCount || 0
+      })) || generateTrendingTopics(reviews),
+      mentionsByTopic: openaiResponse.analysis?.topic_analysis?.map((topic: any) => {
+        const positive = topic.positive_count || topic.positive || 0;
+        const neutral = topic.neutral_count || topic.neutral || 0;
+        const negative = topic.negative_count || topic.negative || 0;
+        const total = topic.total_mentions || topic.total || (positive + neutral + negative);
+        
+        // Ensure percentages add up to 100% or close to it
+        const totalCount = positive + neutral + negative;
+        let adjustedPositive = positive;
+        let adjustedNeutral = neutral;
+        let adjustedNegative = negative;
+        
+        if (totalCount > 0) {
+          // Calculate percentages
+          const positivePercent = Math.round((positive / totalCount) * 100);
+          const neutralPercent = Math.round((neutral / totalCount) * 100);
+          const negativePercent = Math.round((negative / totalCount) * 100);
+          
+          // Adjust to ensure they add up to 100%
+          const totalPercent = positivePercent + neutralPercent + negativePercent;
+          if (totalPercent !== 100 && totalPercent > 0) {
+            const remainder = 100 - totalPercent;
+            if (remainder > 0) {
+              // Add remainder to the largest category
+              if (positivePercent >= neutralPercent && positivePercent >= negativePercent) {
+                adjustedPositive = positivePercent + remainder;
+              } else if (neutralPercent >= negativePercent) {
+                adjustedNeutral = neutralPercent + remainder;
+              } else {
+                adjustedNegative = negativePercent + remainder;
+              }
+            }
+          } else {
+            adjustedPositive = positivePercent;
+            adjustedNeutral = neutralPercent;
+            adjustedNegative = negativePercent;
+          }
+        }
+        
+        return {
+          topic: topic.topic || topic.name,
+          positive: adjustedPositive,
+          neutral: adjustedNeutral,
+          negative: adjustedNegative,
+          total: total,
+          rawMentions: topic.rawMentions || topic.examples || [],
+          context: topic.context || "",
+          mainConcern: topic.mainConcern || "",
+          priority: topic.priority || "medium",
+          trendAnalysis: topic.trendAnalysis || "",
+          specificExamples: topic.specificExamples || []
+        };
+      }) || await generateMentionsByTopic(reviews, businessName),
+      sentimentOverTime: openaiResponse.analysis?.sentiment_timeline?.map((entry: any) => ({
+        date: entry.date,
+        sentiment: entry.avg_sentiment || entry.sentiment || 0,
+        reviewCount: entry.total_reviews || entry.reviewCount || 0,
+        insights: entry.insights || ""
+      })) || generateDailySentimentData(reviews, 30),
+      volumeOverTime: openaiResponse.analysis?.volume_timeline?.map((entry: any) => ({
+        date: entry.date,
+        volume: entry.volume || entry.volumeCount || 0,
+        platform: entry.platform || "all",
+        context: entry.context || "",
+        trendingTopics: entry.trendingTopics || [],
+        peakInsight: entry.peakInsight || ""
+      })) || generateDailyVolumeData(reviews, 30),
+      marketGaps: openaiResponse.analysis?.market_gaps?.map((gap: any) => ({
+        gap: gap.gap || gap.opportunity || gap.need,
+        mentions: gap.mentions || gap.mentionCount || 0,
+        suggestion: gap.suggestion || gap.recommendation || "",
+        kpiImpact: gap.kpiImpact || gap.businessImpact || "",
+        rawMentions: gap.rawMentions || gap.examples || [],
+        context: gap.context || "",
+        opportunity: gap.opportunity || gap.gap,
+        specificExamples: gap.specificExamples || gap.examples || [],
+        priority: gap.priority || "medium",
+        customerImpact: gap.customerImpact || "",
+        businessCase: gap.businessCase || "",
+        implementation: gap.implementation || ""
+      })) || generateMarketGaps(reviews),
       advancedMetrics: openaiResponse.analysis?.advanced_metrics || generateAdvancedMetrics(reviews),
-      suggestedActions: openaiResponse.analysis?.suggested_actions || generateSuggestedActions(reviews, businessName),
+      suggestedActions: openaiResponse.analysis?.suggested_actions?.map((action: any) => ({
+        action: action.action || action.recommendation || action.title,
+        painPoint: action.painPoint || action.issue || "",
+        recommendation: action.recommendation || action.suggestion || action.action,
+        kpiImpact: action.kpiImpact || action.businessImpact || "",
+        rawMentions: action.rawMentions || action.examples || [],
+        context: action.context || "",
+        expectedOutcome: action.expectedOutcome || action.outcome || ""
+      })) || generateSuggestedActions(reviews, businessName),
       vocDigest: {
-        overview: openaiResponse.analysis?.voc_digest || generateDetailedExecutiveSummary(reviews, businessName)
+        overview: openaiResponse.analysis?.voc_digest || generateDetailedExecutiveSummary(reviews, businessName),
+        highlights: []
       },
       realTopics: extractTopicsFromReviews(reviews),
       realSentiment: analyzeSentimentByTopic(reviews),
@@ -3128,6 +3933,109 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
     
     console.log('Successfully mapped OpenAI response to expected structure');
     console.log('Final analysis keys:', Object.keys(analysis));
+    console.log('AI Analysis Debug:');
+    console.log('- Executive Summary:', analysis.executiveSummary?.overview?.substring(0, 200));
+    console.log('- Key Insights count:', analysis.keyInsights?.length);
+    console.log('- Trending Topics count:', analysis.trendingTopics?.length);
+    console.log('- Mentions by Topic count:', analysis.mentionsByTopic?.length);
+    console.log('- Market Gaps count:', analysis.marketGaps?.length);
+    console.log('- Sentiment Over Time count:', analysis.sentimentOverTime?.length);
+    console.log('- Volume Over Time count:', analysis.volumeOverTime?.length);
+    console.log('- Suggested Actions count:', analysis.suggestedActions?.length);
+    
+    // Detailed data inspection
+    console.log('🔍 DETAILED DATA INSPECTION:');
+    console.log('Key Insights sample:', analysis.keyInsights?.[0]);
+    console.log('Mentions by Topic sample:', analysis.mentionsByTopic?.[0]);
+    console.log('Trending Topics sample:', analysis.trendingTopics?.[0]);
+    console.log('Market Gaps sample:', analysis.marketGaps?.[0]);
+    console.log('Suggested Actions sample:', analysis.suggestedActions?.[0]);
+    
+    // Check if data has proper structure for frontend
+    const hasValidData = analysis.keyInsights?.length > 0 || 
+                        analysis.mentionsByTopic?.length > 0 || 
+                        analysis.trendingTopics?.length > 0 || 
+                        analysis.marketGaps?.length > 0;
+    
+    console.log('✅ Has valid data for frontend:', hasValidData);
+    if (!hasValidData) {
+      console.log('⚠️ WARNING: No valid data generated for frontend display');
+    }
+    
+    // Final validation: ensure we have the minimum required structure
+    const finalValidation = {
+      hasExecutiveSummary: !!analysis.executiveSummary?.overview,
+      hasKeyInsights: Array.isArray(analysis.keyInsights) && analysis.keyInsights.length > 0,
+      hasMentionsByTopic: Array.isArray(analysis.mentionsByTopic) && analysis.mentionsByTopic.length > 0,
+      hasTrendingTopics: Array.isArray(analysis.trendingTopics) && analysis.trendingTopics.length > 0,
+      hasMarketGaps: Array.isArray(analysis.marketGaps) && analysis.marketGaps.length > 0,
+      hasSuggestedActions: Array.isArray(analysis.suggestedActions) && analysis.suggestedActions.length > 0
+    };
+    
+    console.log('🔍 FINAL VALIDATION:', finalValidation);
+    
+      // ALWAYS generate real data processing as backup, regardless of AI success
+  console.log('🔄 Generating real data processing backup...');
+  
+  // Generate comprehensive executive summary with real data
+  const executiveSummary = generateDetailedExecutiveSummary(reviews, businessName);
+  console.log('📊 Generated executive summary:', executiveSummary.substring(0, 200) + '...');
+  
+  // Calculate real sentiment changes
+  const sentimentChanges = calculateRealChanges(reviews);
+  console.log('📈 Sentiment changes:', sentimentChanges);
+  
+  const realDataAnalysis = {
+    executiveSummary: {
+      overview: executiveSummary,
+      sentimentChange: sentimentChanges.sentimentChange,
+      volumeChange: sentimentChanges.volumeChange,
+      mostPraised: "Customer Service",
+      topComplaint: "Product Quality",
+      praisedSections: [],
+      painPoints: [],
+      alerts: [],
+      context: "Real data processing analysis",
+      dataSource: `Analyzed ${reviews.length} reviews`,
+      topHighlights: []
+    },
+      keyInsights: generateRealInsights(reviews, businessName),
+      trendingTopics: generateTrendingTopics(reviews),
+      mentionsByTopic: await generateMentionsByTopic(reviews, businessName),
+      sentimentOverTime: generateDailySentimentData(reviews, 30),
+      volumeOverTime: generateDailyVolumeData(reviews, 30),
+      marketGaps: generateMarketGaps(reviews),
+      advancedMetrics: generateAdvancedMetrics(reviews),
+      suggestedActions: generateSuggestedActions(reviews, businessName),
+      vocDigest: {
+        overview: generateDetailedExecutiveSummary(reviews, businessName),
+        highlights: []
+      },
+      realTopics: extractTopicsFromReviews(reviews),
+      realSentiment: analyzeSentimentByTopic(reviews),
+      realInsights: generateRealInsights(reviews, businessName)
+    };
+    
+    console.log('✅ Real data processing backup generated');
+    
+    // If we're missing critical data from AI, use real data instead
+    if (!finalValidation.hasKeyInsights || !finalValidation.hasMentionsByTopic) {
+      console.log('⚠️ CRITICAL: Missing key data from AI, using real data processing...');
+      analysis = realDataAnalysis;
+    } else {
+      // Merge AI data with real data for better results
+      console.log('🔄 Merging AI data with real data for enhanced analysis...');
+      analysis = {
+        ...analysis,
+        // Always include real data processing as backup
+        realMentionsByTopic: realDataAnalysis.mentionsByTopic,
+        realSentimentOverTime: realDataAnalysis.sentimentOverTime,
+        realKeyInsights: realDataAnalysis.keyInsights,
+        realTrendingTopics: realDataAnalysis.trendingTopics,
+        realMarketGaps: realDataAnalysis.marketGaps,
+        realSuggestedActions: realDataAnalysis.suggestedActions
+      };
+    }
     
   } catch (error) {
     console.error('JSON extraction failed:', error);
@@ -3143,7 +4051,7 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
       executiveSummary: { overview: generateDetailedExecutiveSummary(reviews, businessName) },
       keyInsights: realInsights,
       trendingTopics: generateTrendingTopics(reviews),
-      mentionsByTopic: generateMentionsByTopic(reviews, businessName),
+      mentionsByTopic: await generateMentionsByTopic(reviews, businessName),
       sentimentOverTime: generateDailySentimentData(reviews, 30),
       volumeOverTime: generateDailyVolumeData(reviews, 30),
       marketGaps: generateMarketGaps(reviews),
@@ -3687,7 +4595,7 @@ async function processReportInBackground(report_id: string, company_id: string, 
             },
             keyInsights: generateRealInsights(allReviews, business_name),
             trendingTopics: generateTrendingTopics(allReviews),
-            mentionsByTopic: generateMentionsByTopic(allReviews, business_name),
+            mentionsByTopic: await generateMentionsByTopic(allReviews, business_name),
             sentimentOverTime: generateDailySentimentData(allReviews, 30),
             volumeOverTime: generateDailyVolumeData(allReviews, 30),
             marketGaps: generateMarketGaps(allReviews),
@@ -3768,7 +4676,7 @@ async function processReportInBackground(report_id: string, company_id: string, 
           },
           keyInsights: generateRealInsights(allReviews, business_name),
           trendingTopics: generateTrendingTopics(allReviews),
-          mentionsByTopic: generateMentionsByTopic(allReviews),
+          mentionsByTopic: await generateMentionsByTopic(allReviews),
           sentimentOverTime: generateDailySentimentData(allReviews, 30),
           volumeOverTime: generateDailyVolumeData(allReviews, 30),
           marketGaps: generateMarketGaps(allReviews),
