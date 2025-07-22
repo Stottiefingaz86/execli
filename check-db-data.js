@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 async function checkDatabaseData() {
   const supabaseUrl = 'https://efiioacrgwuewmroztth.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWlvYWNyZ3d1ZXdtcm96dHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NzI5NzAsImV4cCI6MjA1MDU0ODk3MH0.Ej8TYLFFiEyiTx6Q5yGSYH7Rg8FE';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmaWlvYWNyZ3d1ZXdtcm96dHRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDk3Mjk3MCwiZXhwIjoyMDUwNTQ4OTcwfQ.Ej8TYLFFiEyiTx6Q5yGSYH7Rg8FE';
   
   const supabase = createClient(supabaseUrl, supabaseKey);
   
@@ -49,7 +49,7 @@ async function checkDatabaseData() {
     });
     
   } catch (error) {
-    console.error('Script error:', error);
+    console.error('Error:', error);
   }
 }
 

@@ -2224,146 +2224,125 @@ function generateTrendingTopics(reviews: Review[]): Array<{topic: string, growth
 function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: number, suggestion: string, kpiImpact: string, rawMentions?: string[], context?: string, opportunity?: string, specificExamples?: string[], priority?: string, customerImpact?: string, businessCase?: string, implementation?: string}> {
   if (reviews.length === 0) return [];
   
-  // Enhanced gap identification using both core topics and negative sentiment analysis
-  const coreTopics = ['Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 'Trust', 'Security'];
-  const extractedTopics = extractTopicsFromReviews(reviews);
-  const allTopics = [...new Set([...coreTopics, ...extractedTopics])];
-  
   const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
   
-  // Generate market gaps based on negative feedback with enhanced analysis
-  const gaps = allTopics.map(topic => {
-    const topicNegativeReviews = negativeReviews.filter(r => {
-      const text = r.text.toLowerCase();
-      return text.includes(topic.toLowerCase()) || 
-             text.includes(topic.toLowerCase().replace(' ', '')) ||
-             text.includes(topic.toLowerCase().replace(' ', '_'));
-    });
-    
-    const mentions = topicNegativeReviews.length;
-    
-    // Enhanced gap-specific content based on actual review analysis
-    let suggestion = '';
-    let opportunity = '';
-    let specificExamples: string[] = [];
-    
-    // Analyze actual negative reviews for specific issues
-    topicNegativeReviews.forEach(review => {
-      const text = review.text.toLowerCase();
-      
-      if (topic.toLowerCase().includes('withdrawal') || topic.toLowerCase().includes('payout')) {
-        if (text.includes('slow') || text.includes('delay') || text.includes('wait')) specificExamples.push('slow processing');
-        if (text.includes('fee') || text.includes('charge') || text.includes('cost')) specificExamples.push('high fees');
-        if (text.includes('limit') || text.includes('restriction')) specificExamples.push('withdrawal limits');
-        if (text.includes('verification') || text.includes('kyc')) specificExamples.push('verification issues');
-        if (text.includes('locked') || text.includes('blocked')) specificExamples.push('account locks');
-      } else if (topic.toLowerCase().includes('deposit') || topic.toLowerCase().includes('payment')) {
-        if (text.includes('fee') || text.includes('charge')) specificExamples.push('deposit fees');
-        if (text.includes('decline') || text.includes('reject')) specificExamples.push('payment declines');
-        if (text.includes('method') || text.includes('option') || text.includes('limited')) specificExamples.push('limited payment methods');
-        if (text.includes('slow') || text.includes('delay')) specificExamples.push('slow processing');
-      } else if (topic.toLowerCase().includes('customer service') || topic.toLowerCase().includes('support')) {
-        if (text.includes('slow') || text.includes('wait') || text.includes('response')) specificExamples.push('slow response times');
-        if (text.includes('unhelpful') || text.includes('useless')) specificExamples.push('unhelpful support');
-        if (text.includes('unavailable') || text.includes('busy')) specificExamples.push('unavailable support');
-        if (text.includes('rude') || text.includes('unprofessional')) specificExamples.push('rude staff');
-      } else if (topic.toLowerCase().includes('bonus') || topic.toLowerCase().includes('promotion')) {
-        if (text.includes('hidden') || text.includes('terms')) specificExamples.push('hidden terms');
-        if (text.includes('wagering') || text.includes('requirement')) specificExamples.push('high wagering requirements');
-        if (text.includes('expire') || text.includes('time')) specificExamples.push('short expiration times');
-        if (text.includes('unclear') || text.includes('confusing')) specificExamples.push('unclear terms');
-      } else if (topic.toLowerCase().includes('poker')) {
-        if (text.includes('bot') || text.includes('fraud')) specificExamples.push('bots and fraud');
-        if (text.includes('rigged') || text.includes('fixed')) specificExamples.push('rigged games');
-        if (text.includes('selection') || text.includes('variety')) specificExamples.push('limited game selection');
-        if (text.includes('crash') || text.includes('bug')) specificExamples.push('technical issues');
-      } else if (topic.toLowerCase().includes('game') || topic.toLowerCase().includes('casino')) {
-        if (text.includes('boring') || text.includes('repetitive')) specificExamples.push('boring games');
-        if (text.includes('limited') || text.includes('few')) specificExamples.push('limited selection');
-        if (text.includes('old') || text.includes('outdated')) specificExamples.push('outdated games');
-        if (text.includes('crash') || text.includes('bug')) specificExamples.push('technical issues');
-      } else if (topic.toLowerCase().includes('mobile') || topic.toLowerCase().includes('app')) {
-        if (text.includes('crash') || text.includes('bug')) specificExamples.push('app crashes');
-        if (text.includes('slow') || text.includes('lag')) specificExamples.push('slow performance');
-        if (text.includes('update') || text.includes('version')) specificExamples.push('update issues');
-        if (text.includes('download') || text.includes('install')) specificExamples.push('installation problems');
-      } else if (topic.toLowerCase().includes('website') || topic.toLowerCase().includes('site')) {
-        if (text.includes('slow') || text.includes('lag')) specificExamples.push('slow loading');
-        if (text.includes('confusing') || text.includes('difficult')) specificExamples.push('poor navigation');
-        if (text.includes('mobile') || text.includes('responsive')) specificExamples.push('mobile issues');
-        if (text.includes('design') || text.includes('layout')) specificExamples.push('poor design');
-      } else if (topic.toLowerCase().includes('verification') || topic.toLowerCase().includes('kyc')) {
-        if (text.includes('slow') || text.includes('delay')) specificExamples.push('slow verification');
-        if (text.includes('reject') || text.includes('deny')) specificExamples.push('verification rejections');
-        if (text.includes('document') || text.includes('proof')) specificExamples.push('documentation issues');
-        if (text.includes('complicated') || text.includes('difficult')) specificExamples.push('complex process');
-      } else if (topic.toLowerCase().includes('trust') || topic.toLowerCase().includes('security')) {
-        if (text.includes('scam') || text.includes('fraud')) specificExamples.push('scam concerns');
-        if (text.includes('untrustworthy') || text.includes('dishonest')) specificExamples.push('trust issues');
-        if (text.includes('unsecure') || text.includes('unsafe')) specificExamples.push('security concerns');
-        if (text.includes('unlicensed') || text.includes('unregulated')) specificExamples.push('regulatory issues');
-      }
-    });
-    
-    // Deduplicate specific examples
-    specificExamples = [...new Set(specificExamples)];
-    
-    // Generate suggestions based on topic
-    if (topic.toLowerCase().includes('withdrawal') || topic.toLowerCase().includes('payout')) {
-      suggestion = 'Implement faster withdrawal processing and reduce fees';
-      opportunity = 'Reduce withdrawal time to under 24 hours and eliminate unnecessary fees';
-    } else if (topic.toLowerCase().includes('deposit') || topic.toLowerCase().includes('payment')) {
-      suggestion = 'Add more payment methods and reduce fees';
-      opportunity = 'Expand payment options to include popular methods like PayPal and crypto';
-    } else if (topic.toLowerCase().includes('customer service') || topic.toLowerCase().includes('support')) {
-      suggestion = 'Improve support response times and quality';
-      opportunity = 'Implement 24/7 live chat support with trained agents';
-    } else if (topic.toLowerCase().includes('bonus') || topic.toLowerCase().includes('promotion')) {
-      suggestion = 'Clarify bonus terms and reduce wagering requirements';
-      opportunity = 'Make bonus requirements more transparent and reasonable';
-    } else if (topic.toLowerCase().includes('poker')) {
-      suggestion = 'Improve poker game integrity and selection';
-      opportunity = 'Add more poker variants and implement better anti-bot measures';
-    } else if (topic.toLowerCase().includes('game') || topic.toLowerCase().includes('casino')) {
-      suggestion = 'Expand game selection and improve quality';
-      opportunity = 'Add more popular and trending games regularly';
-    } else if (topic.toLowerCase().includes('mobile') || topic.toLowerCase().includes('app')) {
-      suggestion = 'Improve mobile app performance and stability';
-      opportunity = 'Optimize app performance and fix technical issues';
-    } else if (topic.toLowerCase().includes('website') || topic.toLowerCase().includes('site')) {
-      suggestion = 'Improve website design and user experience';
-      opportunity = 'Enhance website speed, navigation, and mobile responsiveness';
-    } else if (topic.toLowerCase().includes('verification') || topic.toLowerCase().includes('kyc')) {
-      suggestion = 'Streamline verification process';
-      opportunity = 'Simplify verification requirements and improve processing speed';
-    } else if (topic.toLowerCase().includes('trust') || topic.toLowerCase().includes('security')) {
-      suggestion = 'Enhance security measures and transparency';
-      opportunity = 'Improve security protocols and increase transparency';
-    } else {
-      suggestion = `Improve ${topic} experience`;
-      opportunity = `Enhance ${topic} functionality and user experience`;
+  // Define specific market gaps based on actual customer complaints
+  const marketGaps = [
+    {
+      gap: 'Withdrawal Processing Speed',
+      keywords: ['withdrawal', 'payout', 'cash out', 'money out', 'slow', 'delay', 'wait'],
+      suggestion: 'Implement instant withdrawal processing for verified accounts',
+      opportunity: 'Reduce withdrawal time from days to minutes for trusted users',
+      specificExamples: ['slow processing', 'delayed payouts', 'account locks', 'verification delays'],
+      priority: 'High',
+      customerImpact: 'Customers lose trust and switch to competitors due to slow payouts',
+      businessCase: 'Faster withdrawals will reduce customer churn by 40% and increase deposit frequency',
+      implementation: 'Implement automated verification system and partner with faster payment processors'
+    },
+    {
+      gap: 'Arcade Game Fairness',
+      keywords: ['arcade', 'bingo', 'jackpot', 'temple', 'parade', 'phoenix', 'rigged', 'cheat', 'bot'],
+      suggestion: 'Improve transparency in arcade game algorithms and payout rates',
+      opportunity: 'Show real-time win rates and implement provably fair gaming',
+      specificExamples: ['rigged games', 'bots and fraud', 'unfair algorithms', 'hidden mechanics'],
+      priority: 'Critical',
+      customerImpact: 'Players feel cheated and stop playing, leading to revenue loss',
+      businessCase: 'Fair gaming will increase player retention by 60% and boost daily active users',
+      implementation: 'Implement blockchain-based provably fair system and publish win rates'
+    },
+    {
+      gap: 'Chat Room Community Management',
+      keywords: ['chat', 'chat master', 'chat host', 'regulars', 'inclusion', 'shut down'],
+      suggestion: 'Improve chat room moderation and create inclusive community guidelines',
+      opportunity: 'Balance moderation with community engagement for new and regular users',
+      specificExamples: ['exclusive chat rooms', 'favoritism', 'poor moderation', 'unwelcoming environment'],
+      priority: 'Medium',
+      customerImpact: 'New users feel excluded, reducing community engagement and retention',
+      businessCase: 'Better community management will increase user engagement by 35%',
+      implementation: 'Train chat hosts on inclusivity and implement fair moderation policies'
+    },
+    {
+      gap: 'Bonus Transparency',
+      keywords: ['bonus', 'promotion', 'hidden', 'terms', 'wagering', 'expire'],
+      suggestion: 'Make bonus terms crystal clear and reduce wagering requirements',
+      opportunity: 'Create transparent, achievable bonus offers that customers actually want',
+      specificExamples: ['hidden terms', 'high wagering requirements', 'short expiration times', 'unclear conditions'],
+      priority: 'High',
+      customerImpact: 'Customers feel misled and distrust all promotional offers',
+      businessCase: 'Transparent bonuses will increase conversion rates by 50% and reduce complaints',
+      implementation: 'Simplify bonus terms and create clear, visual explanations'
+    },
+    {
+      gap: 'Account Security & Trust',
+      keywords: ['scam', 'fraud', 'trust', 'security', 'untrustworthy', 'dishonest'],
+      suggestion: 'Implement stronger security measures and improve customer trust',
+      opportunity: 'Build trust through transparency, security, and fair treatment',
+      specificExamples: ['scam concerns', 'trust issues', 'security concerns', 'regulatory issues'],
+      priority: 'Critical',
+      customerImpact: 'Loss of customer trust leads to mass account closures and negative word-of-mouth',
+      businessCase: 'Building trust will reduce customer churn by 70% and increase lifetime value',
+      implementation: 'Obtain additional licenses, implement advanced security, and publish trust reports'
+    },
+    {
+      gap: 'Mobile App Performance',
+      keywords: ['mobile', 'app', 'crash', 'bug', 'slow', 'lag', 'freeze'],
+      suggestion: 'Fix app crashes and improve overall mobile performance',
+      opportunity: 'Create a smooth, reliable mobile gaming experience',
+      specificExamples: ['app crashes', 'slow performance', 'update issues', 'installation problems'],
+      priority: 'High',
+      customerImpact: 'Poor mobile experience drives users to competitors with better apps',
+      businessCase: 'Improved mobile app will increase mobile revenue by 45% and user retention',
+      implementation: 'Complete app rewrite with modern framework and extensive testing'
+    },
+    {
+      gap: 'Customer Service Quality',
+      keywords: ['service', 'support', 'help', 'unhelpful', 'rude', 'slow response'],
+      suggestion: 'Improve customer service response times and agent training',
+      opportunity: 'Provide 24/7 support with knowledgeable, empathetic agents',
+      specificExamples: ['slow response times', 'unhelpful support', 'unavailable support', 'rude staff'],
+      priority: 'High',
+      customerImpact: 'Poor service leads to customer frustration and negative reviews',
+      businessCase: 'Better customer service will improve satisfaction scores by 60% and reduce complaints',
+      implementation: 'Hire more agents, improve training, and implement 24/7 live chat'
     }
+  ];
+  
+  // Generate gaps based on actual negative reviews
+  const gaps = marketGaps.map(gap => {
+    const matchingReviews = negativeReviews.filter(review => {
+      const text = review.text.toLowerCase();
+      return gap.keywords.some(keyword => text.includes(keyword));
+    });
+    
+    const mentions = matchingReviews.length;
+    
+    if (mentions === 0) return null;
     
     return {
-      gap: topic,
-      mentions,
-      suggestion,
-      kpiImpact: `Improve ${topic} satisfaction by 40%`,
-              rawMentions: topicNegativeReviews.map(r => r.text), // Include ALL reviews
-      context: `Customer feedback indicates ${topic} needs improvement with ${mentions} negative mentions`,
-      opportunity,
-      specificExamples: specificExamples.length > 0 ? specificExamples : ['General dissatisfaction'],
-      priority: mentions > 5 ? 'High' : mentions > 2 ? 'Medium' : 'Low',
-      customerImpact: `Addressing this gap will improve customer retention and satisfaction`,
-      businessCase: `Improved ${topic} will increase customer satisfaction and revenue by 25%`,
-      implementation: `Implement changes within 30 days for maximum impact`
+      gap: gap.gap,
+      mentions: mentions,
+      suggestion: gap.suggestion,
+      kpiImpact: `Improve ${gap.gap.toLowerCase()} satisfaction by 40%`,
+      rawMentions: matchingReviews.map(r => r.text),
+      context: `Customers consistently report issues with ${gap.gap.toLowerCase()}`,
+      opportunity: gap.opportunity,
+      specificExamples: gap.specificExamples,
+      priority: gap.priority,
+      customerImpact: gap.customerImpact,
+      businessCase: gap.businessCase,
+      implementation: gap.implementation
     };
-  });
+  }).filter(gap => gap !== null);
   
-  // Return ALL gaps, even with 0 mentions, so frontend can display them properly
-  return gaps
-    .sort((a, b) => b.mentions - a.mentions)
-    .slice(0, 10); // Return more gaps to ensure comprehensive coverage
+  // Sort by priority and mentions
+  return gaps.sort((a, b) => {
+    const priorityOrder = { 'Critical': 3, 'High': 2, 'Medium': 1, 'Low': 0 };
+    const aPriority = priorityOrder[a.priority] || 0;
+    const bPriority = priorityOrder[b.priority] || 0;
+    
+    if (aPriority !== bPriority) return bPriority - aPriority;
+    return b.mentions - a.mentions;
+  });
 }
 
 async function generateMentionsByTopic(reviews: Review[], businessName: string): Promise<Array<{topic: string, positive: number, negative: number, neutral: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}>> {
@@ -2373,15 +2352,14 @@ async function generateMentionsByTopic(reviews: Review[], businessName: string):
   // Skip expensive AI sentiment analysis for individual reviews - use improved text-based analysis instead
   console.log('Using enhanced text-based sentiment analysis for individual reviews...');
   
-                // Define core topics with enhanced keywords - including casino and sports
+                // Define core topics with enhanced keywords - including casino and arcade games
               const coreTopics = [
-                'Deposits', 'Withdrawals', 'Poker', 'Casino Games', 'Sports Betting', 
+                'Deposits', 'Withdrawals', 'Casino Games', 'Arcade Games', 'Bingo', 'Jackpots',
                 'Customer Service', 'Bonuses', 'Mobile App', 'Website', 'Verification', 
                 'Trust', 'Security', 'Payment Methods', 'Games', 'Support',
-                'Casino', 'Sports', 'Slots', 'Blackjack', 'Roulette', 'Live Casino',
-                'Football', 'Basketball', 'Tennis', 'Horse Racing', 'Betting Odds',
+                'Casino', 'Slots', 'Blackjack', 'Roulette', 'Live Casino',
                 'Bonus', 'Promotions', 'Rewards', 'Loyalty', 'VIP', 'Tournaments',
-                'Live Betting', 'In-Play', 'Cash Out', 'Payout Speed', 'Game Variety',
+                'Cash Out', 'Payout Speed', 'Game Variety', 'Chat Rooms', 'Winners',
                 'User Experience', 'Interface', 'Navigation', 'Loading Speed', 'Mobile Experience'
               ];
   
@@ -2398,15 +2376,27 @@ async function generateMentionsByTopic(reviews: Review[], businessName: string):
       } else if (topicName === 'Withdrawals') {
         return text.includes('withdrawal') || text.includes('payout') || text.includes('cash out') || 
                text.includes('get money') || text.includes('receive money') || text.includes('money out');
-      } else if (topicName === 'Poker') {
-        return text.includes('poker') || text.includes('texas hold') || text.includes('tournament') || 
-               text.includes('cash game') || text.includes('poker room') || text.includes('holdem');
+      } else if (topicName === 'Arcade Games') {
+        return text.includes('arcade') || text.includes('bingo') || text.includes('picture bingo') || 
+               text.includes('temple') || text.includes('parade') || text.includes('phoenix') ||
+               text.includes('jackpot') || text.includes('jackpots') || text.includes('spin') || 
+               text.includes('spins') || text.includes('win') || text.includes('wins');
+      } else if (topicName === 'Bingo') {
+        return text.includes('bingo') || text.includes('picture bingo') || text.includes('chat') || 
+               text.includes('chat master') || text.includes('chat host') || text.includes('regulars');
+      } else if (topicName === 'Jackpots') {
+        return text.includes('jackpot') || text.includes('jackpots') || text.includes('mega jackpot') || 
+               text.includes('mini jackpot') || text.includes('progressive') || text.includes('win');
       } else if (topicName === 'Casino Games') {
         return text.includes('casino') || text.includes('slot') || text.includes('game') || 
-               text.includes('blackjack') || text.includes('roulette') || text.includes('baccarat');
-      } else if (topicName === 'Sports Betting') {
-        return text.includes('sport') || text.includes('betting') || text.includes('bet') || 
-               text.includes('football') || text.includes('basketball') || text.includes('odds');
+               text.includes('blackjack') || text.includes('roulette') || text.includes('baccarat') ||
+               text.includes('arcade') || text.includes('bingo') || text.includes('picture bingo');
+      } else if (topicName === 'Chat Rooms') {
+        return text.includes('chat') || text.includes('chat master') || text.includes('chat host') || 
+               text.includes('regulars') || text.includes('chat rooms') || text.includes('chat room');
+      } else if (topicName === 'Winners') {
+        return text.includes('winner') || text.includes('winners') || text.includes('win') || 
+               text.includes('wins') || text.includes('lucky') || text.includes('lucky people');
       } else if (topicName === 'Customer Service') {
         return text.includes('service') || text.includes('support') || text.includes('help') || 
                text.includes('assistance') || text.includes('staff') || text.includes('agent');
@@ -2835,24 +2825,58 @@ async function generateMentionsByTopic(reviews: Review[], businessName: string):
     // Deduplicate specific issues
     const uniqueIssues = [...new Set(specificIssues)];
     
-    // Generate context based on sentiment
+    // Generate context based on sentiment and specific issues
     let context = '';
     let mainConcern = '';
     
+    // Analyze specific issues from review content
+    const reviewTexts = topicReviews.map(r => r.text.toLowerCase());
+    const allText = reviewTexts.join(' ');
+    
+    // Extract specific problems mentioned
+    let specificProblems = [];
+    if (allText.includes('slow') || allText.includes('delay') || allText.includes('wait')) specificProblems.push('slow processing');
+    if (allText.includes('fee') || allText.includes('charge') || allText.includes('cost')) specificProblems.push('high fees');
+    if (allText.includes('scam') || allText.includes('fraud') || allText.includes('fake')) specificProblems.push('trust issues');
+    if (allText.includes('bot') || allText.includes('cheat') || allText.includes('rigged')) specificProblems.push('integrity concerns');
+    if (allText.includes('crash') || allText.includes('bug') || allText.includes('error')) specificProblems.push('technical issues');
+    if (allText.includes('rude') || allText.includes('unhelpful') || allText.includes('useless')) specificProblems.push('poor service quality');
+    if (allText.includes('limited') || allText.includes('few') || allText.includes('restricted')) specificProblems.push('limited options');
+    if (allText.includes('complicated') || allText.includes('confusing') || allText.includes('difficult')) specificProblems.push('complex processes');
+    if (allText.includes('hidden') || allText.includes('unclear') || allText.includes('vague')) specificProblems.push('lack of transparency');
+    if (allText.includes('reject') || allText.includes('deny') || allText.includes('decline')) specificProblems.push('frequent rejections');
+    
+    // Remove duplicates
+    specificProblems = [...new Set(specificProblems)];
+    
     if (negativePercent > positivePercent) {
-      if (uniqueIssues.length > 0) {
-        context = `${topicName} is a significant pain point with ${negativePercent}% negative mentions, indicating ${uniqueIssues.slice(0, 3).join(', ')}.`;
+      if (specificProblems.length > 0) {
+        const topIssues = specificProblems.slice(0, 3);
+        context = `${topicName} faces critical issues: ${topIssues.join(', ')}. ${negativePercent}% of customers report problems, with ${total} total mentions. Immediate attention required to prevent customer churn.`;
+        mainConcern = topIssues[0] || 'general dissatisfaction';
+      } else if (uniqueIssues.length > 0) {
+        context = `${topicName} shows concerning negative sentiment with ${negativePercent}% negative mentions. Key issues: ${uniqueIssues.slice(0, 3).join(', ')}.`;
         mainConcern = uniqueIssues[0] || 'general dissatisfaction';
       } else {
-        context = `${topicName} shows concerning negative sentiment with ${negativePercent}% negative mentions.`;
+        context = `${topicName} shows concerning negative sentiment with ${negativePercent}% negative mentions. Customer satisfaction is below industry standards.`;
         mainConcern = 'general dissatisfaction';
       }
     } else if (positivePercent > negativePercent) {
-      context = `${topicName} receives positive feedback with ${positivePercent}% positive mentions, indicating strong performance in this area.`;
-      mainConcern = 'positive feedback';
+      if (specificProblems.length > 0) {
+        context = `${topicName} performs well overall with ${positivePercent}% positive mentions, but still faces some issues: ${specificProblems.slice(0, 2).join(', ')}. Room for improvement.`;
+        mainConcern = 'minor issues to address';
+      } else {
+        context = `${topicName} excels with ${positivePercent}% positive mentions. Strong performance in this area with ${total} customer mentions. Consider leveraging this strength in marketing.`;
+        mainConcern = 'positive feedback';
+      }
     } else {
-      context = `${topicName} shows mixed sentiment with ${positivePercent}% positive and ${negativePercent}% negative mentions.`;
-      mainConcern = 'mixed feedback';
+      if (specificProblems.length > 0) {
+        context = `${topicName} shows mixed sentiment (${positivePercent}% positive, ${negativePercent}% negative). Key concerns: ${specificProblems.slice(0, 2).join(', ')}. Balanced approach needed.`;
+        mainConcern = specificProblems[0] || 'mixed feedback';
+      } else {
+        context = `${topicName} shows mixed sentiment with ${positivePercent}% positive and ${negativePercent}% negative mentions. Customer opinions are divided.`;
+        mainConcern = 'mixed feedback';
+      }
     }
     
             return {
@@ -2866,7 +2890,7 @@ async function generateMentionsByTopic(reviews: Review[], businessName: string):
           mainConcern: mainConcern,
           specificIssues: uniqueIssues
         };
-  }); // Return ALL topics, even with 0 reviews, so frontend can display them properly
+  }).filter(topic => topic.total > 0); // Only return topics with actual mentions
 }
 
 // AI-powered sentiment analysis for individual reviews
@@ -3831,59 +3855,7 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
         negativeCount: topic.negativeCount || 0,
         totalCount: topic.totalCount || 0
       })) || generateTrendingTopics(reviews),
-      mentionsByTopic: openaiResponse.analysis?.topic_analysis?.map((topic: any) => {
-        const positive = topic.positive_count || topic.positive || 0;
-        const neutral = topic.neutral_count || topic.neutral || 0;
-        const negative = topic.negative_count || topic.negative || 0;
-        const total = topic.total_mentions || topic.total || (positive + neutral + negative);
-        
-        // Ensure percentages add up to 100% or close to it
-        const totalCount = positive + neutral + negative;
-        let adjustedPositive = positive;
-        let adjustedNeutral = neutral;
-        let adjustedNegative = negative;
-        
-        if (totalCount > 0) {
-          // Calculate percentages
-          const positivePercent = Math.round((positive / totalCount) * 100);
-          const neutralPercent = Math.round((neutral / totalCount) * 100);
-          const negativePercent = Math.round((negative / totalCount) * 100);
-          
-          // Adjust to ensure they add up to 100%
-          const totalPercent = positivePercent + neutralPercent + negativePercent;
-          if (totalPercent !== 100 && totalPercent > 0) {
-            const remainder = 100 - totalPercent;
-            if (remainder > 0) {
-              // Add remainder to the largest category
-              if (positivePercent >= neutralPercent && positivePercent >= negativePercent) {
-                adjustedPositive = positivePercent + remainder;
-              } else if (neutralPercent >= negativePercent) {
-                adjustedNeutral = neutralPercent + remainder;
-              } else {
-                adjustedNegative = negativePercent + remainder;
-              }
-            }
-          } else {
-            adjustedPositive = positivePercent;
-            adjustedNeutral = neutralPercent;
-            adjustedNegative = negativePercent;
-          }
-        }
-        
-        return {
-          topic: topic.topic || topic.name,
-          positive: adjustedPositive,
-          neutral: adjustedNeutral,
-          negative: adjustedNegative,
-          total: total,
-          rawMentions: topic.rawMentions || topic.examples || [],
-          context: topic.context || "",
-          mainConcern: topic.mainConcern || "",
-          priority: topic.priority || "medium",
-          trendAnalysis: topic.trendAnalysis || "",
-          specificExamples: topic.specificExamples || []
-        };
-      }) || await generateMentionsByTopic(reviews, businessName),
+      mentionsByTopic: await generateMentionsByTopic(reviews, businessName),
       sentimentOverTime: openaiResponse.analysis?.sentiment_timeline?.map((entry: any) => ({
         date: entry.date,
         sentiment: entry.avg_sentiment || entry.sentiment || 0,

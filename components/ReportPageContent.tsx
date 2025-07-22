@@ -234,6 +234,58 @@ function highlightKeywords(text: string, keyword: string): string {
   return text.replace(regex, '<mark style="background: #ffe066; color: #222; font-weight: bold; border-radius: 3px; padding: 0 2px;">$1</mark>');
 }
 
+// Function to analyze topic insights and generate synthesized insights
+function analyzeTopicInsights(topic: string, rawMentions: string[]): string {
+  if (!rawMentions || rawMentions.length === 0) {
+    return `No specific mentions found for ${topic}.`;
+  }
+
+  // Analyze the sentiment and content of mentions
+  const positiveWords = ['good', 'great', 'love', 'excellent', 'amazing', 'perfect', 'easy', 'quick', 'fast', 'smooth', 'simple', 'helpful', 'fantastic', 'outstanding', 'wonderful', 'awesome', 'reliable', 'trustworthy', 'professional', 'responsive', 'efficient', 'convenient', 'satisfied', 'happy', 'pleased', 'impressed', 'recommend', 'best', 'top', 'superior'];
+  const negativeWords = ['bad', 'terrible', 'hate', 'problem', 'issue', 'waiting', 'delay', 'locked', 'predatory', 'unfair', 'dangerous', 'warn', 'serious', 'no resolution', 'ridiculous', 'scam', 'ignoring', 'no response', 'bot', 'cheat', 'rigged', 'poor', 'awful', 'disappointed', 'worst', 'cheap', 'broken', 'slow', 'unhelpful', 'unresponsive', 'useless', 'rude', 'expensive', 'overpriced', 'costly', 'high', 'late', 'delayed', 'never arrived', 'difficult', 'confusing', 'complicated', 'reject', 'frustrated', 'annoyed', 'angry', 'upset', 'disgusted', 'horrible', 'nightmare'];
+
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let totalMentions = 0;
+
+  rawMentions.forEach(mention => {
+    const text = mention.toLowerCase();
+    const positiveWordsFound = positiveWords.filter(word => text.includes(word)).length;
+    const negativeWordsFound = negativeWords.filter(word => text.includes(word)).length;
+    
+    if (positiveWordsFound > negativeWordsFound) {
+      positiveCount++;
+    } else if (negativeWordsFound > positiveWordsFound) {
+      negativeCount++;
+    }
+    totalMentions++;
+  });
+
+  const positivePercentage = totalMentions > 0 ? Math.round((positiveCount / totalMentions) * 100) : 0;
+  const negativePercentage = totalMentions > 0 ? Math.round((negativeCount / totalMentions) * 100) : 0;
+
+  // Generate synthesized insight based on sentiment analysis
+  if (positivePercentage > negativePercentage) {
+    if (positivePercentage >= 70) {
+      return `Customers consistently praise ${topic} with ${positivePercentage}% positive feedback. This represents a strong competitive advantage.`;
+    } else if (positivePercentage >= 50) {
+      return `Customers generally have positive experiences with ${topic} (${positivePercentage}% positive), though there's room for improvement.`;
+    } else {
+      return `Mixed feedback on ${topic} with ${positivePercentage}% positive and ${negativePercentage}% negative mentions.`;
+    }
+  } else if (negativePercentage > positivePercentage) {
+    if (negativePercentage >= 70) {
+      return `Significant concerns about ${topic} with ${negativePercentage}% negative feedback. Immediate attention required.`;
+    } else if (negativePercentage >= 50) {
+      return `Customers express concerns about ${topic} (${negativePercentage}% negative). Improvement opportunities identified.`;
+    } else {
+      return `Some concerns about ${topic} with ${negativePercentage}% negative feedback, but not critical.`;
+    }
+  } else {
+    return `Balanced feedback on ${topic} with equal positive and negative mentions.`;
+  }
+}
+
 export default function ReportPageContent({
   reportData,
   reportId,
@@ -265,212 +317,10 @@ export default function ReportPageContent({
   // Enhanced sentiment analysis function
   // REMOVED: Frontend sentiment analysis - Let AI handle it
   // The backend AI analysis should determine sentiment, not frontend keyword matching
-  const analyzeSentiment = (
-    text: string,
-  ): "positive" | "negative" | "neutral" => {
-    // Default to neutral - let backend AI analysis handle sentiment
-    console.log(`🤖 Using backend AI sentiment analysis for: "${text.substring(0, 100)}..."`);
-    return "neutral";
-  };
-
-  // AI-powered topic classification function
-  // AI-powered topic classification using OpenAI
-  const classifyTopicWithAI = async (text: string): Promise<string> => {
-    if (!text) return "other";
-    
-    try {
-      const response = await fetch('/api/classify-topic', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text,
-          availableTopics: [
-            "sports betting",
-            "poker", 
-            "casino games",
-            "deposits",
-            "withdrawals", 
-            "loyalty rewards",
-            "customer service",
-            "mobile app",
-            "website",
-            "fees",
-            "verification",
-            "other"
-          ]
-        })
-      });
-      
-      if (!response.ok) {
-        console.error('AI classification failed, falling back to keyword method');
-        return classifyTopicWithKeywords(text);
-      }
-      
-      const result = await response.json();
-      return result.topic || "other";
-      
-    } catch (error) {
-      console.error('AI classification error:', error);
-      return classifyTopicWithKeywords(text);
-    }
-  };
-
-  // Fallback keyword-based classification
-  const classifyTopicWithKeywords = (text: string): string => {
-    if (!text) return "other";
-    
-    const lowerText = text.toLowerCase();
-    
-    // Define precise topic categories with context-aware keywords
-    const topicCategories = {
-      "sports betting": {
-        primary: ["sports betting", "bet on sports", "sport betting", "football betting", "basketball betting"],
-        secondary: ["odds", "parlay", "spread", "line", "nfl", "nba", "mlb", "nhl", "ufc"],
-        exclude: ["casino", "poker", "slot", "birthday", "gift", "loyalty", "deposit", "withdraw"]
-      },
-      "poker": {
-        primary: ["poker game", "texas holdem", "holdem", "omaha", "poker tournament", "cash game"],
-        secondary: ["poker", "card game", "table game", "hand", "flop", "turn", "river"],
-        exclude: ["slot", "casino game", "sports", "betting"]
-      },
-      "casino games": {
-        primary: ["slot machine", "blackjack game", "roulette game", "craps game", "baccarat game"],
-        secondary: ["casino game", "slot", "jackpot", "spin", "reel"],
-        exclude: ["poker game", "sports", "betting", "birthday", "gift"]
-      },
-      "deposits": {
-        primary: ["deposit money", "add funds", "put money", "fund account"],
-        secondary: ["deposit", "fund", "add money", "load account"],
-        exclude: ["withdraw", "cash out", "payout", "birthday", "gift"]
-      },
-      "withdrawals": {
-        primary: ["withdraw money", "cash out", "get payout", "withdrawal"],
-        secondary: ["withdraw", "payout", "cash out", "get money"],
-        exclude: ["deposit", "add money", "birthday", "gift"]
-      },
-      "loyalty rewards": {
-        primary: ["loyalty program", "reward program", "vip program", "member benefits"],
-        secondary: ["loyalty", "reward", "bonus", "point", "vip", "member"],
-        exclude: ["sports", "betting", "poker", "casino"]
-      },
-      "customer service": {
-        primary: ["customer service", "support team", "help desk", "contact support"],
-        secondary: ["service", "support", "help", "contact", "agent"],
-        exclude: ["sports", "betting", "poker", "casino", "deposit", "withdraw"]
-      },
-      "mobile app": {
-        primary: ["mobile app", "phone app", "android app", "ios app"],
-        secondary: ["app", "mobile", "phone", "android", "ios"],
-        exclude: ["website", "desktop", "computer"]
-      },
-      "website": {
-        primary: ["website", "web site", "online site"],
-        secondary: ["site", "web", "online", "browser"],
-        exclude: ["app", "mobile", "phone"]
-      },
-      "fees": {
-        primary: ["deposit fee", "withdrawal fee", "transaction fee", "service fee"],
-        secondary: ["fee", "charge", "cost", "price"],
-        exclude: ["free", "no fee", "no charge"]
-      },
-      "verification": {
-        primary: ["verification process", "id verification", "identity verification"],
-        secondary: ["verify", "verification", "id", "identity", "document"],
-        exclude: ["sports", "betting", "poker", "casino"]
-      }
-    };
-
-    // Score each topic based on keyword matches
-    const scores: { [key: string]: number } = {};
-    
-    for (const [topic, config] of Object.entries(topicCategories)) {
-      let score = 0;
-      
-      // Check primary keywords (highest weight)
-      for (const keyword of config.primary) {
-        if (lowerText.includes(keyword)) {
-          score += 10;
-        }
-      }
-      
-      // Check secondary keywords (medium weight)
-      for (const keyword of config.secondary) {
-        if (lowerText.includes(keyword)) {
-          score += 5;
-        }
-      }
-      
-      // Penalize for excluded keywords
-      for (const keyword of config.exclude) {
-        if (lowerText.includes(keyword)) {
-          score -= 3;
-        }
-      }
-      
-      scores[topic] = score;
-    }
-    
-    // Find the topic with the highest score
-    let bestTopic = "other";
-    let bestScore = 0;
-    
-    for (const [topic, score] of Object.entries(scores)) {
-      if (score > bestScore) {
-        bestScore = score;
-        bestTopic = topic;
-      }
-    }
-    
-    // Only return a topic if it has a significant score
-    return bestScore >= 5 ? bestTopic : "other";
-  };
+  // REMOVED: All frontend processing functions - using backend AI analysis directly
 
   // Main topic classification function (uses AI with fallback)
-  const classifyTopic = async (text: string): Promise<string> => {
-    return await classifyTopicWithAI(text);
-  };
-
-  // Topic relevance filtering function (now uses AI classification)
-  const isTopicRelevant = async (text: string, topic: string): Promise<boolean> => {
-    if (!text || !topic) return false;
-    
-    const classifiedTopic = await classifyTopic(text);
-    return classifiedTopic === topic.toLowerCase();
-  };
-
-  // Enhanced deduplication with sentiment and topic filtering
-  const deduplicateComments = (comments: string[]): string[] => {
-    if (!comments || !Array.isArray(comments)) return [];
-    return [...new Set(comments)].filter(
-      (comment) => comment && comment.trim().length > 0,
-    );
-  };
-
-  // Filter comments by topic and sentiment
-  const filterCommentsByTopicAndSentiment = async (
-    comments: string[],
-    topic: string,
-    targetSentiment: "positive" | "negative" | "neutral",
-  ): Promise<string[]> => {
-    if (!comments || !Array.isArray(comments)) return [];
-
-    const filteredComments = [];
-    for (const comment of comments) {
-      // Check topic relevance
-      const isRelevant = await isTopicRelevant(comment, topic);
-      if (!isRelevant) continue;
-
-      // Check sentiment
-      const sentiment = analyzeSentiment(comment);
-      if (sentiment === targetSentiment) {
-        filteredComments.push(comment);
-      }
-    }
-    
-    return filteredComments;
-  };
+  // REMOVED: Frontend topic classification and filtering - using backend AI analysis directly
 
   // Highlight keywords in text
   const highlightKeywords = (text: string, topic: string): string => {
@@ -841,164 +691,23 @@ export default function ReportPageContent({
   };
 
   // Function to process and deduplicate data with enhanced filtering
-  const processAndDeduplicateData = async (data: any) => {
-    if (!data) return data;
-
-    try {
-      console.log("Processing data with structure:", {
-        hasMentionsByTopic: !!data.mentionsByTopic,
-        mentionsByTopicLength: data.mentionsByTopic?.length || 0,
-        hasKeyInsights: !!data.keyInsights,
-        keyInsightsLength: data.keyInsights?.length || 0,
-        hasExecutiveSummary: !!data.executiveSummary
-      });
-
-      // Process mentions by topic - USE BACKEND DATA, DON'T OVERRIDE
-      if (data.mentionsByTopic && Array.isArray(data.mentionsByTopic)) {
-        console.log("Processing mentionsByTopic:", data.mentionsByTopic.length);
-        
-        for (let i = 0; i < data.mentionsByTopic.length; i++) {
-          const topic = data.mentionsByTopic[i];
-          console.log(`📊 Topic ${topic.topic}: Backend data - Positive: ${topic.positive}, Negative: ${topic.negative}, Total: ${topic.total}`);
-          console.log(`📝 Topic ${topic.topic}: Raw mentions count: ${topic.rawMentions?.length || 0}`);
-          
-          // Use backend data, just deduplicate raw mentions
-          const allMentions = deduplicateComments(topic.rawMentions || []);
-          console.log(`📝 Topic ${topic.topic}: ${allMentions.length} raw mentions after deduplication`);
-
-          // Keep backend sentiment analysis, don't recalculate
-          data.mentionsByTopic[i] = {
-            ...topic,
-            rawMentions: allMentions, // Include ALL mentions, not filtered
-            // Keep original backend positive/negative counts
-            positive: topic.positive || 0,
-            negative: topic.negative || 0,
-            total: topic.total || allMentions.length,
-          };
-          
-          console.log(`✅ Topic ${topic.topic}: Final data - Positive: ${data.mentionsByTopic[i].positive}, Negative: ${data.mentionsByTopic[i].negative}, Total: ${data.mentionsByTopic[i].total}, Raw mentions: ${data.mentionsByTopic[i].rawMentions?.length || 0}`);
-        }
-      }
-
-      // Process executive summary - USE BACKEND DATA
-      if (data.executiveSummary?.praisedSections) {
-        console.log("Processing praisedSections:", data.executiveSummary.praisedSections.length);
-        
-        for (let i = 0; i < data.executiveSummary.praisedSections.length; i++) {
-          const section = data.executiveSummary.praisedSections[i];
-          console.log(`📊 Praised Section ${section.topic}: Backend examples: ${section.examples?.length || 0}`);
-          
-          // Use backend data, just deduplicate
-          const allExamples = deduplicateComments(section.examples || []);
-          console.log(`📝 Praised Section ${section.topic}: ${allExamples.length} examples after deduplication`);
-
-          data.executiveSummary.praisedSections[i] = {
-            ...section,
-            examples: allExamples, // Include ALL examples, don't filter
-          };
-          
-          console.log(`✅ Praised Section ${section.topic}: Final examples: ${data.executiveSummary.praisedSections[i].examples.length}`);
-        }
-      }
-
-      if (data.executiveSummary?.painPoints) {
-        console.log("Processing painPoints:", data.executiveSummary.painPoints.length);
-        
-        for (let i = 0; i < data.executiveSummary.painPoints.length; i++) {
-          const point = data.executiveSummary.painPoints[i];
-          const allExamples = deduplicateComments(point.examples || []);
-          const negativeExamples = [];
-          
-          for (const example of allExamples) {
-            try {
-              if (analyzeSentiment(example) === "negative" && 
-                  await isTopicRelevant(example, point.topic)) {
-                negativeExamples.push(example);
-              }
-            } catch (error) {
-              console.warn("Error processing pain point example:", error);
-              // If processing fails, include negative examples anyway
-              if (analyzeSentiment(example) === "negative") {
-                negativeExamples.push(example);
-              }
-            }
-          }
-
-          data.executiveSummary.painPoints[i] = {
-            ...point,
-            examples: negativeExamples,
-            percentage:
-              negativeExamples.length > 0
-                ? Math.round(
-                    (negativeExamples.length / allExamples.length) * 100,
-                  )
-                : 0,
-          };
-        }
-      }
-
-      // Process key insights with proper filtering
-      if (data.keyInsights && Array.isArray(data.keyInsights)) {
-        console.log("Processing keyInsights:", data.keyInsights.length);
-        
-        for (let i = 0; i < data.keyInsights.length; i++) {
-          const insight = data.keyInsights[i];
-          const allMentions = deduplicateComments(insight.rawMentions || []);
-          const relevantMentions = [];
-          
-          for (const mention of allMentions) {
-            try {
-              if (await isTopicRelevant(mention, insight.insight)) {
-                relevantMentions.push(mention);
-              }
-            } catch (error) {
-              console.warn("Error processing key insight mention:", error);
-              // If relevance check fails, include the mention anyway
-              relevantMentions.push(mention);
-            }
-          }
-
-          data.keyInsights[i] = {
-            ...insight,
-            rawMentions: relevantMentions,
-          };
-        }
-      }
-
-      console.log("Data processing completed successfully");
-      return data;
-    } catch (error) {
-      console.error("Error in processAndDeduplicateData:", error);
-      // Return the original data if processing fails
-      return data;
-    }
-  };
+  // REMOVED: Frontend data processing - using backend AI analysis directly
 
   // State for processed data
   const [processedData, setProcessedData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(true);
 
-  // Process data with AI classification
+  // Use backend data directly without frontend processing
   useEffect(() => {
     const processData = async () => {
       setIsProcessing(true);
       try {
+        console.log("🔍 USING BACKEND DATA DIRECTLY - NO FRONTEND PROCESSING");
         console.log("Raw reportData:", reportData);
         console.log("Analysis data:", reportData.analysis);
         console.log("Analysis keys:", reportData.analysis ? Object.keys(reportData.analysis) : []);
-        console.log("Analysis content summary:", reportData.analysis ? {
-          keyInsights: reportData.analysis.keyInsights?.length || 0,
-          trendingTopics: reportData.analysis.trendingTopics?.length || 0,
-          marketGaps: reportData.analysis.marketGaps?.length || 0,
-          mentionsByTopic: reportData.analysis.mentionsByTopic?.length || 0,
-          reviews: reportData.analysis.reviews?.length || 0,
-          executiveSummary: !!reportData.analysis.executiveSummary,
-          // Show first few items for debugging
-          firstKeyInsight: reportData.analysis.keyInsights?.[0]?.insight?.substring(0, 100),
-          firstTopic: reportData.analysis.mentionsByTopic?.[0]?.topic,
-          firstMarketGap: reportData.analysis.marketGaps?.[0]?.gap?.substring(0, 100)
-        } : null);
         
+        // Use backend data directly - no frontend processing
         const data = {
           ...reportData,
           // If analysis is nested, spread it out
@@ -1006,9 +715,9 @@ export default function ReportPageContent({
           // Ensure we have the basic fields
           business_name: reportData.business_name,
           business_url: reportData.business_url,
-          // Handle different data structures
+          // Handle different data structures - USE BACKEND DATA AS-IS
           executiveSummary:
-            reportData.executiveSummary || reportData.analysis?.executiveSummary,
+            reportData.analysis?.executiveSummary || reportData.executiveSummary,
           keyInsights: reportData.keyInsights || reportData.analysis?.keyInsights,
           sentimentOverTime:
             reportData.sentimentOverTime || reportData.analysis?.sentimentOverTime,
@@ -1028,43 +737,25 @@ export default function ReportPageContent({
           vocDigest: reportData.vocDigest || reportData.analysis?.vocDigest,
         };
 
-        console.log("Processed data structure:", data);
+        console.log("✅ BACKEND DATA STRUCTURE:");
+        console.log("mentionsByTopic:", data.mentionsByTopic?.length || 0);
+        console.log("keyInsights:", data.keyInsights?.length || 0);
+        console.log("executiveSummary:", !!data.executiveSummary);
+        console.log("executiveSummary.painPoints:", data.executiveSummary?.painPoints?.length || 0);
+        console.log("executiveSummary.praisedSections:", data.executiveSummary?.praisedSections?.length || 0);
+        console.log("sentimentOverTime:", data.sentimentOverTime?.length || 0);
+        console.log("volumeOverTime:", data.volumeOverTime?.length || 0);
         
-        // If we have analysis data but it's in a different format, try to convert it
-        if (reportData.analysis && typeof reportData.analysis === 'object') {
-          // Check if analysis has the expected structure
-          if (reportData.analysis.reviews && Array.isArray(reportData.analysis.reviews)) {
-            console.log("Found reviews in analysis:", reportData.analysis.reviews.length);
-            
-            // Generate insights from the reviews if they exist
-            if (!data.keyInsights && reportData.analysis.reviews.length > 0) {
-              data.keyInsights = generateInsightsFromReviews(reportData.analysis.reviews);
-            }
-            
-            // Generate trending topics if they don't exist
-            if (!data.trendingTopics && reportData.analysis.reviews.length > 0) {
-              data.trendingTopics = generateTrendingTopicsFromReviews(reportData.analysis.reviews);
-            }
-            
-            // Generate market gaps if they don't exist
-            if (!data.marketGaps && reportData.analysis.reviews.length > 0) {
-              data.marketGaps = generateMarketGapsFromReviews(reportData.analysis.reviews);
-            }
-          }
-        }
-
-        // Process data to ensure backend AI analysis is preserved
-        console.log("🔧 Processing data to preserve backend AI analysis");
-        console.log("Final processed data:", data);
-        console.log("🔍 DETAILED DATA INSPECTION:");
-        console.log("mentionsByTopic sample:", data.mentionsByTopic?.[0]);
-        console.log("keyInsights sample:", data.keyInsights?.[0]);
-        console.log("executiveSummary:", data.executiveSummary);
-        console.log("marketGaps sample:", data.marketGaps?.[0]);
+        // Debug the actual data being used
+        console.log("🔍 ACTUAL DATA BEING USED:");
+        console.log("Executive Summary:", data.executiveSummary);
+        console.log("First mentionsByTopic:", data.mentionsByTopic?.[0]);
+        console.log("First keyInsights:", data.keyInsights?.[0]);
+        console.log("Sentiment data:", data.sentimentOverTime?.[0]);
+        console.log("Volume data:", data.volumeOverTime?.[0]);
         
-        // Process the data to ensure backend AI sentiment analysis is preserved
-        const processedData = await processAndDeduplicateData(data);
-        setProcessedData(processedData);
+        // Use backend data directly - NO FRONTEND PROCESSING
+        setProcessedData(data);
       } catch (error) {
         console.error('Error processing data:', error);
         // Use original data as fallback
@@ -1150,86 +841,31 @@ export default function ReportPageContent({
       console.log(`📊 Backend data - Positive: ${topicData?.positive}, Negative: ${topicData?.negative}, Total: ${topicData?.total}`);
       console.log(`📝 Raw mentions count: ${rawMentions.length}`);
       
-      // Use backend sentiment data to determine sentiment for each review
-      const totalReviews = rawMentions.length;
-      const positivePercentage = topicData?.positive || 0;
-      const negativePercentage = topicData?.negative || 0;
-      
-      // Calculate actual counts based on backend percentages
-      const positiveCount = Math.round((positivePercentage / 100) * totalReviews);
-      const negativeCount = Math.round((negativePercentage / 100) * totalReviews);
-      
-      console.log(`📊 Calculated counts - Positive: ${positiveCount}, Negative: ${negativeCount}, Total: ${totalReviews}`);
-      
-      // Create reviews with sentiment based on backend data
-      const reviews = rawMentions.map((text: string, index: number) => {
-        let sentiment = "neutral"; // Default to neutral
-        
-        // Distribute positive and negative reviews based on backend percentages
-        if (index < positiveCount) {
-          sentiment = "positive";
-        } else if (index < positiveCount + negativeCount) {
-          sentiment = "negative";
-        } else {
-          sentiment = "neutral";
-        }
-        
-        return {
-          text,
-          sentiment,
-          topic: topicName,
-          highlightedText: highlightKeywords(text, topicName),
-        };
-      });
+      // Use backend data directly - no frontend sentiment assignment
+      const reviews = rawMentions.map((text: string) => ({
+        text,
+        sentiment: "neutral", // Let backend AI determine sentiment
+        topic: topicName,
+        highlightedText: highlightKeywords(text, topicName),
+      }));
 
-      // Separate by sentiment for better organization
-      const positiveReviews = reviews.filter((r) => r.sentiment === "positive");
-      const negativeReviews = reviews.filter((r) => r.sentiment === "negative");
-      const neutralReviews = reviews.filter((r) => r.sentiment === "neutral");
-
-      // Combine with positive first, then negative, then neutral
-      const organizedReviews = [
-        ...positiveReviews,
-        ...negativeReviews,
-        ...neutralReviews,
-      ];
-
-      console.log(`✅ Final organized reviews - Positive: ${positiveReviews.length}, Negative: ${negativeReviews.length}, Neutral: ${neutralReviews.length}, Total: ${organizedReviews.length}`);
+      console.log(`✅ Using backend data directly - ${reviews.length} reviews`);
 
       setSelectedTopic(topicName);
-      setSelectedReviews(organizedReviews);
+      setSelectedReviews(reviews);
       setShowReviewModal(true);
     }
   };
 
   const handleInsightClick = (insight: any) => {
     if (insight.rawMentions && insight.rawMentions.length > 0) {
-      // Use consistent sentiment analysis based on insight direction
-      const reviews = insight.rawMentions.map((text: string, index: number) => {
-        let sentiment = "neutral"; // Default to neutral
-
-        // Use insight direction to determine sentiment
-        if (insight.direction === "up") {
-          sentiment = "positive";
-        } else if (insight.direction === "down") {
-          sentiment = "negative";
-        } else {
-          // For mixed insights, distribute based on index
-          const totalReviews = insight.rawMentions.length;
-          const positiveCount = Math.round(totalReviews * 0.6); // Assume 60% positive for mixed
-          const negativeCount = Math.round(totalReviews * 0.4); // Assume 40% negative for mixed
-
-          if (index < positiveCount) {
-            sentiment = "positive";
-          } else if (index < positiveCount + negativeCount) {
-            sentiment = "negative";
-          } else {
-            sentiment = "neutral";
-          }
-        }
-
-        return { text, sentiment, topic: insight.insight, highlightedText: highlightKeywords(text, insight.insight) };
-      });
+      // Use backend data directly - no frontend sentiment assignment
+      const reviews = insight.rawMentions.map((text: string) => ({
+        text,
+        sentiment: "neutral", // Let backend AI determine sentiment
+        topic: insight.insight,
+        highlightedText: highlightKeywords(text, insight.insight)
+      }));
 
       setSelectedTopic(insight.insight);
       setSelectedReviews(reviews);
@@ -1254,260 +890,17 @@ export default function ReportPageContent({
     return String(value);
   };
 
-  const generateCurrentDates = (days: number) => {
-    const dates = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      dates.push(date.toISOString().split("T")[0]);
-    }
-    return dates;
-  };
+  // REMOVED: Frontend date generation - using backend data directly
 
   // Enhanced analysis function that provides specific insights
-  const generateSpecificInsights = (topic: string, reviews: string[], sentiment: string): string => {
-    if (!reviews || reviews.length === 0) {
-      return `No specific feedback found for ${topic}.`;
-    }
-
-    const lowerTopic = topic.toLowerCase();
-    const allText = reviews.join(' ').toLowerCase();
-    
-    // Topic-specific analysis patterns
-    const analysisPatterns: { [key: string]: { positive: string[], negative: string[], neutral: string[] } } = {
-      'deposits': {
-        "positive": ['easy', 'quick', 'fast', 'smooth', 'instant', 'convenient', 'simple', 'reliable'],
-        "negative": ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck'],
-        "neutral": ['process', 'method', 'option', 'way', 'system']
-      },
-      'withdrawals': {
-        "positive": ['quick', 'fast', 'smooth', 'easy', 'reliable', 'trusted', 'honest'],
-        "negative": ['slow', 'delayed', 'pending', 'failed', 'rejected', 'problem', 'issue', 'error', 'waiting', 'stuck', 'scam', 'fraud'],
-        "neutral": ['process', 'method', 'option', 'way', 'system']
-      },
-      'loyalty rewards': {
-        "positive": ['good', 'great', 'excellent', 'amazing', 'fantastic', 'worth', 'valuable', 'beneficial'],
-        "negative": ['poor', 'bad', 'terrible', 'worthless', 'useless', 'disappointing', 'unfair', 'rigged'],
-        "neutral": ['program', 'system', 'points', 'benefits', 'rewards']
-      },
-      'customer service': {
-        "positive": ['helpful', 'responsive', 'friendly', 'professional', 'quick', 'efficient', 'knowledgeable'],
-        "negative": ['unhelpful', 'unresponsive', 'rude', 'slow', 'useless', 'ignored', 'unprofessional'],
-        "neutral": ['support', 'service', 'assistance', 'help']
-      },
-      'mobile app': {
-        "positive": ['smooth', 'fast', 'easy', 'intuitive', 'user-friendly', 'reliable', 'stable'],
-        "negative": ['buggy', 'slow', 'crashes', 'glitchy', 'unstable', 'difficult', 'confusing'],
-        "neutral": ['app', 'mobile', 'interface', 'design']
-      }
-    };
-
-    const patterns = analysisPatterns[lowerTopic] || {
-              "positive": ['good', 'great', 'excellent', 'amazing'],
-        "negative": ['bad', 'terrible', 'poor', 'awful'],
-        "neutral": ['okay', 'fine', 'average']
-    };
-
-    // Count pattern matches
-    let positiveCount = 0;
-    let negativeCount = 0;
-    let neutralCount = 0;
-
-    patterns.positive.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      const matches = allText.match(regex);
-      if (matches) positiveCount += matches.length;
-    });
-
-    patterns.negative.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      const matches = allText.match(regex);
-      if (matches) negativeCount += matches.length;
-    });
-
-    patterns.neutral.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      const matches = allText.match(regex);
-      if (matches) neutralCount += matches.length;
-    });
-
-    // Generate specific insights based on topic and sentiment
-    if (sentiment === 'positive') {
-      if (lowerTopic === 'deposits') {
-        return `Users frequently mention that deposits are ${positiveCount > negativeCount ? 'quick and reliable' : 'generally smooth'}. The process appears to be working well for most customers.`;
-      } else if (lowerTopic === 'withdrawals') {
-        return `Withdrawal experiences are mostly positive, with users noting ${positiveCount > negativeCount ? 'fast and reliable processing' : 'satisfactory service'}.`;
-      } else if (lowerTopic === 'loyalty rewards') {
-        return `The loyalty program is well-received, with users appreciating ${positiveCount > negativeCount ? 'valuable benefits and rewards' : 'the overall program structure'}.`;
-      } else if (lowerTopic === 'customer service') {
-        return `Customer service receives positive feedback, with users highlighting ${positiveCount > negativeCount ? 'helpful and responsive support' : 'good overall service quality'}.`;
-      } else if (lowerTopic === 'mobile app') {
-        return `The mobile app is praised for being ${positiveCount > negativeCount ? 'smooth and user-friendly' : 'generally well-designed'}.`;
-      }
-    } else if (sentiment === 'negative') {
-      if (lowerTopic === 'deposits') {
-        return `Users report issues with deposits, primarily ${negativeCount > positiveCount ? 'delays and processing problems' : 'various technical difficulties'}. This needs immediate attention.`;
-      } else if (lowerTopic === 'withdrawals') {
-        return `Withdrawal problems are a major concern, with users experiencing ${negativeCount > positiveCount ? 'delays and processing issues' : 'various technical problems'}. This is affecting customer trust.`;
-      } else if (lowerTopic === 'loyalty rewards') {
-        return `The loyalty program is criticized for being ${negativeCount > positiveCount ? 'unfair or poorly structured' : 'disappointing overall'}. Users feel the rewards are not valuable.`;
-      } else if (lowerTopic === 'customer service') {
-        return `Customer service is problematic, with users reporting ${negativeCount > positiveCount ? 'unresponsive and unhelpful support' : 'poor overall service quality'}.`;
-      } else if (lowerTopic === 'mobile app') {
-        return `The mobile app has issues, with users experiencing ${negativeCount > positiveCount ? 'bugs and crashes' : 'various technical problems'}.`;
-      }
-    } else {
-      return `Mixed feedback for ${topic}. Some users are satisfied while others have concerns. Further analysis needed to identify specific improvement areas.`;
-    }
-
-    // Fallback for other topics
-    return `Analysis of ${topic} shows ${sentiment === 'positive' ? 'generally positive feedback' : sentiment === 'negative' ? 'significant concerns that need attention' : 'mixed customer sentiment'}.`;
-  };
+  // REMOVED: Frontend specific insights generation - using backend AI analysis directly
 
   // Enhanced topic analysis function with detailed pattern analysis
-  const analyzeTopicInsights = (topic: string, rawMentions: string[]): string => {
-    if (!rawMentions || rawMentions.length === 0) {
-      return `No specific feedback available for ${topic}.`;
-    }
-
-    const allText = rawMentions.join(' ').toLowerCase();
-    const topicLower = topic.toLowerCase();
-    const reviewCount = rawMentions.length;
-
-    // Universal pattern analysis that works across all industries
-    const hasQualityIssues = /\b(poor|bad|terrible|awful|disappointing|unacceptable|substandard|inferior)\b/gi.test(allText);
-    const hasTrustIssues = /\b(scam|fraud|fake|dishonest|untrustworthy|deceptive|misleading|rigged)\b/gi.test(allText);
-    const hasTechnicalIssues = /\b(bug|glitch|crash|error|broken|unresponsive|freeze|malfunction)\b/gi.test(allText);
-    const hasPerformanceIssues = /\b(slow|delay|lag|wait|stuck|processing|unresponsive|timeout)\b/gi.test(allText);
-    const hasServiceIssues = /\b(unhelpful|rude|ignored|unresponsive|useless|incompetent|unprofessional)\b/gi.test(allText);
-    const hasPriceIssues = /\b(expensive|overpriced|costly|rip-off|overcharged|unfair|pricey)\b/gi.test(allText);
-    const hasQualityPraise = /\b(excellent|amazing|fantastic|outstanding|superb|perfect|brilliant)\b/gi.test(allText);
-    const hasServicePraise = /\b(helpful|friendly|professional|responsive|efficient|quick|attentive)\b/gi.test(allText);
-    const hasValuePraise = /\b(worth|valuable|beneficial|great|good|satisfied|happy|love)\b/gi.test(allText);
-    
-    // Extract specific issues for any industry
-    let specificIssues = [];
-    if (hasTrustIssues) specificIssues.push('trust concerns');
-    if (hasQualityIssues) specificIssues.push('quality problems');
-    if (hasTechnicalIssues) specificIssues.push('technical issues');
-    if (hasPerformanceIssues) specificIssues.push('performance problems');
-    if (hasServiceIssues) specificIssues.push('service issues');
-    if (hasPriceIssues) specificIssues.push('pricing concerns');
-    
-    // Generate industry-agnostic insights
-    if (hasTrustIssues) {
-      return `CRITICAL: Trust issues - ${reviewCount} customers report concerns about ${topic}. Requires immediate attention.`;
-    } else if (hasQualityIssues && hasTechnicalIssues) {
-      return `${topic} quality and technical issues - ${reviewCount} customers report problems with reliability and performance.`;
-    } else if (hasQualityIssues) {
-      return `${topic} quality concerns - ${reviewCount} customers report substandard quality and disappointing experiences.`;
-    } else if (hasTechnicalIssues) {
-      return `${topic} technical problems - ${reviewCount} customers experiencing bugs, crashes, and system issues.`;
-    } else if (hasPerformanceIssues) {
-      return `${topic} performance issues - ${reviewCount} customers report slow, unresponsive, or delayed service.`;
-    } else if (hasServiceIssues) {
-      return `${topic} service problems - ${reviewCount} customers report unhelpful, rude, or unresponsive support.`;
-    } else if (hasPriceIssues) {
-      return `${topic} pricing concerns - ${reviewCount} customers find service overpriced or unfair.`;
-    } else if (hasQualityPraise && hasServicePraise) {
-      return `${topic} excellence - ${reviewCount} customers praise quality and service.`;
-    } else if (hasQualityPraise) {
-      return `${topic} quality praised - ${reviewCount} customers satisfied with excellent quality.`;
-    } else if (hasServicePraise) {
-      return `${topic} service praised - ${reviewCount} customers appreciate helpful and professional support.`;
-    } else if (hasValuePraise) {
-      return `${topic} positive feedback - ${reviewCount} customers satisfied with value and experience.`;
-    }
-
-    // Fallback generic analysis for any remaining cases
-    const positiveWords = /\b(good|great|excellent|amazing|fantastic|smooth|easy|quick|reliable|satisfied|happy|love)\b/gi;
-    const negativeWords = /\b(bad|terrible|poor|awful|slow|difficult|problem|issue|error|disappointed|frustrated|hate)\b/gi;
-    const urgentWords = /\b(urgent|critical|emergency|immediate|serious)\b/gi;
-    
-    const positiveMatches = allText.match(positiveWords) || [];
-    const negativeMatches = allText.match(negativeWords) || [];
-    const urgentMatches = allText.match(urgentWords) || [];
-    
-    // Fallback analysis
-    if (urgentMatches.length > 0 && negativeMatches.length > positiveMatches.length) {
-      return `URGENT: Critical issues for ${topic} - ${reviewCount} customers need immediate attention.`;
-    } else if (positiveMatches.length > negativeMatches.length * 2) {
-      return `${topic} positive: ${reviewCount} customers satisfied with service.`;
-    } else if (negativeMatches.length > positiveMatches.length * 2) {
-      return `${topic} concerns - ${reviewCount} customers report problems needing attention.`;
-    } else {
-      return `${topic} mixed feedback - ${reviewCount} customers have varied experiences.`;
-    }
-  };
+  // REMOVED: Frontend topic analysis - using backend AI analysis directly
 
   // Enhanced insights generation
-  const generateInsights = (): any[] => {
-    if (!reportData?.mentionsByTopic) return [];
-
-    const insights: any[] = [];
-    const processedTopics = new Set<string>();
-
-    reportData.mentionsByTopic.forEach((topic) => {
-      if (processedTopics.has(topic.topic)) return;
-      processedTopics.add(topic.topic);
-
-      const totalMentions = (topic.positive || 0) + (topic.neutral || 0) + (topic.negative || 0);
-      const positiveMentions = topic.positive || 0;
-      const negativeMentions = topic.negative || 0;
-      const rawMentions = topic.rawMentions || [];
-
-      if (totalMentions === 0) return;
-
-      const sentiment = negativeMentions > positiveMentions ? 'negative' : positiveMentions > negativeMentions ? 'positive' : 'neutral';
-      const percentage = Math.round((Math.max(positiveMentions, negativeMentions) / totalMentions) * 100);
-
-      // Generate specific insight based on topic analysis
-      const specificInsight = analyzeTopicInsights(topic.topic, rawMentions);
-      
-      const insight = {
-        insight: specificInsight,
-        title: topic.topic,
-        direction: sentiment,
-        mentionCount: totalMentions.toString(),
-        platforms: ['Trustpilot', 'Google Reviews', 'Sitejabber'],
-        impact: sentiment === 'negative' ? 'High' : sentiment === 'positive' ? 'Medium' : 'Low',
-        suggestions: sentiment === 'negative' ? [
-          'Investigate root cause of complaints',
-          'Implement immediate fixes',
-          'Monitor customer feedback closely'
-        ] : sentiment === 'positive' ? [
-          'Maintain current standards',
-          'Leverage positive feedback for marketing',
-          'Continue monitoring for any changes'
-        ] : [
-          'Monitor for trend changes',
-          'Gather more specific feedback',
-          'Consider targeted improvements'
-        ],
-        reviews: rawMentions.slice(0, 3).map((mention, index) => ({
-          text: mention,
-          topic: topic.topic,
-          sentiment: sentiment,
-          source: `Review ${index + 1}`
-        })),
-        rawMentions: rawMentions,
-        context: `Based on ${totalMentions} mentions across multiple platforms`,
-        rootCause: sentiment === 'negative' ? 'Customer dissatisfaction with current service quality' : 'Satisfactory service delivery',
-        actionItems: sentiment === 'negative' ? 'Immediate investigation and resolution required' : 'Continue monitoring and maintain standards',
-        specificExamples: rawMentions.slice(0, 2)
-      };
-
-      insights.push(insight);
-    });
-
-    return insights.sort((a, b) => {
-      const aImpact = a.direction === 'negative' ? 3 : a.direction === 'positive' ? 1 : 2;
-      const bImpact = b.direction === 'negative' ? 3 : b.direction === 'positive' ? 1 : 2;
-      return bImpact - aImpact;
-    });
-  };
-
-  const insights = generateInsights();
+  // REMOVED: Frontend insights generation - using backend AI analysis directly
+  const insights = processedData.keyInsights || [];
 
   // Generate chart data for sentiment over time
   const sentimentChartData =
@@ -1546,106 +939,7 @@ export default function ReportPageContent({
     }
   };
 
-  const generateInsightsFromReviews = (reviews: any[]): any[] => {
-    if (!reviews || reviews.length === 0) return [];
-    
-    const insights = [];
-    const sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
-    
-    // Count sentiments
-    reviews.forEach(review => {
-      const sentiment = review.sentiment_label || analyzeSentiment(review.review_text || '');
-      if (sentiment in sentimentCounts) {
-        sentimentCounts[sentiment as keyof typeof sentimentCounts]++;
-      }
-    });
-    
-    // Only generate insights if we have actual data
-    if (sentimentCounts.positive > 0 || sentimentCounts.negative > 0) {
-      if (sentimentCounts.positive > sentimentCounts.negative) {
-        insights.push({
-          insight: "Overall positive sentiment detected",
-          direction: "up",
-          mentionCount: sentimentCounts.positive.toString(),
-          platforms: ["All sources"],
-          impact: "high",
-          rawMentions: reviews.filter(r => r.sentiment_label === 'positive').map(r => r.review_text)
-        });
-      }
-      
-      if (sentimentCounts.negative > 0) {
-        insights.push({
-          insight: "Negative feedback areas identified",
-          direction: "down",
-          mentionCount: sentimentCounts.negative.toString(),
-          platforms: ["All sources"],
-          impact: "medium",
-          rawMentions: reviews.filter(r => r.sentiment_label === 'negative').map(r => r.review_text)
-        });
-      }
-    }
-    
-    return insights;
-  };
-
-  const generateTrendingTopicsFromReviews = (reviews: any[]): any[] => {
-    if (!reviews || reviews.length === 0) return [];
-    
-    const topicCounts: { [key: string]: number } = {};
-    
-    // Count topics from reviews
-    reviews.forEach(review => {
-      if (review.topics && Array.isArray(review.topics)) {
-        review.topics.forEach((topic: string) => {
-          topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-        });
-      }
-    });
-    
-    // Only return topics that have actual mentions
-    return Object.entries(topicCounts)
-      .filter(([, count]) => count > 0) // Only include topics with mentions
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([topic, count]) => ({
-        topic,
-        growth: count > 0 ? "increasing" : "stable",
-        sentiment: "mixed",
-        volume: count.toString(),
-        totalCount: count
-      }));
-  };
-
-  const generateMarketGapsFromReviews = (reviews: any[]): any[] => {
-    if (!reviews || reviews.length === 0) return [];
-    
-    const negativeReviews = reviews.filter(r => r.sentiment_label === 'negative');
-    const gaps = [];
-    
-    // Only create gaps if there are actual negative reviews
-    if (negativeReviews.length > 0) {
-      gaps.push({
-        gap: "Customer service improvements needed",
-        mentions: negativeReviews.length,
-        suggestion: "Implement better customer support processes",
-        kpiImpact: "Improve customer satisfaction scores",
-        rawMentions: negativeReviews.map(r => r.review_text)
-      });
-    }
-    
-    return gaps;
-  };
-
-  // Helper to calculate sentiment counts for a topic
-  function getSentimentCounts(reviews: Array<{ sentiment: string }>) {
-    let positive = 0, neutral = 0, negative = 0;
-    for (const r of reviews) {
-      if (r.sentiment === 'positive') positive++;
-      else if (r.sentiment === 'negative') negative++;
-      else neutral++;
-    }
-    return { positive, neutral, negative };
-  }
+  // REMOVED: Frontend data generation functions - using backend AI analysis directly
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-white">
