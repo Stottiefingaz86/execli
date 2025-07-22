@@ -315,25 +315,25 @@ function PricingSection() {
 }
 
 function IntegrationsGrid() {
-  // Full list of integrations from REVIEW_SOURCES and modal
+  // MVP integrations - only Trustpilot, Google Reviews, and TripAdvisor are active
   const integrations = [
-    { name: 'Trustpilot', price: 9, icon: Star },
-    { name: 'App Store', price: 9, icon: PieChart },
-    { name: 'Yelp', price: 9, icon: Users },
-    { name: 'Reddit', price: 9, icon: MessageCircle },
-    { name: 'Twitter', price: 9, icon: TrendingUp },
-    { name: 'Facebook', price: 9, icon: Users },
-    { name: 'Amazon', price: 9, icon: Star },
-    { name: 'Google Reviews', price: 9, icon: UserCheck },
-    { name: 'Expedia', price: 9, icon: Globe },
-    { name: 'Booking.com', price: 9, icon: Globe },
-    { name: 'Capterra', price: 9, icon: Globe },
-    { name: 'G2', price: 9, icon: Globe },
-    { name: 'TripAdvisor', price: 9, icon: Globe },
-    { name: 'Casino.org', price: 9, icon: Globe },
-    { name: 'Intercom', price: 'Custom', icon: Mail },
-    { name: 'Zendesk', price: 'Custom', icon: Mail },
-    { name: 'LiveChat', price: 'Custom', icon: Mail },
+    { name: 'Trustpilot', price: 9, icon: Star, active: true },
+    { name: 'Google Reviews', price: 9, icon: UserCheck, active: true },
+    { name: 'TripAdvisor', price: 9, icon: Globe, active: true },
+    { name: 'App Store', price: 9, icon: PieChart, active: false },
+    { name: 'Yelp', price: 9, icon: Users, active: false },
+    { name: 'Reddit', price: 9, icon: MessageCircle, active: false },
+    { name: 'Twitter', price: 9, icon: TrendingUp, active: false },
+    { name: 'Facebook', price: 9, icon: Users, active: false },
+    { name: 'Amazon', price: 9, icon: Star, active: false },
+    { name: 'Expedia', price: 9, icon: Globe, active: false },
+    { name: 'Booking.com', price: 9, icon: Globe, active: false },
+    { name: 'Capterra', price: 9, icon: Globe, active: false },
+    { name: 'G2', price: 9, icon: Globe, active: false },
+    { name: 'Casino.org', price: 9, icon: Globe, active: false },
+    { name: 'Intercom', price: 'Custom', icon: Mail, active: false },
+    { name: 'Zendesk', price: 'Custom', icon: Mail, active: false },
+    { name: 'LiveChat', price: 'Custom', icon: Mail, active: false },
   ];
   return (
     <section className="max-w-6xl mx-auto px-4 pb-20">
@@ -343,16 +343,42 @@ function IntegrationsGrid() {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
         {integrations.map((int, i) => (
-          <div key={i} className="bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-2xl hover:scale-105 transition-all duration-300 group overflow-hidden relative">
+          <div 
+            key={i} 
+            className={`bg-[#1c1e26]/40 border border-white/20 rounded-3xl p-6 flex flex-col items-center justify-center backdrop-blur-2xl transition-all duration-300 group overflow-hidden relative ${
+              int.active 
+                ? 'hover:scale-105 cursor-pointer' 
+                : 'opacity-50 grayscale cursor-not-allowed'
+            }`}
+          >
             {/* Liquid effect overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-white/[0.01] rounded-3xl" />
             <div className="absolute inset-0 bg-gradient-to-tr from-purple-400/5 via-transparent to-[#8b5cf6]/5 rounded-3xl" />
-            <int.icon size={32} className="text-purple-400 mb-3 group-hover:text-[#9F6BFA] transition-all duration-300 relative z-10" />
-            <div className="font-semibold text-base text-white mb-1 relative z-10">{int.name}</div>
+            <int.icon 
+              size={32} 
+              className={`mb-3 transition-all duration-300 relative z-10 ${
+                int.active 
+                  ? 'text-purple-400 group-hover:text-[#9F6BFA]' 
+                  : 'text-gray-400'
+              }`} 
+            />
+            <div className={`font-semibold text-base mb-1 relative z-10 ${
+              int.active ? 'text-white' : 'text-gray-400'
+            }`}>
+              {int.name}
+            </div>
             <div className="text-xs text-[#B0B0C0] mb-3 relative z-10">Integration</div>
             <div className="flex items-center gap-2 relative z-10">
-              <span className="pill text-xs">{int.price === 'Custom' ? 'Custom' : `€${int.price}/mo`}</span>
-              {int.price !== 0 && <Lock size={16} className="text-[#86EFF5] opacity-70 group-hover:opacity-100 transition-all duration-300" />}
+              {int.active ? (
+                <>
+                  <span className="pill text-xs">{int.price === 'Custom' ? 'Custom' : `€${int.price}/mo`}</span>
+                  <Lock size={16} className="text-[#86EFF5] opacity-70 group-hover:opacity-100 transition-all duration-300" />
+                </>
+              ) : (
+                <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded-full">
+                  Coming Soon
+                </span>
+              )}
             </div>
           </div>
         ))}
