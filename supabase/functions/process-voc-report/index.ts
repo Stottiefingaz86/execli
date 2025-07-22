@@ -3241,6 +3241,218 @@ function generateTopicKeyInsight(topic: any, reviews: Review[]): string {
 }
 
 // Helper function to generate detailed executive summary
+function generatePraisedSections(reviews: Review[], businessName: string): Array<{topic: string, percentage: string, examples: string[]}> {
+  if (reviews.length === 0) return [];
+  
+  const positiveReviews = reviews.filter(r => (r.rating || 0) >= 4);
+  const sections: Array<{topic: string, percentage: string, examples: string[]}> = [];
+  
+  // Analyze topics for positive feedback
+  const topics = {
+    customerService: { count: 0, examples: [] },
+    withdrawal: { count: 0, examples: [] },
+    deposit: { count: 0, examples: [] },
+    bonus: { count: 0, examples: [] },
+    games: { count: 0, examples: [] },
+    mobileApp: { count: 0, examples: [] }
+  };
+  
+  positiveReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    if (text.includes('service') || text.includes('support') || text.includes('help')) {
+      topics.customerService.count++;
+      if (topics.customerService.examples.length < 2) topics.customerService.examples.push(review.text);
+    }
+    if (text.includes('withdrawal') || text.includes('payout')) {
+      topics.withdrawal.count++;
+      if (topics.withdrawal.examples.length < 2) topics.withdrawal.examples.push(review.text);
+    }
+    if (text.includes('deposit') || text.includes('payment')) {
+      topics.deposit.count++;
+      if (topics.deposit.examples.length < 2) topics.deposit.examples.push(review.text);
+    }
+    if (text.includes('bonus') || text.includes('promotion')) {
+      topics.bonus.count++;
+      if (topics.bonus.examples.length < 2) topics.bonus.examples.push(review.text);
+    }
+    if (text.includes('game') || text.includes('slot') || text.includes('casino')) {
+      topics.games.count++;
+      if (topics.games.examples.length < 2) topics.games.examples.push(review.text);
+    }
+    if (text.includes('mobile') || text.includes('app')) {
+      topics.mobileApp.count++;
+      if (topics.mobileApp.examples.length < 2) topics.mobileApp.examples.push(review.text);
+    }
+  });
+  
+  // Convert to sections with percentages
+  Object.entries(topics).forEach(([topic, data]) => {
+    if (data.count > 0) {
+      const percentage = Math.round((data.count / positiveReviews.length) * 100);
+      sections.push({
+        topic: topic.charAt(0).toUpperCase() + topic.slice(1).replace(/([A-Z])/g, ' $1'),
+        percentage: `${percentage}%`,
+        examples: data.examples
+      });
+    }
+  });
+  
+  return sections.sort((a, b) => parseInt(b.percentage) - parseInt(a.percentage));
+}
+
+function generatePainPoints(reviews: Review[], businessName: string): Array<{topic: string, percentage: string, examples: string[]}> {
+  if (reviews.length === 0) return [];
+  
+  const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
+  const sections: Array<{topic: string, percentage: string, examples: string[]}> = [];
+  
+  // Analyze topics for negative feedback
+  const topics = {
+    withdrawal: { count: 0, examples: [] },
+    customerService: { count: 0, examples: [] },
+    deposit: { count: 0, examples: [] },
+    bonus: { count: 0, examples: [] },
+    games: { count: 0, examples: [] },
+    mobileApp: { count: 0, examples: [] },
+    verification: { count: 0, examples: [] }
+  };
+  
+  negativeReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    if (text.includes('withdrawal') || text.includes('payout')) {
+      topics.withdrawal.count++;
+      if (topics.withdrawal.examples.length < 2) topics.withdrawal.examples.push(review.text);
+    }
+    if (text.includes('service') || text.includes('support') || text.includes('help')) {
+      topics.customerService.count++;
+      if (topics.customerService.examples.length < 2) topics.customerService.examples.push(review.text);
+    }
+    if (text.includes('deposit') || text.includes('payment')) {
+      topics.deposit.count++;
+      if (topics.deposit.examples.length < 2) topics.deposit.examples.push(review.text);
+    }
+    if (text.includes('bonus') || text.includes('promotion')) {
+      topics.bonus.count++;
+      if (topics.bonus.examples.length < 2) topics.bonus.examples.push(review.text);
+    }
+    if (text.includes('game') || text.includes('slot') || text.includes('casino')) {
+      topics.games.count++;
+      if (topics.games.examples.length < 2) topics.games.examples.push(review.text);
+    }
+    if (text.includes('mobile') || text.includes('app')) {
+      topics.mobileApp.count++;
+      if (topics.mobileApp.examples.length < 2) topics.mobileApp.examples.push(review.text);
+    }
+    if (text.includes('verification') || text.includes('kyc') || text.includes('id')) {
+      topics.verification.count++;
+      if (topics.verification.examples.length < 2) topics.verification.examples.push(review.text);
+    }
+  });
+  
+  // Convert to sections with percentages
+  Object.entries(topics).forEach(([topic, data]) => {
+    if (data.count > 0) {
+      const percentage = Math.round((data.count / negativeReviews.length) * 100);
+      sections.push({
+        topic: topic.charAt(0).toUpperCase() + topic.slice(1).replace(/([A-Z])/g, ' $1'),
+        percentage: `${percentage}%`,
+        examples: data.examples
+      });
+    }
+  });
+  
+  return sections.sort((a, b) => parseInt(b.percentage) - parseInt(a.percentage));
+}
+
+function generateAlerts(reviews: Review[], businessName: string): Array<{type: string, message: string, metric: string}> {
+  if (reviews.length === 0) return [];
+  
+  const alerts: Array<{type: string, message: string, metric: string}> = [];
+  const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
+  const negativePercentage = Math.round((negativeReviews.length / reviews.length) * 100);
+  
+  // High negative sentiment alert
+  if (negativePercentage > 50) {
+    alerts.push({
+      type: 'critical',
+      message: `High negative sentiment detected`,
+      metric: `${negativePercentage}% negative reviews`
+    });
+  }
+  
+  // Withdrawal issues alert
+  const withdrawalIssues = negativeReviews.filter(r => 
+    r.text.toLowerCase().includes('withdrawal') || r.text.toLowerCase().includes('payout')
+  );
+  if (withdrawalIssues.length > 0) {
+    alerts.push({
+      type: 'warning',
+      message: 'Withdrawal processing issues reported',
+      metric: `${withdrawalIssues.length} complaints`
+    });
+  }
+  
+  // Customer service issues alert
+  const serviceIssues = negativeReviews.filter(r => 
+    r.text.toLowerCase().includes('service') || r.text.toLowerCase().includes('support')
+  );
+  if (serviceIssues.length > 0) {
+    alerts.push({
+      type: 'warning',
+      message: 'Customer service quality concerns',
+      metric: `${serviceIssues.length} complaints`
+    });
+  }
+  
+  return alerts;
+}
+
+function generateTopHighlights(reviews: Review[], businessName: string): Array<{title: string, description: string, businessImpact?: string}> {
+  if (reviews.length === 0) return [];
+  
+  const highlights: Array<{title: string, description: string, businessImpact?: string}> = [];
+  const positiveReviews = reviews.filter(r => (r.rating || 0) >= 4);
+  const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
+  
+  // Sentiment overview
+  const positivePercentage = Math.round((positiveReviews.length / reviews.length) * 100);
+  const negativePercentage = Math.round((negativeReviews.length / reviews.length) * 100);
+  
+  highlights.push({
+    title: 'Customer Sentiment Overview',
+    description: `${positivePercentage}% positive, ${negativePercentage}% negative reviews`,
+    businessImpact: 'Overall customer satisfaction trends'
+  });
+  
+  // Most common issues
+  const withdrawalIssues = negativeReviews.filter(r => 
+    r.text.toLowerCase().includes('withdrawal') || r.text.toLowerCase().includes('payout')
+  );
+  if (withdrawalIssues.length > 0) {
+    highlights.push({
+      title: 'Withdrawal Processing',
+      description: `${withdrawalIssues.length} customers reported withdrawal issues`,
+      businessImpact: 'Critical for customer retention and trust'
+    });
+  }
+  
+  // Service quality
+  const serviceIssues = negativeReviews.filter(r => 
+    r.text.toLowerCase().includes('service') || r.text.toLowerCase().includes('support')
+  );
+  if (serviceIssues.length > 0) {
+    highlights.push({
+      title: 'Customer Service Quality',
+      description: `${serviceIssues.length} customers reported service issues`,
+      businessImpact: 'Direct impact on customer satisfaction and retention'
+    });
+  }
+  
+  return highlights;
+}
+
 function generateDetailedExecutiveSummary(reviews: Review[], businessName: string): string {
   if (reviews.length === 0) {
     return `No review data available for ${businessName}. Please ensure reviews are properly scraped and analyzed.`;
@@ -3957,19 +4169,25 @@ async function analyzeReviewsWithOpenAI(reviews: Review[], businessName: string,
   const sentimentChanges = calculateRealChanges(reviews);
   console.log('📈 Sentiment changes:', sentimentChanges);
   
+  // Generate praised sections, pain points, and alerts from real data
+  const praisedSections = generatePraisedSections(reviews, businessName);
+  const painPoints = generatePainPoints(reviews, businessName);
+  const alerts = generateAlerts(reviews, businessName);
+  const topHighlights = generateTopHighlights(reviews, businessName);
+
   const realDataAnalysis = {
     executiveSummary: {
       overview: executiveSummary,
       sentimentChange: sentimentChanges.sentimentChange,
       volumeChange: sentimentChanges.volumeChange,
-      mostPraised: "Customer Service",
-      topComplaint: "Product Quality",
-      praisedSections: [],
-      painPoints: [],
-      alerts: [],
+      mostPraised: praisedSections.length > 0 ? praisedSections[0].topic : "Customer Service",
+      topComplaint: painPoints.length > 0 ? painPoints[0].topic : "Product Quality",
+      praisedSections: praisedSections,
+      painPoints: painPoints,
+      alerts: alerts,
       context: "Real data processing analysis",
       dataSource: `Analyzed ${reviews.length} reviews`,
-      topHighlights: []
+      topHighlights: topHighlights
     },
       keyInsights: generateRealInsights(reviews, businessName),
       trendingTopics: generateTrendingTopics(reviews),
