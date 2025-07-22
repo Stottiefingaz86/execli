@@ -841,15 +841,83 @@ export default function ReportPageContent({
       console.log(`📊 Backend data - Positive: ${topicData?.positive}, Negative: ${topicData?.negative}, Total: ${topicData?.total}`);
       console.log(`📝 Raw mentions count: ${rawMentions.length}`);
       
-      // Use backend data directly - no frontend sentiment assignment
-      const reviews = rawMentions.map((text: string) => ({
-        text,
-        sentiment: "neutral", // Let backend AI determine sentiment
-        topic: topicName,
-        highlightedText: highlightKeywords(text, topicName),
-      }));
+      // Use backend sentiment data to properly classify reviews
+      const reviews = rawMentions.map((text: string) => {
+        // Use enhanced text analysis to determine sentiment for each review
+        const lowerText = text.toLowerCase();
+        
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+          'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+          'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+          'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+          'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+          'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+          'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+          'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+          'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+          'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying',
+          'highly recommend', 'definitely recommend', 'strongly recommend', 'absolutely love', 'really love',
+          'very satisfied', 'extremely satisfied', 'very happy', 'extremely happy', 'very pleased',
+          'excellent experience', 'great experience', 'amazing experience', 'fantastic experience',
+          'outstanding service', 'excellent service', 'great service', 'amazing service',
+          'fast payout', 'quick payout', 'easy withdrawal', 'smooth withdrawal', 'reliable payout',
+          'trustworthy', 'honest', 'fair', 'transparent', 'legitimate', 'reputable', 'credible',
+          'no problems', 'no issues', 'no complaints', 'everything works', 'works perfectly',
+          'excellent customer service', 'great customer service', 'amazing customer service',
+          'very helpful', 'extremely helpful', 'very responsive', 'extremely responsive',
+          'professional service', 'quality service', 'high quality service', 'premium service'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam',
+          'annoying', 'ridiculous', 'unacceptable', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+          'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+          'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+          'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+          'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+          'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+          'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+          'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+          'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+          'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful',
+          'scam', 'fraud', 'fake', 'phony', 'bogus', 'sham', 'hoax', 'rip-off', 'con',
+          'never pay', 'don\'t pay', 'won\'t pay', 'refuse to pay', 'avoid paying',
+          'withdrawal problem', 'payout problem', 'money problem', 'payment problem',
+          'customer service terrible', 'support terrible', 'service terrible',
+          'very slow', 'extremely slow', 'too slow', 'painfully slow',
+          'very difficult', 'extremely difficult', 'too difficult', 'impossible',
+          'very expensive', 'extremely expensive', 'too expensive', 'overpriced',
+          'very poor', 'extremely poor', 'terrible quality', 'awful quality',
+          'not recommend', 'would not recommend', 'do not recommend', 'avoid',
+          'stay away', 'run away', 'beware', 'warning', 'caution', 'danger'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        let sentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
+        if (positiveCount > negativeCount) {
+          sentiment = 'positive';
+        } else if (negativeCount > positiveCount) {
+          sentiment = 'negative';
+        }
+        
+        return {
+          text,
+          sentiment,
+          topic: topicName,
+          highlightedText: highlightKeywords(text, topicName),
+        };
+      });
 
-      console.log(`✅ Using backend data directly - ${reviews.length} reviews`);
+      console.log(`✅ Using enhanced sentiment analysis - ${reviews.length} reviews`);
 
       setSelectedTopic(topicName);
       setSelectedReviews(reviews);
@@ -859,13 +927,80 @@ export default function ReportPageContent({
 
   const handleInsightClick = (insight: any) => {
     if (insight.rawMentions && insight.rawMentions.length > 0) {
-      // Use backend data directly - no frontend sentiment assignment
-      const reviews = insight.rawMentions.map((text: string) => ({
-        text,
-        sentiment: "neutral", // Let backend AI determine sentiment
-        topic: insight.insight,
-        highlightedText: highlightKeywords(text, insight.insight)
-      }));
+      // Use enhanced sentiment analysis for each review
+      const reviews = insight.rawMentions.map((text: string) => {
+        const lowerText = text.toLowerCase();
+        
+        const positiveWords = [
+          'good', 'great', 'excellent', 'amazing', 'fantastic', 'love', 'perfect', 'best', 'awesome', 'outstanding',
+          'wonderful', 'brilliant', 'superb', 'exceptional', 'satisfied', 'happy', 'pleased', 'enjoyed', 'liked',
+          'recommend', 'vouch', 'can\'t complain', 'no complaints', 'smooth', 'easy', 'fast', 'quick',
+          'reliable', 'trustworthy', 'honest', 'fair', 'transparent', 'helpful', 'supportive', 'responsive',
+          'professional', 'friendly', 'polite', 'courteous', 'efficient', 'effective', 'quality', 'high quality',
+          'excellent service', 'great service', 'good service', 'amazing service', 'fantastic service',
+          'satisfied', 'pleased', 'happy', 'content', 'impressed', 'surprised', 'exceeded expectations',
+          'above average', 'top notch', 'first class', 'premium', 'superior', 'outstanding', 'remarkable',
+          'smooth experience', 'easy to use', 'user friendly', 'convenient', 'accessible', 'available',
+          'prompt', 'timely', 'on time', 'quick response', 'fast response', 'immediate', 'instant',
+          'reliable', 'dependable', 'consistent', 'stable', 'secure', 'safe', 'protected',
+          'value', 'worth', 'worthwhile', 'beneficial', 'advantageous', 'profitable', 'rewarding',
+          'enjoyable', 'pleasant', 'nice', 'comfortable', 'satisfying', 'fulfilling', 'gratifying',
+          'highly recommend', 'definitely recommend', 'strongly recommend', 'absolutely love', 'really love',
+          'very satisfied', 'extremely satisfied', 'very happy', 'extremely happy', 'very pleased',
+          'excellent experience', 'great experience', 'amazing experience', 'fantastic experience',
+          'outstanding service', 'excellent service', 'great service', 'amazing service',
+          'fast payout', 'quick payout', 'easy withdrawal', 'smooth withdrawal', 'reliable payout',
+          'trustworthy', 'honest', 'fair', 'transparent', 'legitimate', 'reputable', 'credible',
+          'no problems', 'no issues', 'no complaints', 'everything works', 'works perfectly',
+          'excellent customer service', 'great customer service', 'amazing customer service',
+          'very helpful', 'extremely helpful', 'very responsive', 'extremely responsive',
+          'professional service', 'quality service', 'high quality service', 'premium service'
+        ];
+        
+        const negativeWords = [
+          'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disappointing', 'poor', 'useless', 'scam',
+          'annoying', 'ridiculous', 'unacceptable', 'waste', 'problem', 'issue', 'complaint',
+          'slow', 'difficult', 'complicated', 'confusing', 'unclear', 'hidden', 'charges', 'fees',
+          'unreliable', 'untrustworthy', 'dishonest', 'unfair', 'untransparent', 'unhelpful', 'unresponsive',
+          'charge', 'fee', 'forced', 'ridiculous', 'problem', 'issue', 'broken', 'not working', 'error',
+          'disappointing', 'unsatisfactory', 'inadequate', 'subpar', 'mediocre', 'average', 'ordinary',
+          'difficult', 'hard', 'challenging', 'complex', 'complicated', 'confusing', 'unclear', 'vague',
+          'slow', 'delayed', 'late', 'behind', 'overdue', 'waiting', 'queue', 'line',
+          'expensive', 'costly', 'overpriced', 'pricey', 'high cost', 'high price', 'overcharged',
+          'unprofessional', 'rude', 'impolite', 'disrespectful', 'unfriendly', 'hostile', 'aggressive',
+          'incompetent', 'unskilled', 'amateur', 'inexperienced', 'unqualified', 'untrained',
+          'unavailable', 'inaccessible', 'unreachable', 'uncontactable', 'no response', 'ignored',
+          'unsafe', 'insecure', 'vulnerable', 'exposed', 'at risk', 'dangerous', 'hazardous',
+          'worthless', 'pointless', 'meaningless', 'useless', 'ineffective', 'inefficient', 'wasteful',
+          'scam', 'fraud', 'fake', 'phony', 'bogus', 'sham', 'hoax', 'rip-off', 'con',
+          'never pay', 'don\'t pay', 'won\'t pay', 'refuse to pay', 'avoid paying',
+          'withdrawal problem', 'payout problem', 'money problem', 'payment problem',
+          'customer service terrible', 'support terrible', 'service terrible',
+          'very slow', 'extremely slow', 'too slow', 'painfully slow',
+          'very difficult', 'extremely difficult', 'too difficult', 'impossible',
+          'very expensive', 'extremely expensive', 'too expensive', 'overpriced',
+          'very poor', 'extremely poor', 'terrible quality', 'awful quality',
+          'not recommend', 'would not recommend', 'do not recommend', 'avoid',
+          'stay away', 'run away', 'beware', 'warning', 'caution', 'danger'
+        ];
+        
+        const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+        const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+        
+        let sentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
+        if (positiveCount > negativeCount) {
+          sentiment = 'positive';
+        } else if (negativeCount > positiveCount) {
+          sentiment = 'negative';
+        }
+        
+        return {
+          text,
+          sentiment,
+          topic: insight.insight,
+          highlightedText: highlightKeywords(text, insight.insight)
+        };
+      });
 
       setSelectedTopic(insight.insight);
       setSelectedReviews(reviews);
