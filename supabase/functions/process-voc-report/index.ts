@@ -2243,124 +2243,211 @@ function generateMarketGaps(reviews: Review[]): Array<{gap: string, mentions: nu
   if (reviews.length === 0) return [];
   
   const negativeReviews = reviews.filter(r => (r.rating || 0) <= 2);
+  const allReviews = reviews;
   
-  // Define specific market gaps based on actual customer complaints
-  const marketGaps = [
-    {
-      gap: 'Withdrawal Processing Speed',
-      keywords: ['withdrawal', 'payout', 'cash out', 'money out', 'slow', 'delay', 'wait'],
-      suggestion: 'Implement instant withdrawal processing for verified accounts',
-      opportunity: 'Reduce withdrawal time from days to minutes for trusted users',
-      specificExamples: ['slow processing', 'delayed payouts', 'account locks', 'verification delays'],
-      priority: 'High',
-      customerImpact: 'Customers lose trust and switch to competitors due to slow payouts',
-      businessCase: 'Faster withdrawals will reduce customer churn by 40% and increase deposit frequency',
-      implementation: 'Implement automated verification system and partner with faster payment processors'
-    },
-    {
-      gap: 'Arcade Game Fairness',
-      keywords: ['arcade', 'bingo', 'jackpot', 'temple', 'parade', 'phoenix', 'rigged', 'cheat', 'bot'],
-      suggestion: 'Improve transparency in arcade game algorithms and payout rates',
-      opportunity: 'Show real-time win rates and implement provably fair gaming',
-      specificExamples: ['rigged games', 'bots and fraud', 'unfair algorithms', 'hidden mechanics'],
-      priority: 'Critical',
-      customerImpact: 'Players feel cheated and stop playing, leading to revenue loss',
-      businessCase: 'Fair gaming will increase player retention by 60% and boost daily active users',
-      implementation: 'Implement blockchain-based provably fair system and publish win rates'
-    },
-    {
-      gap: 'Chat Room Community Management',
-      keywords: ['chat', 'chat master', 'chat host', 'regulars', 'inclusion', 'shut down'],
-      suggestion: 'Improve chat room moderation and create inclusive community guidelines',
-      opportunity: 'Balance moderation with community engagement for new and regular users',
-      specificExamples: ['exclusive chat rooms', 'favoritism', 'poor moderation', 'unwelcoming environment'],
-      priority: 'Medium',
-      customerImpact: 'New users feel excluded, reducing community engagement and retention',
-      businessCase: 'Better community management will increase user engagement by 35%',
-      implementation: 'Train chat hosts on inclusivity and implement fair moderation policies'
-    },
-    {
-      gap: 'Bonus Transparency',
-      keywords: ['bonus', 'promotion', 'hidden', 'terms', 'wagering', 'expire'],
-      suggestion: 'Make bonus terms crystal clear and reduce wagering requirements',
-      opportunity: 'Create transparent, achievable bonus offers that customers actually want',
-      specificExamples: ['hidden terms', 'high wagering requirements', 'short expiration times', 'unclear conditions'],
-      priority: 'High',
-      customerImpact: 'Customers feel misled and distrust all promotional offers',
-      businessCase: 'Transparent bonuses will increase conversion rates by 50% and reduce complaints',
-      implementation: 'Simplify bonus terms and create clear, visual explanations'
-    },
-    {
-      gap: 'Account Security & Trust',
-      keywords: ['scam', 'fraud', 'trust', 'security', 'untrustworthy', 'dishonest'],
-      suggestion: 'Implement stronger security measures and improve customer trust',
-      opportunity: 'Build trust through transparency, security, and fair treatment',
-      specificExamples: ['scam concerns', 'trust issues', 'security concerns', 'regulatory issues'],
-      priority: 'Critical',
-      customerImpact: 'Loss of customer trust leads to mass account closures and negative word-of-mouth',
-      businessCase: 'Building trust will reduce customer churn by 70% and increase lifetime value',
-      implementation: 'Obtain additional licenses, implement advanced security, and publish trust reports'
-    },
-    {
-      gap: 'Mobile App Performance',
-      keywords: ['mobile', 'app', 'crash', 'bug', 'slow', 'lag', 'freeze'],
-      suggestion: 'Fix app crashes and improve overall mobile performance',
-      opportunity: 'Create a smooth, reliable mobile gaming experience',
-      specificExamples: ['app crashes', 'slow performance', 'update issues', 'installation problems'],
-      priority: 'High',
-      customerImpact: 'Poor mobile experience drives users to competitors with better apps',
-      businessCase: 'Improved mobile app will increase mobile revenue by 45% and user retention',
-      implementation: 'Complete app rewrite with modern framework and extensive testing'
-    },
-    {
-      gap: 'Customer Service Quality',
-      keywords: ['service', 'support', 'help', 'unhelpful', 'rude', 'slow response'],
-      suggestion: 'Improve customer service response times and agent training',
-      opportunity: 'Provide 24/7 support with knowledgeable, empathetic agents',
-      specificExamples: ['slow response times', 'unhelpful support', 'unavailable support', 'rude staff'],
-      priority: 'High',
-      customerImpact: 'Poor service leads to customer frustration and negative reviews',
-      businessCase: 'Better customer service will improve satisfaction scores by 60% and reduce complaints',
-      implementation: 'Hire more agents, improve training, and implement 24/7 live chat'
-    }
+  // Analyze actual review content to identify market gaps
+  const allText = allReviews.map(r => r.text.toLowerCase()).join(' ');
+  const negativeText = negativeReviews.map(r => r.text.toLowerCase()).join(' ');
+  
+  // Extract actual issues mentioned in reviews
+  const issues = new Map<string, {mentions: number, reviews: string[], examples: string[]}>();
+  
+  // Common issue patterns from actual review content
+  const issuePatterns = [
+    { pattern: /(slow|delay|wait|long time)/g, name: 'Slow Processing' },
+    { pattern: /(fee|charge|cost|expensive)/g, name: 'High Fees' },
+    { pattern: /(scam|fraud|fake|dishonest)/g, name: 'Trust Issues' },
+    { pattern: /(rigged|cheat|bot|unfair)/g, name: 'Game Fairness' },
+    { pattern: /(crash|bug|error|broken)/g, name: 'Technical Issues' },
+    { pattern: /(rude|unhelpful|useless|poor service)/g, name: 'Poor Customer Service' },
+    { pattern: /(limited|few|restricted)/g, name: 'Limited Options' },
+    { pattern: /(complicated|confusing|difficult)/g, name: 'Complex Processes' },
+    { pattern: /(hidden|unclear|vague)/g, name: 'Lack of Transparency' },
+    { pattern: /(reject|deny|decline)/g, name: 'Frequent Rejections' },
+    { pattern: /(bonus|promotion|terms|wagering)/g, name: 'Bonus Issues' },
+    { pattern: /(withdrawal|payout|cash out)/g, name: 'Withdrawal Problems' },
+    { pattern: /(chat|host|moderation)/g, name: 'Community Issues' },
+    { pattern: /(mobile|app|phone)/g, name: 'Mobile App Problems' },
+    { pattern: /(verification|document|proof)/g, name: 'Verification Issues' }
   ];
   
-  // Generate gaps based on actual negative reviews
-  const gaps = marketGaps.map(gap => {
-    const matchingReviews = negativeReviews.filter(review => {
-      const text = review.text.toLowerCase();
-      return gap.keywords.some(keyword => text.includes(keyword));
+  // Analyze each review for issues
+  negativeReviews.forEach(review => {
+    const text = review.text.toLowerCase();
+    
+    issuePatterns.forEach(({pattern, name}) => {
+      const matches = text.match(pattern);
+      if (matches && matches.length > 0) {
+        if (!issues.has(name)) {
+          issues.set(name, { mentions: 0, reviews: [], examples: [] });
+        }
+        
+        const issue = issues.get(name)!;
+        issue.mentions += matches.length;
+        issue.reviews.push(review.text);
+        
+        // Extract specific examples
+        const specificMatch = matches[0];
+        if (!issue.examples.includes(specificMatch)) {
+          issue.examples.push(specificMatch);
+        }
+      }
     });
+  });
+  
+  // Convert issues to market gaps
+  const gaps = Array.from(issues.entries()).map(([issueName, data]) => {
+    if (data.mentions < 2) return null; // Only include issues with multiple mentions
     
-    const mentions = matchingReviews.length;
+    // Generate dynamic suggestions based on the issue
+    let suggestion = '';
+    let opportunity = '';
+    let priority = 'Medium';
+    let customerImpact = '';
+    let businessCase = '';
+    let implementation = '';
     
-    if (mentions === 0) return null;
+    switch (issueName) {
+      case 'Slow Processing':
+        suggestion = 'Implement faster processing systems and automated workflows';
+        opportunity = 'Reduce processing time by 80% through automation and better systems';
+        priority = 'High';
+        customerImpact = 'Slow processing frustrates customers and drives them to competitors';
+        businessCase = 'Faster processing will improve customer satisfaction by 60% and reduce complaints';
+        implementation = 'Implement automated systems and optimize internal workflows';
+        break;
+      case 'High Fees':
+        suggestion = 'Review and reduce fees to be more competitive';
+        opportunity = 'Offer transparent, competitive pricing to attract more customers';
+        priority = 'High';
+        customerImpact = 'High fees deter new customers and drive existing ones away';
+        businessCase = 'Competitive pricing will increase customer acquisition by 40%';
+        implementation = 'Audit all fees and implement transparent pricing structure';
+        break;
+      case 'Trust Issues':
+        suggestion = 'Improve transparency and build customer trust through better communication';
+        opportunity = 'Become the most trusted brand in the industry through transparency';
+        priority = 'Critical';
+        customerImpact = 'Loss of trust leads to mass customer exodus and negative word-of-mouth';
+        businessCase = 'Building trust will reduce churn by 70% and increase lifetime value';
+        implementation = 'Implement transparent policies and regular trust reports';
+        break;
+      case 'Game Fairness':
+        suggestion = 'Implement provably fair gaming and transparent algorithms';
+        opportunity = 'Lead the industry in fair gaming practices';
+        priority = 'Critical';
+        customerImpact = 'Unfair games drive players away and damage reputation';
+        businessCase = 'Fair gaming will increase player retention by 60%';
+        implementation = 'Implement blockchain-based provably fair system';
+        break;
+      case 'Technical Issues':
+        suggestion = 'Fix bugs and improve overall system reliability';
+        opportunity = 'Create a seamless, bug-free user experience';
+        priority = 'High';
+        customerImpact = 'Technical issues frustrate users and reduce engagement';
+        businessCase = 'Reliable systems will increase user satisfaction by 50%';
+        implementation = 'Implement comprehensive testing and monitoring';
+        break;
+      case 'Poor Customer Service':
+        suggestion = 'Improve customer service training and response times';
+        opportunity = 'Provide exceptional customer service that exceeds expectations';
+        priority = 'High';
+        customerImpact = 'Poor service leads to customer frustration and negative reviews';
+        businessCase = 'Better service will improve satisfaction scores by 60%';
+        implementation = 'Hire more agents and improve training programs';
+        break;
+      case 'Limited Options':
+        suggestion = 'Expand product offerings and payment methods';
+        opportunity = 'Provide comprehensive options to meet all customer needs';
+        priority = 'Medium';
+        customerImpact = 'Limited options drive customers to competitors with more choices';
+        businessCase = 'More options will increase customer acquisition by 30%';
+        implementation = 'Research customer needs and expand offerings';
+        break;
+      case 'Complex Processes':
+        suggestion = 'Simplify user interfaces and processes';
+        opportunity = 'Create intuitive, easy-to-use experiences';
+        priority = 'Medium';
+        customerImpact = 'Complex processes confuse users and reduce engagement';
+        businessCase = 'Simplified processes will increase user adoption by 45%';
+        implementation = 'Redesign user interfaces and streamline workflows';
+        break;
+      case 'Lack of Transparency':
+        suggestion = 'Improve communication and make policies crystal clear';
+        opportunity = 'Become the most transparent brand in the industry';
+        priority = 'High';
+        customerImpact = 'Lack of transparency erodes trust and increases complaints';
+        businessCase = 'Transparency will reduce complaints by 50% and build trust';
+        implementation = 'Create clear, visual explanations of all policies';
+        break;
+      case 'Frequent Rejections':
+        suggestion = 'Improve approval processes and reduce false rejections';
+        opportunity = 'Create a more inclusive and fair approval system';
+        priority = 'High';
+        customerImpact = 'Frequent rejections frustrate customers and reduce trust';
+        businessCase = 'Better approval processes will increase customer satisfaction by 40%';
+        implementation = 'Review and optimize approval algorithms and processes';
+        break;
+      case 'Bonus Issues':
+        suggestion = 'Make bonus terms clear and reduce wagering requirements';
+        opportunity = 'Create attractive, transparent bonus offers';
+        priority = 'Medium';
+        customerImpact = 'Unclear bonus terms mislead customers and reduce trust';
+        businessCase = 'Clear bonuses will increase conversion rates by 50%';
+        implementation = 'Simplify bonus terms and create clear explanations';
+        break;
+      case 'Withdrawal Problems':
+        suggestion = 'Streamline withdrawal processes and reduce processing times';
+        opportunity = 'Provide the fastest withdrawal experience in the industry';
+        priority = 'High';
+        customerImpact = 'Withdrawal problems are a major driver of customer churn';
+        businessCase = 'Faster withdrawals will reduce churn by 40%';
+        implementation = 'Implement automated verification and faster payment processing';
+        break;
+      case 'Community Issues':
+        suggestion = 'Improve chat room moderation and community guidelines';
+        opportunity = 'Create an inclusive, welcoming community environment';
+        priority = 'Medium';
+        customerImpact = 'Poor community management reduces user engagement';
+        businessCase = 'Better community management will increase engagement by 35%';
+        implementation = 'Train moderators and implement clear community guidelines';
+        break;
+      case 'Mobile App Problems':
+        suggestion = 'Fix mobile app issues and improve performance';
+        opportunity = 'Create the best mobile gaming experience';
+        priority = 'High';
+        customerImpact = 'Poor mobile experience drives users to competitors';
+        businessCase = 'Improved mobile app will increase mobile revenue by 45%';
+        implementation = 'Complete app rewrite with modern framework';
+        break;
+      case 'Verification Issues':
+        suggestion = 'Streamline verification processes and improve documentation';
+        opportunity = 'Create a smooth, fast verification experience';
+        priority = 'Medium';
+        customerImpact = 'Verification problems delay account activation and frustrate users';
+        businessCase = 'Better verification will increase account activation by 30%';
+        implementation = 'Simplify verification requirements and improve processes';
+        break;
+    }
     
     return {
-      gap: gap.gap,
-      mentions: mentions,
-      suggestion: gap.suggestion,
-      kpiImpact: `Improve ${gap.gap.toLowerCase()} satisfaction by 40%`,
-      rawMentions: matchingReviews.map(r => r.text),
-      context: `Customers consistently report issues with ${gap.gap.toLowerCase()}`,
-      opportunity: gap.opportunity,
-      specificExamples: gap.specificExamples,
-      priority: gap.priority,
-      customerImpact: gap.customerImpact,
-      businessCase: gap.businessCase,
-      implementation: gap.implementation
+      gap: issueName,
+      mentions: data.mentions,
+      suggestion: suggestion,
+      kpiImpact: `Improve ${issueName.toLowerCase()} satisfaction by 40%`,
+      rawMentions: data.reviews,
+      context: `${data.mentions} customers reported issues with ${issueName.toLowerCase()}`,
+      opportunity: opportunity,
+      specificExamples: data.examples.slice(0, 5), // Limit to 5 examples
+      priority: priority,
+      customerImpact: customerImpact,
+      businessCase: businessCase,
+      implementation: implementation
     };
   }).filter(gap => gap !== null);
   
-  // Sort by priority and mentions
-  return gaps.sort((a, b) => {
-    const priorityOrder = { 'Critical': 3, 'High': 2, 'Medium': 1, 'Low': 0 };
-    const aPriority = priorityOrder[a.priority] || 0;
-    const bPriority = priorityOrder[b.priority] || 0;
-    
-    if (aPriority !== bPriority) return bPriority - aPriority;
-    return b.mentions - a.mentions;
-  });
+  // Sort by mentions (most mentioned issues first)
+  return gaps.sort((a, b) => b.mentions - a.mentions);
 }
 
 async function generateMentionsByTopic(reviews: Review[], businessName: string): Promise<Array<{topic: string, positive: number, negative: number, neutral: number, total: number, rawMentions: string[], context?: string, mainConcern?: string, specificIssues?: string[]}>> {
