@@ -59,7 +59,7 @@ export default function Navigation({ hideLinks = false, hideAuth = false }: Navi
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center space-x-4">
-              <img src="/logo.svg" alt="Execli Logo" className="w-[180px] h-[100px] block" />
+              <img src="/logo.svg" alt="Execli Logo" className="w-[140px] h-[80px] block" />
             </Link>
           </div>
 
