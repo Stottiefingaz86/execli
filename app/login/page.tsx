@@ -55,7 +55,7 @@ export default function LoginPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-4">
-              <img src="/logo.svg" alt="Execli Logo" className="w-[120px] h-[70px] block" />
+              <img src="/logo.svg" alt="Execli Logo" className="w-[180px] h-[100px] block" />
             </Link>
             <Link 
               href="/signup" 

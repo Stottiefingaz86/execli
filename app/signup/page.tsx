@@ -48,15 +48,12 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#1a1a2e] relative overflow-hidden">
-      {/* Aurora Background */}
-      <Aurora />
-      
       {/* Navigation */}
       <nav className="relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-4">
-              <img src="/logo.svg" alt="Execli Logo" className="w-[120px] h-[70px] block" />
+              <img src="/logo.svg" alt="Execli Logo" className="w-[180px] h-[100px] block" />
             </Link>
             <Link 
               href="/login" 
@@ -196,11 +193,11 @@ export default function SignupPage() {
             {/* Terms */}
             <p className="text-xs text-[#B0B0C0] text-center mt-6">
               By creating an account, you agree to our{' '}
-              <Link href="/terms" className="text-blue-400 hover:text-blue-300">
+              <Link href="/terms" className="text-[#B0B0C0] hover:text-white underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-blue-400 hover:text-blue-300">
+              <Link href="/privacy" className="text-[#B0B0C0] hover:text-white underline">
                 Privacy Policy
               </Link>
             </p>
