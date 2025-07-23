@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthContext'
 import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle } from 'lucide-react'
 import Aurora from '@/components/Aurora'
+import Navigation from '@/components/Navigation'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -51,21 +52,7 @@ export default function LoginPage() {
       <Aurora />
       
       {/* Navigation */}
-      <nav className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-4">
-              <img src="/logo.svg" alt="Execli Logo" className="w-[180px] h-[100px] block" />
-            </Link>
-            <Link 
-              href="/signup" 
-              className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium"
-            >
-              Don't have an account? Sign up
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navigation hideLinks={true} />
 
       {/* Main Content */}
       <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
@@ -188,6 +175,16 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+
+            {/* Sign Up Link */}
+            <div className="mt-6 text-center">
+              <p className="text-[#B0B0C0] text-sm">
+                Don't have an account?{' '}
+                <Link href="/signup" className="text-white hover:text-[#B0B0C0] transition-colors underline">
+                  Sign up
+                </Link>
+              </p>
+            </div>
 
             {/* Divider */}
             <div className="mt-6">
