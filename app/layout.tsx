@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import MobileNav from '../components/MobileNav'
+import { AuthProvider } from '@/components/AuthContext'
 
 export const metadata: Metadata = {
   title: 'Execli - Modern SaaS Platform',
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-background text-text antialiased">
-        {children}
-        <MobileNav />
+        <AuthProvider>
+          {children}
+          <MobileNav />
+        </AuthProvider>
       </body>
     </html>
   )

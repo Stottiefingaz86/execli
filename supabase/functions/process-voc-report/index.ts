@@ -4654,15 +4654,28 @@ serve(async (req) => {
     
     console.log('Supabase client created successfully');
     
+    // Create or get user account (partial account for free reports)
+    const { data: userId, error: userError } = await supabase
+      .rpc('create_partial_account', { user_email: email })
+
+    if (userError) {
+      console.error('Error creating user account:', userError);
+      return new Response(JSON.stringify({ error: 'Failed to create user account', details: userError }), { status: 500 });
+    }
+
+    console.log('User account created/retrieved:', userId);
+
     // Create company record first
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .insert({
         name: business_name,
         email: email,
+        user_id: userId,
         status: 'processing',
         industry: industry || null,
-        ip_address: ip_address || null
+        ip_address: ip_address || null,
+        created_via: 'free_report'
       })
       .select()
       .single();
@@ -4679,12 +4692,14 @@ serve(async (req) => {
       .from('voc_reports')
       .insert({
         company_id: company.id,
+        user_id: userId,
         business_name: business_name,
         business_url: business_url,
         processed_at: new Date().toISOString(),
         sources: [],
         status: 'processing',
-        progress_message: 'Initializing your report...'
+        progress_message: 'Initializing your report...',
+        created_via: 'free_report'
       })
       .select()
       .single();

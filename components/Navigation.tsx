@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Share2, Check } from 'lucide-react'
+import { useAuth } from './AuthContext'
+import UserAvatar from './UserAvatar'
 
 interface NavigationProps {
   hideLinks?: boolean;
@@ -13,6 +15,7 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false)
   const pathname = usePathname()
+  const { user } = useAuth()
   
   // Check if we're on a report page
   const isReportPage = pathname?.startsWith('/report/')
@@ -113,17 +116,23 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
             </div>
           )}
 
-          {/* Auth Buttons */}
+          {/* Auth Buttons or User Avatar */}
           <div className="flex items-center space-x-4 flex-shrink-0">
-            <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
-              Login
-            </Link>
-            <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Create Account
-            </Link>
+            {user ? (
+              <UserAvatar />
+            ) : (
+              <>
+                <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
+                  Login
+                </Link>
+                <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  Create Account
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -208,17 +217,25 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
                 </div>
               )}
               
-              {/* Auth Buttons */}
+              {/* Auth Buttons or User Avatar */}
               <div className="space-y-2">
-                <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 block text-center">
-                  Login
-                </Link>
-                <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  Create Account
-                </Link>
+                {user ? (
+                  <div className="flex justify-center">
+                    <UserAvatar />
+                  </div>
+                ) : (
+                  <>
+                    <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 block text-center">
+                      Login
+                    </Link>
+                    <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Create Account
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
