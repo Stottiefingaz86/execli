@@ -9,9 +9,10 @@ import UserAvatar from './UserAvatar'
 
 interface NavigationProps {
   hideLinks?: boolean;
+  hideAuth?: boolean;
 }
 
-export default function Navigation({ hideLinks = false }: NavigationProps) {
+export default function Navigation({ hideLinks = false, hideAuth = false }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false)
   const pathname = usePathname()
@@ -111,20 +112,22 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
           )}
 
           {/* Auth Buttons or User Avatar */}
-          <div className="flex items-center space-x-4 flex-shrink-0">
-            {user ? (
-              <UserAvatar />
-            ) : (
-              <>
-                <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
-                  Login
-                </Link>
-                <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300">
-                  Sign Up
-                </Link>
-              </>
-            )}
-          </div>
+          {!hideAuth && (
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              {user ? (
+                <UserAvatar />
+              ) : (
+                <>
+                  <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
+                    Login
+                  </Link>
+                  <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300">
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Mobile menu button */}
           <div className="md:hidden flex-shrink-0">
@@ -209,22 +212,24 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
               )}
               
               {/* Auth Buttons or User Avatar */}
-              <div className="space-y-2">
-                {user ? (
-                  <div className="flex justify-center">
-                    <UserAvatar />
-                  </div>
-                ) : (
-                  <>
-                    <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 block text-center">
-                      Login
-                    </Link>
-                    <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 block text-center">
-                      Sign Up
-                    </Link>
-                  </>
-                )}
-              </div>
+              {!hideAuth && (
+                <div className="space-y-2">
+                  {user ? (
+                    <div className="flex justify-center">
+                      <UserAvatar />
+                    </div>
+                  ) : (
+                    <>
+                      <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 block text-center">
+                        Login
+                      </Link>
+                      <Link href="/signup" className="bg-white/90 backdrop-blur-sm text-[#181a20] w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white transition-all duration-300 block text-center">
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

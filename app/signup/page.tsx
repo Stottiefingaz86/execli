@@ -50,7 +50,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#1a1a2e] relative overflow-hidden">
       {/* Navigation */}
-      <Navigation hideLinks={true} />
+      <Navigation hideLinks={true} hideAuth={true} />
 
       {/* Main Content */}
       <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">

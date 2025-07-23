@@ -52,7 +52,7 @@ export default function LoginPage() {
       <Aurora />
       
       {/* Navigation */}
-      <Navigation hideLinks={true} />
+      <Navigation hideLinks={true} hideAuth={true} />
 
       {/* Main Content */}
       <div className="relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
