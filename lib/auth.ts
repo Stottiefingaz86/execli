@@ -78,13 +78,18 @@ export async function signOut() {
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
+    console.log('Getting current user...')
     const response = await fetch('/api/auth/me')
     
+    console.log('Response status:', response.status)
+    
     if (!response.ok) {
+      console.log('Response not ok, returning null')
       return null
     }
 
     const data = await response.json()
+    console.log('User data:', data)
     return data.user
   } catch (error) {
     console.error('Error getting current user:', error)

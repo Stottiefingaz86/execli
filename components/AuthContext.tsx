@@ -21,8 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
+      console.log('Refreshing user...')
       setState(prev => ({ ...prev, loading: true, error: null }))
       const user = await getCurrentUser()
+      console.log('User from getCurrentUser:', user)
       setState({ user, loading: false, error: null })
     } catch (error) {
       console.error('Error refreshing user:', error)
