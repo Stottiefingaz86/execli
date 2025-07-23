@@ -206,16 +206,17 @@ const TruncatedText = ({
     return <span>{text}</span>;
   }
 
-  // Use CSS ellipsis and a tooltip for overflow
+  // Use CSS ellipsis and a tooltip for overflow with better styling
   return (
     <span
-      className="truncate inline-block max-w-full align-bottom cursor-pointer"
+      className="inline-block cursor-pointer hover:text-blue-300 transition-colors"
       style={{
-        maxWidth: `${maxLength * 0.6}ch`, // Adjust width for best fit
+        maxWidth: `${maxLength * 0.6}ch`,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        verticalAlign: 'bottom',
+        display: 'inline-block',
+        lineHeight: '1.4',
       }}
       title={text}
     >
@@ -743,8 +744,16 @@ export default function ReportPageContent({
         console.log("executiveSummary:", !!data.executiveSummary);
         console.log("executiveSummary.painPoints:", data.executiveSummary?.painPoints?.length || 0);
         console.log("executiveSummary.praisedSections:", data.executiveSummary?.praisedSections?.length || 0);
+        console.log("executiveSummary.alerts:", data.executiveSummary?.alerts?.length || 0);
         console.log("sentimentOverTime:", data.sentimentOverTime?.length || 0);
         console.log("volumeOverTime:", data.volumeOverTime?.length || 0);
+        
+        // Debug executive summary data specifically
+        console.log("🔍 EXECUTIVE SUMMARY DEBUG:");
+        console.log("Full executiveSummary object:", data.executiveSummary);
+        console.log("Praised sections:", data.executiveSummary?.praisedSections);
+        console.log("Pain points:", data.executiveSummary?.painPoints);
+        console.log("Alerts:", data.executiveSummary?.alerts);
         
         // Debug the actual data being used
         console.log("🔍 ACTUAL DATA BEING USED:");
