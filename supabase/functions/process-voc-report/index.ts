@@ -1561,8 +1561,8 @@ function generateDailySentimentData(reviews: Review[], days: number): Array<{dat
             sentiment = Math.round(60 + (positivePercentage * 0.4));
             console.log(`Date ${dateStr}: POSITIVE sentiment = ${sentiment}`);
           } else if (negativePercentage > positivePercentage) {
-            // Negative sentiment: scale from 0-40
-            sentiment = Math.round(40 - (negativePercentage * 0.4));
+            // Negative sentiment: scale from 10-40 (never below 10)
+            sentiment = Math.round(Math.max(10, 40 - (negativePercentage * 0.3)));
             console.log(`Date ${dateStr}: NEGATIVE sentiment = ${sentiment}`);
           } else {
             // Neutral sentiment
@@ -3102,11 +3102,11 @@ function generateAdvancedMetrics(reviews: Review[]): {trustScore: number, repeat
   const validRatings = reviews.filter(r => r.rating && r.rating > 0);
   let trustScore = 50; // Default neutral score
   
-  if (validRatings.length > 0) {
-    const avgRating = validRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / validRatings.length;
-    // Convert 1-5 scale to 0-100 scale
-    trustScore = Math.round((avgRating / 5) * 100);
-  } else {
+      if (validRatings.length > 0) {
+      const avgRating = validRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / validRatings.length;
+      // Convert 1-5 scale to 0-100 scale, ensure minimum of 10
+      trustScore = Math.round(Math.max(10, (avgRating / 5) * 100));
+    } else {
     // Fallback to text analysis if no ratings
     const positiveReviews = reviews.filter(r => 
       r.text.toLowerCase().includes('good') || 
@@ -4956,12 +4956,12 @@ async function processReportInBackground(report_id: string, company_id: string, 
               volumeChange: calculateRealChanges(allReviews).volumeChange,
               mostPraised: "Customer Service",
               topComplaint: "Product Quality",
-              praisedSections: [],
-              painPoints: [],
-              alerts: [],
+              praisedSections: generatePraisedSections(allReviews, business_name),
+              painPoints: generatePainPoints(allReviews, business_name),
+              alerts: generateAlerts(allReviews, business_name),
               context: "Analysis based on real review data processing",
               dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
-              topHighlights: []
+              topHighlights: generateTopHighlights(allReviews, business_name)
             },
             keyInsights: generateRealInsights(allReviews, business_name),
             trendingTopics: generateTrendingTopics(allReviews),
@@ -5037,12 +5037,12 @@ async function processReportInBackground(report_id: string, company_id: string, 
             volumeChange: calculateRealChanges(allReviews).volumeChange,
             mostPraised: "Customer Service", // Will be determined by analysis
             topComplaint: "Product Quality", // Will be determined by analysis
-            praisedSections: [],
-            painPoints: [],
-            alerts: [],
+            praisedSections: generatePraisedSections(allReviews, business_name),
+            painPoints: generatePainPoints(allReviews, business_name),
+            alerts: generateAlerts(allReviews, business_name),
             context: "Analysis based on real review data due to AI processing error",
             dataSource: `Analyzed ${allReviews.length} reviews from ${scrapingResults.filter(r => r.success).map(r => r.platform).join(', ')}`,
-            topHighlights: []
+            topHighlights: generateTopHighlights(allReviews, business_name)
           },
           keyInsights: generateRealInsights(allReviews, business_name),
           trendingTopics: generateTrendingTopics(allReviews),

@@ -209,7 +209,7 @@ const TruncatedText = ({
   // Use CSS ellipsis and a tooltip for overflow with better styling
   return (
     <span
-      className="inline-block cursor-pointer hover:text-blue-300 transition-colors"
+      className="inline-block cursor-pointer hover:text-blue-300 transition-colors group relative"
       style={{
         maxWidth: `${maxLength * 0.6}ch`,
         overflow: 'hidden',
@@ -221,6 +221,11 @@ const TruncatedText = ({
       title={text}
     >
       {text}
+      {/* Enhanced tooltip */}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-xs">
+        {text}
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+      </div>
     </span>
   );
 };
