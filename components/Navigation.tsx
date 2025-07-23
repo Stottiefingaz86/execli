@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { Share2, Check } from 'lucide-react'
 
 interface NavigationProps {
   hideLinks?: boolean;
@@ -9,6 +11,11 @@ interface NavigationProps {
 
 export default function Navigation({ hideLinks = false }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showCopiedFeedback, setShowCopiedFeedback] = useState(false)
+  const pathname = usePathname()
+  
+  // Check if we're on a report page
+  const isReportPage = pathname?.startsWith('/report/')
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
@@ -16,6 +23,35 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
       element.scrollIntoView({ behavior: 'smooth' })
     }
     setIsMobileMenuOpen(false)
+  }
+
+  const handleShare = async () => {
+    try {
+      const currentUrl = window.location.href
+      await navigator.clipboard.writeText(currentUrl)
+      
+      // Show feedback
+      setShowCopiedFeedback(true)
+      
+      // Hide feedback after 2 seconds
+      setTimeout(() => {
+        setShowCopiedFeedback(false)
+      }, 2000)
+    } catch (error) {
+      console.error('Failed to copy URL:', error)
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = window.location.href
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      setShowCopiedFeedback(true)
+      setTimeout(() => {
+        setShowCopiedFeedback(false)
+      }, 2000)
+    }
   }
 
   return (
@@ -55,6 +91,28 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
             </div>
           )}
             
+          {/* Share Button - Only show on report pages */}
+          {isReportPage && (
+            <div className="flex items-center space-x-4 flex-shrink-0">
+              <button
+                onClick={handleShare}
+                className="relative border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 flex items-center gap-2"
+              >
+                {showCopiedFeedback ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4 flex-shrink-0">
             <Link href="/login" className="border border-white/30 bg-white/5 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300">
@@ -124,6 +182,28 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
                     className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                   >
                     Blog
+                  </button>
+                </div>
+              )}
+              
+              {/* Share Button - Mobile - Only show on report pages */}
+              {isReportPage && (
+                <div className="space-y-2">
+                  <button
+                    onClick={handleShare}
+                    className="border border-white/30 bg-white/5 backdrop-blur-sm text-white w-full px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    {showCopiedFeedback ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-4 h-4" />
+                        Share Report
+                      </>
+                    )}
                   </button>
                 </div>
               )}
