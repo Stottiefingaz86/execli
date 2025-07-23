@@ -20,13 +20,7 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
   // Check if we're on a report page
   const isReportPage = pathname?.startsWith('/report/')
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-    setIsMobileMenuOpen(false)
-  }
+
 
   const handleShare = async () => {
     try {
@@ -72,24 +66,24 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
           {!hideLinks && (
             <div className="hidden md:flex items-center justify-center flex-1">
               <div className="flex items-center space-x-8">
-                <button 
-                  onClick={() => scrollToSection('how-it-works')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                <Link 
+                  href="/#how-it-works"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium"
                 >
                   How it works
-                </button>
-                <button 
-                  onClick={() => scrollToSection('pricing')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                </Link>
+                <Link 
+                  href="/#pricing"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium"
                 >
                   Pricing
-                </button>
-                <button 
-                  onClick={() => scrollToSection('blog')}
-                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium cursor-pointer"
+                </Link>
+                <Link 
+                  href="/blog"
+                  className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium"
                 >
                   Blog
-                </button>
+                </Link>
               </div>
             </div>
           )}
@@ -174,24 +168,24 @@ export default function Navigation({ hideLinks = false }: NavigationProps) {
               {/* Main Navigation Links */}
               {!hideLinks && (
                 <div className="space-y-2 mb-4">
-                  <button 
-                    onClick={() => scrollToSection('how-it-works')}
+                  <Link 
+                    href="/#how-it-works"
                     className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                   >
                     How it works
-                  </button>
-                  <button 
-                    onClick={() => scrollToSection('pricing')}
+                  </Link>
+                  <Link 
+                    href="/#pricing"
                     className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                   >
                     Pricing
-                  </button>
-                  <button 
-                    onClick={() => scrollToSection('blog')}
+                  </Link>
+                  <Link 
+                    href="/blog"
                     className="text-white hover:text-[#B0B0C0] transition-colors duration-200 text-sm font-medium block py-2 w-full text-left"
                   >
                     Blog
-                  </button>
+                  </Link>
                 </div>
               )}
               
