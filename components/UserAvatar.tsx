@@ -75,7 +75,7 @@ export default function UserAvatar({ className = '' }: UserAvatarProps) {
 
   if (!user) return null
 
-  const getInitials = (name?: string, email: string) => {
+  const getInitials = (name: string, email: string) => {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     }
@@ -98,7 +98,7 @@ export default function UserAvatar({ className = '' }: UserAvatarProps) {
           />
         ) : (
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-            {getInitials(user.full_name, user.email)}
+            {getInitials(user.full_name || "", user.email)}
           </div>
         )}
         <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -126,7 +126,7 @@ export default function UserAvatar({ className = '' }: UserAvatarProps) {
                 />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
-                  {getInitials(user.full_name, user.email)}
+                  {getInitials(user.full_name || "", user.email)}
                 </div>
               )}
               <div>

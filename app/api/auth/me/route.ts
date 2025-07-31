@@ -59,25 +59,25 @@ export async function GET(request: NextRequest) {
     const { count: reportsCount } = await supabase
       .from('voc_reports')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user_accounts.id)
+      .eq('user_id', session.user_accounts[0].id)
 
     // Get user's plan info
     const { data: userPlan } = await supabase
       .from('user_plans')
       .select('plan_type, monthly_reports_limit, features')
-      .eq('user_id', session.user_accounts.id)
+      .eq('user_id', session.user_accounts[0].id)
       .eq('status', 'active')
       .single()
 
     return NextResponse.json({
       success: true,
       user: {
-        id: session.user_accounts.id,
-        email: session.user_accounts.email,
-        full_name: session.user_accounts.full_name,
-        avatar_url: session.user_accounts.avatar_url,
-        account_type: session.user_accounts.account_type,
-        email_verified: session.user_accounts.email_verified,
+        id: session.user_accounts[0].id,
+        email: session.user_accounts[0].email,
+        full_name: session.user_accounts[0].full_name,
+        avatar_url: session.user_accounts[0].avatar_url,
+        account_type: session.user_accounts[0].account_type,
+        email_verified: session.user_accounts[0].email_verified,
         reports_count: reportsCount || 0,
         plan: userPlan || {
           plan_type: 'free',
